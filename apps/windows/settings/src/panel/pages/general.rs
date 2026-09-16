@@ -15,6 +15,9 @@ pub(crate) const SHUANGPIN: [(&str, &str); 5] = [
     ("搜狗双拼", "sogou"),
 ];
 
+/// 辅码方案：界面名 + 配置写法（空串为关）。
+pub(crate) const FUMA: [(&str, &str); 2] = [("关（不启用辅码）", ""), ("小鹤辅码", "xiaohe")];
+
 fn string_combo(
     options: &'static [(&str, &str)],
     current: &str,
@@ -47,6 +50,15 @@ pub(crate) fn view(settings: &Settings, context: &mut ViewContext<Settings>) -> 
                 &g.shuangpin,
                 context.callback(Message::Shuangpin),
             ),
+        ),
+        field(
+            "辅码",
+            "开双拼后可用：打完双拼再敲两个大写辅码键严格筛选候选（首字第 1 码 + 末字第 1 码，单字取两码），对不上就不出候选；第一码大写表示反转顺序。辅码键不是要打的内容。",
+            {
+                let combo = string_combo(&FUMA, &g.fuma, context.callback(Message::Fuma));
+                let has_shuangpin = !g.shuangpin.trim().is_empty();
+                combo.is_enabled(has_shuangpin)
+            },
         ),
         field(
             "大千注音",

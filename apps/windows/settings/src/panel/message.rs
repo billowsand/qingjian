@@ -9,6 +9,8 @@ pub(crate) enum Message {
     // 通用页
     PageSize(Option<f64>),
     Shuangpin(Option<usize>),
+    /// 辅码方案下拉（关 / 小鹤辅码）。
+    Fuma(Option<usize>),
     Zhuyin(bool),
     EnglishCandidates(bool),
     ChineseFirst(bool),

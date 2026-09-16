@@ -174,7 +174,7 @@ impl Engine {
             self.gloss_filler
                 .request(self.translator.language(), &candidate.text);
         }
-        self.composition.drain_prefix(consumed);
+        self.consume_scope(consumed);
         let buffer_left = !self.composition.is_empty();
         match candidate.kind {
             CandidateKind::Chinese | CandidateKind::Cloud => {
@@ -406,16 +406,30 @@ impl Engine {
         Some(conversion.words)
     }
 
+    /// 上屏消耗：吃掉作用域开头 `consumed` 字节；辅码激活时末尾那对辅码键随这次上屏一并丢掉。
+    /// 辅码只是这一次筛选用的键，选中的候选盖不满整段拼音（`kai'fa` 选了 开）时，
+    /// 剩下的拼音不该继续背着它，否则 `fa` 后面还挂着两个辅码键，下一次查询又被它筛一遍。
+    fn consume_scope(&mut self, consumed: usize) {
+        let fuma = self.fuma_bytes(self.composition.scope());
+        // 盖满拼音时 `consumed` 里已经含了辅码键（见 [`Self::consumed_by`]），不重复删
+        if fuma > 0 && consumed + fuma <= self.composition.scope().len() {
+            self.composition.drain_scope_suffix(fuma);
+        }
+        self.composition.drain_prefix(consumed);
+    }
+
     /// 候选消耗多少作用域字节，以及按输入串记学习用的键（候选覆盖的那段全拼字母）。
     /// 纠错生效时按纠正后的拼音算，再按那处编辑换算回原串；双拼按解出的全拼算，再换算回键数。
+    /// 辅码激活时末 2 键挂在整段末尾：候选盖满拼音就连辅码键一起吃掉，盖不满的由 [`Self::consume_scope`] 丢。
     pub(super) fn consumed_by(&self, candidate: &Candidate) -> (usize, String) {
         let keys = self.composition.scope();
         if let Some(decoded) = self.decode(keys) {
             let pinyin_len = self.align(decoded.pinyin(), &candidate.syllables).consumed;
-            return (
-                decoded.keys_for(pinyin_len),
-                choice_key(decoded.pinyin(), pinyin_len),
-            );
+            let mut key_len = decoded.keys_for(pinyin_len);
+            if pinyin_len == decoded.pinyin().len() {
+                key_len += self.fuma_bytes(keys);
+            }
+            return (key_len, choice_key(decoded.pinyin(), pinyin_len));
         }
         let consumed = match self.active_correction(keys) {
             Some(c) => c

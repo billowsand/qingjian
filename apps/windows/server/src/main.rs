@@ -164,6 +164,10 @@ fn main() {
     };
     engine.set_fuzzy(config.fuzzy);
     engine.set_shuangpin(config.general.shuangpin());
+    let fuma_table = config
+        .general
+        .fuma()
+        .and_then(|scheme| dispatch::load_fuma(&root, scheme));
     engine.set_zhuyin_mode(config.general.zhuyin);
     engine.set_mode_keys(config.shortcut.mode);
     engine.set_chinese_first(config.general.chinese_first);
@@ -171,6 +175,8 @@ fn main() {
     dispatch::attach_cloud(&mut engine, &config.predict);
     let router_config = RouterConfig::from(&config);
     let mut router = Router::new(engine, router_config.clone());
+    // Router 留一份给热加载用，同时接到 Engine 上
+    router.set_fuma_table(fuma_table);
     let model_path = dispatch::find_model(user_dir().as_deref(), &root);
     router.configure_local_model(model_path.clone(), &config.model);
     if let Some(path) = config_path() {
@@ -183,6 +189,7 @@ fn main() {
         layout = router_config.layout.key(),
         theme = router_config.theme.key(),
         shuangpin = config.general.shuangpin().map(|s| s.key()).unwrap_or("全拼"),
+        fuma = config.general.fuma().map(|s| s.key()).unwrap_or("关"),
         fuzzy = config.fuzzy.any(),
         cloud = config.predict.enabled,
         model = model_path.as_deref().map(|p| p.display().to_string()).unwrap_or_default(),

@@ -16,7 +16,7 @@ mod tuning;
 use std::time::Instant;
 
 use clap::Parser;
-use qingjian_core::{EmojiTable, Engine, FuzzyRules, Language};
+use qingjian_core::{EmojiTable, Engine, FumaScheme, FumaTable, FuzzyRules, Language};
 use qingjian_dictionary::{Dictionary, WordList};
 use qingjian_learning::FrequencyLearner;
 use qingjian_lm::BigramModel;
@@ -241,6 +241,22 @@ fn build_engine(args: &Args) -> Result<Engine, CliError> {
             scheme.clone()
         };
     }
+    if let Some(scheme) = &args.fuma {
+        config.general.fuma = if scheme == "off" {
+            String::new()
+        } else {
+            scheme.clone()
+        };
+    }
+    if let Some(scheme) = config.general.fuma() {
+        match load_fuma(&scheme) {
+            Ok(table) => {
+                tracing::info!(scheme = scheme.key(), words = table.len(), "辅码已启用");
+                engine.set_fuma(Some(std::sync::Arc::new(table)));
+            }
+            Err(error) => tracing::error!(scheme = scheme.key(), %error, "辅码表加载失败，辅码关"),
+        }
+    }
     if let Some(scheme) = config.general.shuangpin() {
         tracing::info!(%scheme, "双拼已启用");
     }
@@ -254,4 +270,12 @@ fn build_engine(args: &Args) -> Result<Engine, CliError> {
         engine = engine.with_predictor(Box::new(predictor));
     }
     Ok(engine)
+}
+
+/// 辅码表随仓库提供（`assets/fuma/<方案>.txt`），在仓库里跑 CLI 时可用。
+fn load_fuma(scheme: &FumaScheme) -> Result<FumaTable, String> {
+    let path = std::path::PathBuf::from("assets")
+        .join("fuma")
+        .join(format!("{}.txt", scheme.key()));
+    FumaTable::from_path(&path).map_err(|error| format!("{}: {error}", path.display()))
 }

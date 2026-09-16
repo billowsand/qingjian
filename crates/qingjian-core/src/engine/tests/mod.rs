@@ -5,6 +5,7 @@ mod correction;
 mod custom;
 mod emoji;
 mod english;
+mod fuma;
 mod learning;
 mod lookup;
 mod privacy;

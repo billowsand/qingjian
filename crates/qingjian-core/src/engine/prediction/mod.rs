@@ -66,7 +66,13 @@ impl Engine {
         let scope = self.composition.scope();
         if self.english_mode
             || self.modes().is_expression(scope, self.zhuyin)
-            || is_raw(scope, self.modes(), self.shuangpin, self.zhuyin)
+            || is_raw(
+                scope,
+                self.modes(),
+                self.shuangpin,
+                self.fuma_enabled(),
+                self.zhuyin,
+            )
         {
             return None;
         }
@@ -217,10 +223,12 @@ impl Engine {
         let letters = typed.chars().filter(|c| *c != '\'').count();
         let allowed = tolerance(letters);
         words.retain(|word| {
+            // 辅码激活时云端词同样过这道闸，否则本地候选被筛空了云端词还照出
             let fits = !word.syllables.is_empty()
                 && word.text.chars().count() == word.syllables.len()
                 && word.syllables.iter().all(|s| parser::is_syllable(s))
-                && mismatch_count(typed, &word.syllables) <= allowed;
+                && mismatch_count(typed, &word.syllables) <= allowed
+                && self.fuma_admits(&word.text);
             if !fits {
                 tracing::debug!(text = %word.text, syllables = ?word.syllables, "云端词与拼音不符，丢弃");
             }

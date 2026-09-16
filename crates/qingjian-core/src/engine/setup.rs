@@ -1,7 +1,10 @@
 //! 注入与开关：词库、模糊音、双拼、翻译 / 学习 / 联想等 trait 实现的挂接，以及相应的只读访问。
 
+use std::borrow::Cow;
+
 use super::*;
 use crate::engine::decoded::EngineDecoded;
+use crate::engine::fuma;
 
 impl Engine {
     /// 设置中文模式的标点转换。
@@ -20,6 +23,12 @@ impl Engine {
     pub fn set_shuangpin(&mut self, scheme: Option<Scheme>) {
         self.shuangpin = scheme;
         *self.correction_cache.borrow_mut() = None;
+    }
+
+    /// 设辅码表，`None` 关掉。只影响候选过滤，不用清缓存；换表后下一键查询自动生效。
+    /// 表有几千条，壳与 Engine 共用同一份（`Arc`），热加载配置时只克隆指针。
+    pub fn set_fuma(&mut self, table: Option<Arc<crate::FumaTable>>) {
+        self.fuma = table;
     }
 
     pub fn shuangpin(&self) -> Option<Scheme> {
@@ -87,12 +96,23 @@ impl Engine {
     }
 
     /// 双拼开着时把一段键解成全拼；全拼下为 `None`，调用方原样用键。
+    /// 解码前先归一化：辅码激活时剥掉末 2 键，并整串小写化（辅码之外大写没有意义）。
     pub(super) fn decode(&self, keys: &str) -> Option<EngineDecoded> {
         if self.zhuyin {
             Some(EngineDecoded::Zhuyin(crate::zhuyin::decode(keys)))
         } else {
             self.shuangpin
-                .map(|scheme| EngineDecoded::Shuangpin(scheme.decode(keys)))
+                .map(|scheme| EngineDecoded::Shuangpin(scheme.decode(&self.decode_keys(keys))))
+        }
+    }
+
+    /// 双拼解码用的键串：辅码激活时剥掉末 2 键，再整串小写化。
+    /// 辅码关着时缓冲区里本来就没有大写（大写落进英文直输段），原样借用，不复制。
+    pub(super) fn decode_keys<'a>(&self, keys: &'a str) -> Cow<'a, str> {
+        match self.fuma_input(keys) {
+            Some(input) => input.base,
+            None if self.fuma_enabled() => fuma::lowercased(keys),
+            None => Cow::Borrowed(keys),
         }
     }
 

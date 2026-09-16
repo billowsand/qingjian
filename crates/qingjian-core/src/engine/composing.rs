@@ -179,7 +179,7 @@ impl Engine {
         let before = &self.composition.text()[..cursor];
         let plain =
             self.raw_mode() || self.expression_mode() || self.question_mode() || self.zhuyin;
-        let len = unit_len_before(before, self.shuangpin.is_some(), plain);
+        let len = unit_len_before(before, self.shuangpin.is_some(), self.fuma_enabled(), plain);
         self.composition.delete_before_cursor(len)
     }
 
@@ -189,7 +189,7 @@ impl Engine {
         let before = &self.composition.text()[..cursor];
         let plain =
             self.raw_mode() || self.expression_mode() || self.question_mode() || self.zhuyin;
-        let len = unit_len_before(before, self.shuangpin.is_some(), plain);
+        let len = unit_len_before(before, self.shuangpin.is_some(), self.fuma_enabled(), plain);
         len > 0 && (0..len).all(|_| self.composition.move_left())
     }
 
@@ -199,7 +199,7 @@ impl Engine {
         let after = &self.composition.text()[cursor..];
         let plain =
             self.raw_mode() || self.expression_mode() || self.question_mode() || self.zhuyin;
-        let len = unit_len_after(after, self.shuangpin.is_some(), plain);
+        let len = unit_len_after(after, self.shuangpin.is_some(), self.fuma_enabled(), plain);
         len > 0 && (0..len).all(|_| self.composition.move_right())
     }
 
@@ -235,12 +235,13 @@ impl Engine {
     }
 
     /// 英文直输段：缓冲区里有拼音以外的字符（`no-way`），整段原样上屏、不解析拼音。
-    /// 表达式模式与问字模式优先于它。
+    /// 表达式模式与问字模式优先于它。辅码开着时大写也是拼音键（末尾辅码段由解码层处理）。
     pub fn raw_mode(&self) -> bool {
         is_raw(
             self.composition.text(),
             self.modes(),
             self.shuangpin,
+            self.fuma_enabled(),
             self.zhuyin,
         )
     }
@@ -302,7 +303,10 @@ impl Engine {
                 .map(|d| d.marked())
                 .unwrap_or_else(|| self.composition.text().to_owned())
         } else {
-            self.composition.text().to_owned()
+            // 辅码激活时上屏的字母不含辅码段：它不是要打的内容
+            let text = self.composition.text();
+            let fuma_len = self.fuma_bytes(text);
+            text[..text.len() - fuma_len].to_owned()
         };
         if raw.is_empty() {
             // 壳在回车 / 失焦时不管有没有在组句都会来一趟：空的不记日志、不计统计
@@ -329,13 +333,13 @@ impl Engine {
 }
 
 /// 光标后的第一个「单位」占几个字节：先跳过紧跟的 `'`，再算一个音节；规则同 [`unit_len_before`]。
-fn unit_len_after(after: &str, shuangpin: bool, plain: bool) -> usize {
+fn unit_len_after(after: &str, shuangpin: bool, fuma: bool, plain: bool) -> usize {
     let trimmed = after.trim_start_matches('\'');
     let separators = after.len() - trimmed.len();
     let Some(first) = trimmed.chars().next() else {
         return separators;
     };
-    if plain || !first.is_ascii_lowercase() {
+    if plain || !(first.is_ascii_lowercase() || (shuangpin && fuma && first.is_ascii_uppercase())) {
         let run = if first.is_ascii_alphanumeric() {
             trimmed
                 .chars()
@@ -350,7 +354,7 @@ fn unit_len_after(after: &str, shuangpin: bool, plain: bool) -> usize {
     if shuangpin {
         let run = trimmed
             .chars()
-            .take_while(|c| c.is_ascii_lowercase() || *c == ';')
+            .take_while(|c| c.is_ascii_lowercase() || (fuma && c.is_ascii_uppercase()) || *c == ';')
             .count();
         return separators + run.min(2);
     }
@@ -365,14 +369,15 @@ fn unit_len_after(after: &str, shuangpin: bool, plain: bool) -> usize {
 }
 
 /// 光标前的最后一个「单位」占几个字节：拼音里是一个音节（连同它后面的 `'`），见 [`Engine::delete_syllable_backward`]。
-fn unit_len_before(before: &str, shuangpin: bool, plain: bool) -> usize {
+fn unit_len_before(before: &str, shuangpin: bool, fuma: bool, plain: bool) -> usize {
     let trimmed = before.trim_end_matches('\'');
     let separators = before.len() - trimmed.len();
     let Some(last) = trimmed.chars().last() else {
         return separators;
     };
-    // 直输段 / 表达式 / 问字，或末尾不是字母：字母数字连成一段删，其他字符一次一个
-    if plain || !last.is_ascii_lowercase() {
+    // 直输段 / 表达式 / 问字，或末尾不是字母：字母数字连成一段删，其他字符一次一个。
+    // 双拼辅码开着时大写也是拼音键（末尾的辅码段），不落进这里
+    if plain || !(last.is_ascii_lowercase() || (shuangpin && fuma && last.is_ascii_uppercase())) {
         let run = if last.is_ascii_alphanumeric() {
             trimmed
                 .chars()
@@ -386,11 +391,11 @@ fn unit_len_before(before: &str, shuangpin: bool, plain: bool) -> usize {
         return separators + run;
     }
     if shuangpin {
-        // 两键一音节：连着的键数是奇数说明末尾落单一键
+        // 两键一音节：连着的键数是奇数说明末尾落单一键（辅码键也按字母算，末尾一对就是辅码段）
         let run = trimmed
             .chars()
             .rev()
-            .take_while(|c| c.is_ascii_lowercase() || *c == ';')
+            .take_while(|c| c.is_ascii_lowercase() || (fuma && c.is_ascii_uppercase()) || *c == ';')
             .count();
         return separators + if run % 2 == 1 { 1 } else { 2 };
     }

@@ -72,11 +72,19 @@ impl Engine {
         if self.modes().is_question(keys, self.zhuyin) {
             return Ok(self.query_question(keys, rest, start));
         }
-        if is_raw(keys, self.modes(), self.shuangpin, self.zhuyin) {
+        if is_raw(
+            keys,
+            self.modes(),
+            self.shuangpin,
+            self.fuma_enabled(),
+            self.zhuyin,
+        ) {
             return Ok(self.query_raw(keys, rest, start));
         }
-        // 双拼先解成全拼（音节间已用 `'` 连好，切分没有歧义），之后与全拼同路；解不动的键当尾巴
+        // 双拼先解成全拼（音节间已用 `'` 连好，切分没有歧义），之后与全拼同路；解不动的键当尾巴。
+        // 辅码激活时末 2 键是过滤键，decode 已把它们剥掉；这里单独留着敲出的两码供过滤用
         let decoded = self.decode(keys);
+        let fuma_typed = self.fuma_input(keys).map(|f| f.typed);
         let scope: &str = decoded.as_ref().map_or(keys, |d| d.pinyin());
         // 末尾是英文词（`woxiangxuehaorust`）：拼音候选与整句只按头段算，尾段整个跟在整句后面。
         // 整段也能读成拼音时（`database`、`…rust` 当简拼）两种读法比分，英文赢了才按头段算，
@@ -201,6 +209,12 @@ impl Engine {
         }
         let lookup = start.elapsed();
 
+        // 辅码激活时严格过滤：词级候选按文本首末字形码对敲出的两码，对不上不出（语义同水杉）。
+        // 前缀候选也按它们自己的文本算（开发 覆不满 kai'fa'zhe 的时候同样过这道闸）
+        if let (Some(typed), Some(table)) = (fuma_typed, self.fuma.as_ref()) {
+            scored.retain(|item| table.matches(item.hit.text, typed));
+        }
+
         let start = Instant::now();
         // 再往后翻也翻不到的候选不必再造：单字母简拼能命中两万个词，排完序只留前面这些。
         // 同输入串（候选覆盖的那段字母）下选过的优先；上下文是上一个上屏的词（句首为 None）：
@@ -235,7 +249,8 @@ impl Engine {
                 translation: None,
             })
             .collect();
-        // 中文优先：整句先进去占第一，英文词紧跟其后（第二）；关掉时英文词先进、整句排在开头的英文后面
+        // 中文优先：整句先进去占第一，英文词紧跟其后（第二）；关掉时英文词先进、整句排在开头的英文后面。
+        // 辅码激活时不出英文候选与 emoji：敲辅码就是在选字
         if self.chinese_first {
             self.insert_sentence(
                 &mut items,
@@ -244,9 +259,13 @@ impl Engine {
                 english_tail.as_ref().filter(|_| correction.is_none()),
                 head_wins,
             );
-            self.insert_english(&mut items, unlikely);
+            if fuma_typed.is_none() {
+                self.insert_english(&mut items, unlikely);
+            }
         } else {
-            self.insert_english(&mut items, unlikely);
+            if fuma_typed.is_none() {
+                self.insert_english(&mut items, unlikely);
+            }
             self.insert_sentence(
                 &mut items,
                 &segmentations,
@@ -257,7 +276,9 @@ impl Engine {
         }
         // 快捷候选按敲的键认（`rq` 日期），双拼下也是
         self.insert_shortcuts(&mut items, keys);
-        self.insert_emoji(&mut items);
+        if fuma_typed.is_none() {
+            self.insert_emoji(&mut items);
+        }
         let rank = start.elapsed();
 
         // 按头段算时英文尾段不参与拼音候选，显示上跟在切分后面：`wo'xiang'xue'hao'rust`
@@ -486,6 +507,10 @@ impl Engine {
             }
         }
         if conversion.has_placeholder() {
+            return None;
+        }
+        // 辅码激活时整句同规则过滤（首末字形码）：对不上就不出
+        if !self.fuma_admits(&conversion.text) {
             return None;
         }
         // 整段本来就是一个词时不出整句；但路径靠敲错变体把整段读成的一个词（`meiganxi` → 没关系）是噪声信道的判断，

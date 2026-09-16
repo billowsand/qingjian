@@ -1228,3 +1228,66 @@ fn privacy_follows_the_focused_session() {
 fn press_in(router: &mut Router, session: SessionId, event: KeyEvent) {
     let _ = router.handle(ClientMessage::Key { session, event });
 }
+
+/// 辅码开着：组句中 Shift + 字母是辅码键（进缓冲区），两码敲完候选严格过滤。
+#[test]
+fn fuma_keys_filter_candidates_strictly() {
+    let mut router = fuma_router();
+    // 小鹤 `kdfa` = kai'fa；辅码按文档打法第一码小写、第二码 Shift 大写
+    type_letters(&mut router, "kdfaf");
+    // 只敲了第一码时末 2 键全小写，还没激活：它当普通拼音，候选照常有 开发
+    let (_, _, frame) = press(&mut router, letter_with('X', SHIFT));
+    // `fX` → (f, x) = （开第 1 码, 发第 1 码）：只剩 开发
+    assert_eq!(candidate_texts(&frame), vec!["开发"]);
+
+    // 第二码对不上：一条候选都不剩
+    let mut router = fuma_router();
+    type_letters(&mut router, "kdfaf");
+    let (_, _, frame) = press(&mut router, letter_with('Y', SHIFT));
+    assert!(candidate_texts(&frame).is_empty());
+
+    // 第一码大写是反转顺序：`Xf` 同样匹配实际辅码 (f, x)
+    let mut router = fuma_router();
+    type_letters(&mut router, "kdfa");
+    press(&mut router, letter_with('X', SHIFT));
+    let (_, _, frame) = press(&mut router, letter('f'));
+    assert_eq!(candidate_texts(&frame), vec!["开发"]);
+}
+
+/// 辅码开着、但注音也开着时辅码整套不介入（注音走自己的解码）。
+#[test]
+fn fuma_stays_out_of_zhuyin() {
+    let mut router = fuma_router();
+    router.engine_mut().set_zhuyin_mode(true);
+    type_letters(&mut router, "kdfa");
+    let (outcome, commit, _) = press(&mut router, letter_with('X', SHIFT));
+    // 照旧是临时打英文：注音串原样上屏 + 大写直通
+    assert_eq!(outcome, KeyOutcome::Consumed);
+    assert!(commit.is_some_and(|text| text.ends_with('X')));
+}
+
+/// 随包辅码表（样例数据上跑）：开=fk、发=xa，「开发」期望（f, x）、单字「开」期望 (f, k)。
+fn fuma_router() -> Router {
+    let mut router = router_with(RouterConfig {
+        shuangpin: Some(ShuangpinScheme::Xiaohe),
+        ..RouterConfig::default()
+    });
+    router.set_fuma_table(Some(std::sync::Arc::new(
+        qingjian_core::FumaTable::parse("开=fk\n发=xa\n").unwrap(),
+    )));
+    router
+}
+
+/// 没开辅码时 Shift + 字母照旧临时打英文：先把拼音原样上屏，字符直通。
+#[test]
+fn fuma_off_keeps_uppercase_as_temporary_english() {
+    let mut router = router_with(RouterConfig {
+        shuangpin: Some(ShuangpinScheme::Xiaohe),
+        ..RouterConfig::default()
+    });
+    type_letters(&mut router, "kdfa");
+    let (outcome, commit, _) = press(&mut router, letter_with('X', SHIFT));
+    // 拼音原样上屏 + 大写直通在 Windows 上合起来一次插入
+    assert_eq!(commit.as_deref(), Some("kdfaX"));
+    assert_eq!(outcome, KeyOutcome::Consumed);
+}

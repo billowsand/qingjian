@@ -14,6 +14,9 @@ pub(crate) struct ConfigReload {
     /// 上次看文件的时间（节流用）。
     pub(super) last_check: Instant,
 
+    /// 安装根目录，随包资源（辅码表这类启动时可能没装上的）热加载时按它现读。
+    pub(super) root: PathBuf,
+
     /// 随包领域词库目录。
     pub(super) bundled_dicts_dir: Option<PathBuf>,
 

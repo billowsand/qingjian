@@ -4,9 +4,10 @@
 mod state;
 
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime};
 
-use qingjian_core::{Engine, NoGlossFiller, NoPredictor};
+use qingjian_core::{Engine, FumaScheme, FumaTable, NoGlossFiller, NoPredictor};
 use qingjian_platform::{Config, extra_dictionaries};
 use qingjian_predict::{CloudGlossFiller, CloudPredictor, PredictConfig};
 
@@ -21,6 +22,21 @@ fn mtime(path: &Path) -> Option<SystemTime> {
     std::fs::metadata(path)
         .and_then(|meta| meta.modified())
         .ok()
+}
+
+/// 随包辅码表（`assets/fuma/<方案>.txt`）；读不到就当辅码关着。启动与热加载共用。
+pub fn load_fuma(root: &Path, scheme: FumaScheme) -> Option<Arc<FumaTable>> {
+    let path = root.join("assets").join(scheme.asset());
+    match FumaTable::from_path(&path) {
+        Ok(table) => {
+            tracing::info!(scheme = scheme.key(), words = table.len(), "辅码表已加载");
+            Some(Arc::new(table))
+        }
+        Err(error) => {
+            tracing::error!(scheme = scheme.key(), %error, path = %path.display(), "辅码表加载失败，辅码关");
+            None
+        }
+    }
 }
 
 /// 按 `[predict]` 接云联想与释义兜底；关着或缺密钥就退回本地实现。启动与热加载共用。
@@ -71,6 +87,7 @@ impl Router {
         self.reload = Some(ConfigReload {
             config_path,
             last_check: Instant::now(),
+            root,
             bundled_dicts_dir,
             user_dir,
             last_mtime,
@@ -103,10 +120,26 @@ impl Router {
         }
     }
 
+    /// 辅码按新配置重接。启动时辅码是关的就没读过表，用户在设置里刚打开时现读一次，
+    /// 否则开关只在重启后才生效。
+    fn apply_fuma(&mut self, config: &Config) {
+        let Some(scheme) = config.general.fuma() else {
+            self.engine.set_fuma(None);
+            return;
+        };
+        if self.fuma_table.is_none()
+            && let Some(root) = self.reload.as_ref().map(|reload| reload.root.clone())
+        {
+            self.fuma_table = load_fuma(&root, scheme);
+        }
+        self.engine.set_fuma(self.fuma_table.clone());
+    }
+
     /// 应用新配置。
     fn apply_config(&mut self, config: &Config) {
         self.engine.set_fuzzy(config.fuzzy);
         self.engine.set_shuangpin(config.general.shuangpin());
+        self.apply_fuma(config);
         self.engine.set_zhuyin_mode(config.general.zhuyin);
         self.engine.set_learning(config.general.learning);
         self.engine.set_mode_keys(config.shortcut.mode);

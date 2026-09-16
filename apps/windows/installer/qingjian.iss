@@ -79,6 +79,7 @@ Source: "{#Repo}\data\model\model.qjm"; DestDir: "{app}\data\model"; Flags: igno
 ; —— 随 git 的资源 ——
 Source: "{#Repo}\assets\emoji\emoji-zh.tsv";     DestDir: "{app}\assets\emoji";  Flags: ignoreversion
 Source: "{#Repo}\assets\emoji\emoji-en.tsv";     DestDir: "{app}\assets\emoji";  Flags: ignoreversion
+Source: "{#Repo}\assets\fuma\xiaohe.txt";        DestDir: "{app}\assets\fuma";  Flags: ignoreversion
 Source: "{#Repo}\assets\sample\dict.tsv";        DestDir: "{app}\assets\sample"; Flags: ignoreversion
 
 [Icons]

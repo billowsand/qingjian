@@ -40,6 +40,9 @@ impl Component for Settings {
             Message::Shuangpin(Some(i)) if i < general::SHUANGPIN.len() => {
                 self.save("general", "shuangpin", general::SHUANGPIN[i].1);
             }
+            Message::Fuma(Some(i)) if i < general::FUMA.len() => {
+                self.save("general", "fuma", general::FUMA[i].1);
+            }
             Message::Zhuyin(on) => self.save("general", "zhuyin", on),
             Message::EnglishCandidates(on) => self.save("general", "english_candidates", on),
             Message::ChineseFirst(on) => self.save("general", "chinese_first", on),

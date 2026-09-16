@@ -148,9 +148,19 @@ impl Router {
     }
 
     /// 中文模式：小写字母进拼音；Shift 大写字母是临时打英文，组句中先把拼音原样上屏；
+    /// 辅码开着时组句中的大写字母是辅码键，进缓冲区；
     /// 没在组句时的其他字符走全角标点（与 macOS 壳一致，组句中的标点仍进英文直输段）。
     fn apply_chinese(&mut self, c: char, event: &KeyEvent) -> Effect {
         if c.is_ascii_uppercase() {
+            if self.composing()
+                && !self.engine.expression_mode()
+                && !self.engine.question_mode()
+                && self.engine.fuma_enabled()
+            {
+                // 辅码键：进缓冲区参与过滤（触发判定与反转顺序在 Core）
+                self.engine.push(c);
+                return Effect::Changed(None);
+            }
             let raw = self.composing().then(|| self.engine.take_raw());
             self.engine.note_passthrough(c);
             return with_prefix(raw, Effect::Passthrough, c);

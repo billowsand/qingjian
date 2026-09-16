@@ -11,6 +11,7 @@ pub mod custom_phrase;
 pub mod emoji;
 pub mod engine;
 pub mod english;
+pub mod fuma;
 pub mod fuzzy;
 pub mod history;
 pub mod parser;
@@ -41,6 +42,8 @@ pub use engine::{
     Timings, Translator, Usage, UsageMeter, UsageSummary, VocabularySummary, VocabularyTracker,
     book_scale,
 };
+pub use fuma::FumaTable;
+pub use fuma::Scheme as FumaScheme;
 pub use fuzzy::FuzzyRules;
 pub use history::InputHistory;
 pub use parser::{ParseError, Segmentation};

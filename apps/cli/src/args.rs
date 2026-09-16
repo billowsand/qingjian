@@ -76,6 +76,10 @@ pub struct Args {
     #[arg(long)]
     pub shuangpin: Option<String>,
 
+    /// 辅码方案（xiaohe），覆盖配置里的 [general] fuma；off 强制关。码表从仓库 assets/fuma/<方案>.txt 取
+    #[arg(long)]
+    pub fuma: Option<String>,
+
     /// 神经重打分：字级 Transformer 的 .qjm 文件或导出目录（model.safetensors / config.json / vocab.json），整句前几条路径用它重排
     #[arg(long)]
     pub neural: Option<PathBuf>,

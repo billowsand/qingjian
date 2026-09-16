@@ -15,9 +15,10 @@ mod status;
 
 use std::collections::HashMap;
 use std::path::PathBuf;
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use qingjian_core::Engine;
+use qingjian_core::{Engine, FumaTable};
 use qingjian_platform::LocalModelConfig;
 use qingjian_platform::protocol::{ClientMessage, Frame, ScreenRect, ServerMessage, SessionId};
 
@@ -25,7 +26,7 @@ pub use self::candidates::{CandidateSink, NoopSink, RenderSettings};
 use self::composed::Composed;
 pub use self::config::RouterConfig;
 use self::reload::ConfigReload;
-pub use self::reload::attach_cloud;
+pub use self::reload::{attach_cloud, load_fuma};
 pub use self::rescore::find_model;
 use self::rescore::{ModelLoader, RescoreState};
 use self::session::SessionInfo;
@@ -38,6 +39,10 @@ const LEARNING_FLUSH_INTERVAL: Duration = Duration::from_secs(60);
 pub struct Router {
     /// 输入内核，进程内唯一。
     engine: Engine,
+
+    /// 随包辅码表；开 / 关由 `[general] fuma` 决定，热加载时按开关重新接上。
+    /// 与 Engine 共用同一份（表有几千条，重接只克隆指针）。
+    fuma_table: Option<Arc<FumaTable>>,
 
     /// 每页候选数 / 云端槽位 / 排布 / 外观 / 翻页键等。
     config: RouterConfig,
@@ -105,6 +110,7 @@ impl Router {
     pub fn new(engine: Engine, config: RouterConfig) -> Self {
         Self {
             engine,
+            fuma_table: None,
             config: RouterConfig {
                 page_size: config.page_size.max(1),
                 ..config
@@ -139,6 +145,12 @@ impl Router {
     /// 直接碰 Engine：测试里改模式键这类启动时才设的开关。
     pub fn engine_mut(&mut self) -> &mut Engine {
         &mut self.engine
+    }
+
+    /// 随包辅码表交给 Router：热加载按 `[general] fuma` 开关重新接。
+    pub fn set_fuma_table(&mut self, table: Option<Arc<FumaTable>>) {
+        self.fuma_table = table.clone();
+        self.engine.set_fuma(table);
     }
 
     pub fn set_status_sink(&mut self, sink: Box<dyn StatusSink>) {

@@ -10,6 +10,7 @@ mod composing;
 mod correcting;
 mod decoded;
 mod extras;
+mod fuma;
 mod gloss;
 mod input_log;
 mod learning;
@@ -27,6 +28,7 @@ mod translator;
 mod vocabulary;
 
 use std::collections::HashMap;
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use qingjian_dictionary::{Dictionary, Match, WordList};
@@ -231,6 +233,11 @@ pub struct Engine {
     /// 双拼方案，`None` 为全拼。开着时缓冲区里是双拼键，查词前先解成全拼（见 [`crate::shuangpin`]）。
     shuangpin: Option<Scheme>,
 
+    /// 辅码表（`[general] fuma`，`assets/fuma/xiaohe.txt`），缺省 `None`。只在双拼下生效：
+    /// 缓冲区末 2 键含大写、前缀是完整双拼时，末 2 键是对候选的严格过滤器（见 [`fuma::FumaInput`]）。
+    /// 表有几千条且只读，与壳共用同一份。
+    fuma: Option<Arc<crate::FumaTable>>,
+
     /// 注音模式开关，開著時緩衝區裡是注音大千鍵位，查詞前先解成拼音（見 [`crate::zhuyin`]）。
     zhuyin: bool,
 
@@ -362,6 +369,7 @@ impl Engine {
             chain: CommitChain::default(),
             fuzzy: FuzzyRules::default(),
             shuangpin: None,
+            fuma: None,
             zhuyin: false,
             emoji: None,
         }
@@ -369,14 +377,20 @@ impl Engine {
 }
 
 /// 缓冲区是否是英文直输段：含拼音键与 `'` 以外的字符（`no-way`、`a.b`），且不是表达式 / 问字模式。
-/// 微软 / 搜狗双拼下 `;` 也是拼音键。
-fn is_raw(text: &str, modes: ModeKeys, shuangpin: Option<Scheme>, zhuyin: bool) -> bool {
+/// 微软 / 搜狗双拼下 `;` 也是拼音键；辅码开着时大写字母也是拼音键（末尾的辅码段由解码层处理）。
+fn is_raw(
+    text: &str,
+    modes: ModeKeys,
+    shuangpin: Option<Scheme>,
+    fuma: bool,
+    zhuyin: bool,
+) -> bool {
     let is_key = |c: char| {
         if zhuyin {
             crate::zhuyin::layout::map_key(c).is_some() || c == ' '
         } else {
             match shuangpin {
-                Some(scheme) => scheme.is_key(c),
+                Some(scheme) => scheme.is_key(c) || (fuma && c.is_ascii_uppercase()),
                 None => c.is_ascii_lowercase(),
             }
         }

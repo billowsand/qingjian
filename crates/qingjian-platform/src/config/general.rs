@@ -1,4 +1,4 @@
-use qingjian_core::ShuangpinScheme;
+use qingjian_core::{FumaScheme, ShuangpinScheme};
 use serde::{Deserialize, Serialize};
 
 use super::{CandidateRenderer, LayoutMode, LogLevel, PreeditMode, ThemeMode};
@@ -62,6 +62,10 @@ pub struct GeneralConfig {
     /// 双拼方案：空串为全拼，否则 `xiaohe` / `ziranma` / `microsoft` / `sogou`（见 [`ShuangpinScheme`]）。
     pub shuangpin: String,
 
+    /// 辅码方案：空串为关，否则 `xiaohe`（见 [`FumaScheme`]）。只在双拼下生效：
+    /// 组句中末尾敲的大写字母当辅码键，严格过滤候选。
+    pub fuma: String,
+
     /// 注音模式开关，大千键盘。
     pub zhuyin: bool,
 
@@ -92,6 +96,7 @@ impl Default for GeneralConfig {
             full_width_punctuation: true,
             english_full_width_punctuation: false,
             shuangpin: String::new(),
+            fuma: String::new(),
             zhuyin: false,
             log_level: LogLevel::default(),
             input_log: true,
@@ -118,6 +123,21 @@ impl GeneralConfig {
             Ok(scheme) => Some(scheme),
             Err(_) => {
                 tracing::warn!(key, "不认识的双拼方案，按全拼");
+                None
+            }
+        }
+    }
+
+    /// 辅码方案；没开或写得不认识时为 `None`。
+    pub fn fuma(&self) -> Option<FumaScheme> {
+        let key = self.fuma.trim();
+        if key.is_empty() {
+            return None;
+        }
+        match key.parse() {
+            Ok(scheme) => Some(scheme),
+            Err(_) => {
+                tracing::warn!(key, "不认识的辅码方案，按关");
                 None
             }
         }
@@ -171,8 +191,13 @@ mod tests {
     fn shuangpin_is_off_by_default_and_unknown_names_fall_back() {
         let mut general = GeneralConfig::default();
         assert_eq!(general.shuangpin(), None);
+        assert_eq!(general.fuma(), None);
         general.shuangpin = "xiaohe".to_owned();
         assert_eq!(general.shuangpin(), Some(ShuangpinScheme::Xiaohe));
+        general.fuma = "xiaohe".to_owned();
+        assert_eq!(general.fuma(), Some(FumaScheme::Xiaohe));
+        general.fuma = "zrm".to_owned();
+        assert_eq!(general.fuma(), None);
         general.shuangpin = " Sogou ".to_owned();
         assert_eq!(general.shuangpin(), Some(ShuangpinScheme::Sogou));
         general.shuangpin = "flypy".to_owned();

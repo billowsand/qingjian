@@ -1,11 +1,12 @@
 //! 输入状态机：拼音缓冲区与光标。
 //!
 //! 只维护「用户已经敲了什么、光标在哪」，不理解拼音，也不知道候选。
-//! 缓冲区只含 ASCII 小写字母和 `'`（表达式模式下还有数字与运算符，见 `shortcut`；微软 / 搜狗双拼下还有 `;`），所以字节下标即字符下标。
+//! 缓冲区只含 ASCII 小写字母和 `'`（表达式模式下还有数字与运算符，见 `shortcut`；微软 / 搜狗双拼下还有 `;`；
+//! 英文直输段与辅码键里有大写），所以字节下标即字符下标。
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct Composition {
-    /// 用户已敲入、尚未上屏的拼音，统一小写。
+    /// 用户已敲入、尚未上屏的拼音；拼音键都是小写，大写只出现在英文直输段与辅码键里。
     buffer: String,
 
     /// 光标位置（字节下标，`0..=buffer.len()`），插入和退格都相对它。
@@ -123,6 +124,19 @@ impl Composition {
     pub fn drain_scope(&mut self) {
         let len = self.scope().len();
         self.drain_prefix(len);
+    }
+
+    /// 删掉作用域末尾 `len` 个字节（上屏时随候选一起丢掉的辅码键），光标在作用域末尾时跟着前移。
+    pub fn drain_scope_suffix(&mut self, len: usize) {
+        let end = self.scope().len();
+        let len = len.min(end);
+        if len == 0 {
+            return;
+        }
+        self.buffer.drain(end - len..end);
+        if self.cursor >= end {
+            self.cursor -= len;
+        }
     }
 }
 
