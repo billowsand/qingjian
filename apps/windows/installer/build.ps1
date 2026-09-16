@@ -107,21 +107,41 @@ if ($Version.EndsWith('-dev')) {
 $VersionNumeric = $Version -replace '-.*$', ''
 Write-Host "版本 $Version" -ForegroundColor Cyan
 
-# 3) 找 ISCC.exe：先 Program Files 里的 7（与开发机同版本；CI 镜像 PATH 上自带 Chocolatey 的 6，不带简中翻译，不能让它抢先），
+# 2.5) 随包数据：iscc 只会报第一张缺的表，这里先把要的都列出来一次报清。
+#      本机的 data\generated 是生成出来的（见 assets\lexicon\QINGJIAN.md），CI 从 data Release 下载（见本目录 README）。
+$productData = @(
+    'data\generated\dict.qj',
+    'data\generated\lm.qj',
+    'data\generated\english.tsv'
+)
+$missingData = @($productData | Where-Object { -not (Test-Path (Join-Path $Repo $_)) })
+$domainDicts = @(Get-ChildItem (Join-Path $Repo 'data\generated\dicts\*.qj') -ErrorAction SilentlyContinue)
+if ($domainDicts.Count -eq 0) { $missingData += 'data\generated\dicts\*.qj（领域词库）' }
+if ($missingData.Count -gt 0) {
+    throw "缺随包数据：$($missingData -join '、')。本机生成或从 data Release 取，见 apps\windows\installer\README.md"
+}
+Write-Host "随包数据齐全（含 $($domainDicts.Count) 本领域词库）" -ForegroundColor Cyan
+
+# 3) 找 ISCC.exe：先 Program Files 与每用户安装的 7（与开发机同版本；CI 镜像 PATH 上自带 Chocolatey 的 6，不带简中翻译，不能让它抢先），
 #    再 PATH，最后 6。QINGJIAN_ISCC 环境变量可直接指定。
 $iscc = $env:QINGJIAN_ISCC
 if (-not $iscc) {
+    # 7 装成每用户时（非管理员安装）落在 %LOCALAPPDATA%\Programs，目录是平铺的，没有 app\ 一层。
     $candidates = @(
         "${env:ProgramFiles}\Inno Setup 7\ISCC.exe",
-        "${env:ProgramFiles(x86)}\Inno Setup 7\ISCC.exe"
+        "${env:ProgramFiles(x86)}\Inno Setup 7\ISCC.exe",
+        "$env:LOCALAPPDATA\Programs\Inno Setup 7\ISCC.exe"
     )
     $iscc = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
 }
 if (-not $iscc) { $iscc = (Get-Command iscc.exe -ErrorAction SilentlyContinue).Source }
 if (-not $iscc) {
+    # 6 的每用户安装多一层 app\（与 7 不同）。
     $candidates = @(
         "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe",
-        "${env:ProgramFiles}\Inno Setup 6\ISCC.exe"
+        "${env:ProgramFiles}\Inno Setup 6\ISCC.exe",
+        "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe",
+        "$env:LOCALAPPDATA\Programs\Inno Setup 6\app\ISCC.exe"
     )
     $iscc = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
 }

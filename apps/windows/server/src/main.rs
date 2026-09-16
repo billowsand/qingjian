@@ -4,9 +4,8 @@
 
 use std::path::{Path, PathBuf};
 
-use qingjian_core::{Engine, Language};
+use qingjian_core::Engine;
 use qingjian_platform::{Config, ConfigError, LogLevel, resources};
-use qingjian_windows_server::assembly::{glossary_file, learning_language};
 use qingjian_windows_server::{
     AssemblySpec, LanguageModelFiles, Router, RouterConfig, ServerError, assembly, dispatch,
 };
@@ -137,23 +136,13 @@ fn main() {
         Some(Err(error)) => tracing::warn!(%error, "写配置模板失败"),
         _ => {}
     }
-    let language = learning_language(&config);
     // 装机布局与 exe 同级，开发布局是仓库 `ime/`；都找不到回落工作目录。
     let root = resources::bundled_root().unwrap_or_else(|| PathBuf::from("."));
     let dict = std::env::var_os("QINGJIAN_DICT")
         .map(PathBuf::from)
         .unwrap_or_else(|| default_dict(&root));
-    let glossary_path = language.and_then(|language| {
-        std::env::var_os("QINGJIAN_GLOSSARY")
-            .map(PathBuf::from)
-            .or_else(|| glossary_file(&root, language))
-            .filter(|path| path.is_file())
-    });
-    let glossary = language.zip(glossary_path);
     let bundled_dicts_dir = Some(root.join("data/generated/dicts")).filter(|dir| dir.is_dir());
     let spec = AssemblySpec {
-        glossary: glossary.clone(),
-        english_glossary: glossary_file(&root, Language::Chinese),
         english: generated(&root, "english.tsv"),
         emoji: ["emoji-zh.tsv", "emoji-en.tsv"]
             .into_iter()
@@ -162,7 +151,6 @@ fn main() {
         language_model: LanguageModelFiles::find(&root.join("data/generated")),
         bundled_dicts_dir: bundled_dicts_dir.clone(),
         dictionaries: config.dictionaries.clone(),
-        levels_dir: Some(root.join("assets/levels")),
         user_dir: user_dir(),
         input_log: config.general.input_log,
         ..AssemblySpec::new(&dict)
@@ -190,8 +178,6 @@ fn main() {
     }
     tracing::info!(
         dict = %dict.display(),
-        glossary = glossary.as_ref().map(|(_, p)| p.display().to_string()).unwrap_or_default(),
-        language = language.map_or("off", |l| l.code()),
         page_size = router_config.page_size,
         page_keys = %format!("{}{}", router_config.page_keys.0, router_config.page_keys.1),
         layout = router_config.layout.key(),

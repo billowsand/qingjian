@@ -20,8 +20,6 @@ use windows::Win32::UI::TextServices::{
 };
 use windows::core::{ComObject, implement};
 
-use qingjian_platform::KeyCombo;
-
 use super::composition::Shared;
 use super::key::ShiftTap;
 use super::mode::ModeState;
@@ -70,9 +68,6 @@ pub struct TextService {
 
     /// 语言 profile 通知挂上后的 cookie；挂一次就够（见 [`super::profile`]）。
     profile_cookie: Cell<Option<u32>>,
-
-    /// 登记成保留键的「翻译选中文字」组合；停用时撤掉（见 [`preserved`](crate::com::key::preserved)）。
-    translate_combo: Cell<Option<KeyCombo>>,
 }
 
 thread_local! {
@@ -123,7 +118,6 @@ impl TextService {
             conversion_sink: RefCell::new(None),
             shift_tap: ShiftTap::default(),
             profile_cookie: Cell::new(None),
-            translate_combo: Cell::new(None),
         }
     }
 }

@@ -12,7 +12,7 @@ pub(crate) const REPOSITORY_URL: &str = "https://github.com/qingjian-team";
 /// 与仓库根 `LICENSE` 一致。
 const LICENSE_NOTE: &str = "自由软件，GPL-3.0-or-later 许可证：可以自由使用、修改与再分发，修改后分发须同样开源。官方渠道免费。";
 
-/// 与 macOS「关于」页一致。
+/// 只列随包数据的来源；Windows 壳不带释义表与词汇等级表，所以比 macOS「关于」页少那两条。
 const ATTRIBUTIONS: &[(&str, &str)] = &[
     (
         "词库",
@@ -22,15 +22,10 @@ const ATTRIBUTIONS: &[(&str, &str)] = &[
         "语言模型",
         "中文维基百科（CC BY-SA 4.0）与 LCCC（清华大学 CoAI，MIT）语料统计。",
     ),
-    ("释义表", "由大语言模型（DeepSeek）生成，青简自建。"),
     ("emoji", "Unicode CLDR annotations（Unicode License v3）。"),
     (
         "英文词表",
         "ESDB / SCOWL（© Kevin Atkinson，按其许可保留版权声明）；CSpell 词典（MIT）。",
-    ),
-    (
-        "词汇等级",
-        "CEFR-J Wordlist v1.5（Yukio Tono，cefr-j.org）；Octanove Vocabulary Profile C1/C2（CC BY-SA 4.0）；JLPT 词表（tanos.co.uk，CC BY）。",
     ),
 ];
 

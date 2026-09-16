@@ -1,12 +1,12 @@
 //! 配置热加载：空闲时看 `config.toml` 的 mtime，改了就重读并应用（与 macOS 壳对齐）。
-//! 便宜的设置无条件重设；云联想 / 附加词库 / 释义表只在对应项变了才重建。热加载状态在 [`ConfigReload`]。
+//! 便宜的设置无条件重设；云联想 / 附加词库只在对应项变了才重建。热加载状态在 [`ConfigReload`]。
 
 mod state;
 
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant, SystemTime};
 
-use qingjian_core::{Engine, Language, NoGlossFiller, NoPredictor, NoTranslator};
+use qingjian_core::{Engine, NoGlossFiller, NoPredictor};
 use qingjian_platform::{Config, extra_dictionaries};
 use qingjian_predict::{CloudGlossFiller, CloudPredictor, PredictConfig};
 
@@ -15,7 +15,7 @@ pub(super) use self::state::ConfigReload;
 /// 看配置文件 mtime 的最短间隔；工人循环空闲时按它等，重排的短节拍来得更勤时按这个节流。
 pub(super) const CONFIG_POLL_INTERVAL: Duration = Duration::from_secs(1);
 use super::{Router, RouterConfig};
-use crate::assembly::{self, user_dicts_dir};
+use crate::assembly::user_dicts_dir;
 
 fn mtime(path: &Path) -> Option<SystemTime> {
     std::fs::metadata(path)
@@ -50,39 +50,6 @@ pub fn attach_cloud(engine: &mut Engine, predict: &PredictConfig) {
     }
 }
 
-/// 学习语言变了就换释义表：关是不翻译；换语言重装随包 + 个人释义表，没有这门语言的表或装不上就保持原样。
-/// 换成功（或关掉）返回 true。
-fn swap_translator(
-    engine: &mut Engine,
-    language: Option<Language>,
-    root: &Path,
-    user_dir: Option<&Path>,
-) -> bool {
-    let Some(language) = language else {
-        engine.set_translator(Box::new(NoTranslator));
-        tracing::info!("学习语言已关，不显示译文");
-        return true;
-    };
-    let Some(path) = assembly::glossary_file(root, language) else {
-        tracing::warn!(
-            language = language.code(),
-            "没有这门语言的释义表，学习语言不变"
-        );
-        return false;
-    };
-    match assembly::load_glossary(language, &path, user_dir) {
-        Ok(glossary) => {
-            tracing::info!(language = language.code(), "释义表已切换");
-            engine.set_translator(Box::new(glossary));
-            true
-        }
-        Err(error) => {
-            tracing::warn!(%error, "释义表加载失败，学习语言不变");
-            false
-        }
-    }
-}
-
 impl Router {
     /// `config.toml` 路径；没开热加载（测试）时为 `None`。
     pub(super) fn config_path(&self) -> Option<&Path> {
@@ -91,7 +58,7 @@ impl Router {
             .map(|reload| reload.config_path.as_path())
     }
 
-    /// 开启热加载：记下路径与当前已应用的 predict / dictionaries / 学习语言。
+    /// 开启热加载：记下路径与当前已应用的 predict / dictionaries。
     pub fn watch_config(
         &mut self,
         config: &Config,
@@ -104,13 +71,11 @@ impl Router {
         self.reload = Some(ConfigReload {
             config_path,
             last_check: Instant::now(),
-            root,
             bundled_dicts_dir,
             user_dir,
             last_mtime,
             applied_predict: config.predict.clone(),
             applied_dictionaries: config.dictionaries.clone(),
-            applied_language: assembly::learning_language(config),
         });
     }
 
@@ -138,7 +103,7 @@ impl Router {
         }
     }
 
-    /// 应用新配置。学习语言变了换释义表（词汇等级表启动时已全装，不用换）。
+    /// 应用新配置。
     fn apply_config(&mut self, config: &Config) {
         self.engine.set_fuzzy(config.fuzzy);
         self.engine.set_shuangpin(config.general.shuangpin());
@@ -161,17 +126,6 @@ impl Router {
         if config.predict != reload.applied_predict {
             attach_cloud(&mut self.engine, &config.predict);
             reload.applied_predict = config.predict.clone();
-        }
-        let language = assembly::learning_language(config);
-        if language != reload.applied_language
-            && swap_translator(
-                &mut self.engine,
-                language,
-                &reload.root,
-                reload.user_dir.as_deref(),
-            )
-        {
-            reload.applied_language = language;
         }
         if config.dictionaries != reload.applied_dictionaries {
             // 别传用户目录本身：那里的学习数据 .tsv 会被当词库装。

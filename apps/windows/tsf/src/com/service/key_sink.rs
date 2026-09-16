@@ -1,5 +1,5 @@
 //! `ITfKeyEventSink`：所有键先经 `OnTestKeyDown` 判吃不吃（[`TextService_Impl::would_eat`]，与 Router 的分派对齐），
-//! 吃的键在 `OnKeyDown` 里转发给 Server 并按结果更新文档；单击 Shift 的判定与保留键命中也在这里。
+//! 吃的键在 `OnKeyDown` 里转发给 Server 并按结果更新文档；单击 Shift 的判定也在这里。
 //! 上下文禁了键盘（密码框，见 [`context`](crate::com::context)）时没在组句的键一律放行。
 
 use windows::Win32::Foundation::{FALSE, LPARAM, WPARAM};
@@ -10,10 +10,8 @@ use qingjian_platform::protocol::{KeyEvent, KeyOutcome};
 
 use super::TextService_Impl;
 use super::next::Next;
-use crate::client::KeyReply;
 use crate::com::composition::preedit_string;
 use crate::com::key::event::{digit_key, is_edit, is_letter, is_nav, to_key_event};
-use crate::com::key::preserved;
 use crate::com::log::log;
 
 impl ITfKeyEventSink_Impl for TextService_Impl {
@@ -60,16 +58,9 @@ impl ITfKeyEventSink_Impl for TextService_Impl {
         Ok(FALSE)
     }
 
-    /// 翻译选中文字的保留键命中：当作按下了那个组合键转发给 Server（绕过 `would_eat`）。
-    fn OnPreservedKey(&self, pic: Ref<ITfContext>, rguid: *const GUID) -> Result<BOOL> {
-        if unsafe { *rguid } != preserved::GUID_TRANSLATE || self.keyboard_disabled(&pic) {
-            return Ok(FALSE);
-        }
-        let Some(combo) = self.translate_combo.get() else {
-            return Ok(FALSE);
-        };
-        let event = preserved::key_event(combo, self.mode_state.english());
-        Ok(self.forward_key(pic, event).into())
+    /// 本壳没登记任何保留键（原先只有「翻译选中文字」一个），来了也不处理。
+    fn OnPreservedKey(&self, _pic: Ref<ITfContext>, _rguid: *const GUID) -> Result<BOOL> {
+        Ok(FALSE)
     }
 }
 
@@ -105,14 +96,10 @@ impl TextService_Impl {
     }
 
     /// 这个键吃不吃，与 Router 的分派对齐；`OnTestKeyDown` 用，无副作用。
-    /// 带 Ctrl/Alt/Win 只有组句中的「修饰键 + 数字」送 Server（译词 / 删候选），其余归应用（翻译选中文字走保留键）；
+    /// 带 Ctrl/Alt/Win 只有组句中的「修饰键 + 数字」送 Server（删候选），其余归应用；
     /// 字母只有「中文模式、没在组句、按住 Shift 的大写」归应用；组句中功能键 / 方向键 / 可打印字符都吃；
     /// 没在组句时数字 / 标点也先「测吃」送去转全角（中英各有一份开关），Server 不转的回 Passthrough 再放行；`?` 是问字前缀。
     fn would_eat(&self, event: &KeyEvent) -> bool {
-        // 翻译评审中所有键先吃进来交给 Server 定接受 / 取消。
-        if self.shared.translating() {
-            return true;
-        }
         let modifiers = event.modifiers;
         if modifiers.has_command_key() {
             return self.shared.composing() && digit_key(event.virtual_key);
@@ -165,11 +152,9 @@ impl TextService_Impl {
                 client.key(event)
             };
             match response {
-                Ok(KeyReply::Result(response)) => {
+                Ok(response) => {
                     let preedit = preedit_string(&response.frame);
                     self.shared.set_composing(!response.frame.is_empty());
-                    // 翻译评审的任何键都结束评审（Server 侧已同步结束）。
-                    self.shared.set_translating(false);
                     let consumed = matches!(response.outcome, KeyOutcome::Consumed);
                     let m = event.modifiers;
                     log(&format!(
@@ -189,10 +174,6 @@ impl TextService_Impl {
                         consumed,
                     }
                 }
-                Ok(KeyReply::NeedSelection { request }) => {
-                    log(&format!("翻译选中文字：Server 请读选区 request={request}"));
-                    Next::ReadSelection { request }
-                }
                 Err(error) => {
                     log(&format!("转发按键失败，放行并断开，下一键重连: {error}"));
                     *guard = None;
@@ -202,7 +183,7 @@ impl TextService_Impl {
                 }
             }
         };
-        // 带 Ctrl / Alt / Win 的组合（翻译保留键）放行时仍交还应用，别把热键的字母插进文档。
+        // 带 Ctrl / Alt / Win 的组合放行时仍交还应用，别把热键的字母插进文档。
         let insertable = !event.modifiers.has_command_key();
         match (next, passthrough_char) {
             // 放行 + 没在组句 + 可打印字符：输入法插入，吃掉；Server 顺带交出的英文直输段字母拼在前面。
@@ -233,11 +214,6 @@ impl TextService_Impl {
                 _,
             ) => {
                 self.update_document(pic, commit, preedit);
-                true
-            }
-            // 读选区是异步的：先吃掉这个键，选区文本在回调里发给 Server。
-            (Next::ReadSelection { request }, _) => {
-                self.read_selection(pic, request);
                 true
             }
             (Next::Abort, _) => false,

@@ -36,11 +36,8 @@ pub(crate) struct Settings {
     /// 云服务「测试连接」的状态。
     cloud_status: CloudStatus,
 
-    /// 系统里的字族名（DirectWrite），「字体」框的提示用。
+    /// 系统里的字族名（DirectWrite 列举），「字体」下拉列表用。
     families: Vec<String>,
-
-    /// 「字体」框里正在敲的文字；`None` 显示配置里的值。
-    font_query: Option<String>,
 }
 
 impl Settings {

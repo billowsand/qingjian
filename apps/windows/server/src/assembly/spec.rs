@@ -1,6 +1,5 @@
 use std::path::PathBuf;
 
-use qingjian_core::Language;
 use qingjian_platform::DictionariesConfig;
 
 use super::LanguageModelFiles;
@@ -9,12 +8,6 @@ use super::LanguageModelFiles;
 pub struct AssemblySpec {
     /// 主词库（`.qj` 或 TSV）。
     pub dict: PathBuf,
-
-    /// 学习语言的释义表。
-    pub glossary: Option<(Language, PathBuf)>,
-
-    /// 英→中释义表（英文候选的中文释义）。
-    pub english_glossary: Option<PathBuf>,
 
     /// 英文词表。
     pub english: Option<PathBuf>,
@@ -31,9 +24,6 @@ pub struct AssemblySpec {
     /// `[dictionaries]` 配置。
     pub dictionaries: DictionariesConfig,
 
-    /// 词汇等级表目录（`levels-<语言>.tsv`）。
-    pub levels_dir: Option<PathBuf>,
-
     /// 用户数据目录（`%APPDATA%\Qingjian`）；没有就都只在内存。
     pub user_dir: Option<PathBuf>,
 
@@ -45,14 +35,11 @@ impl AssemblySpec {
     pub fn new(dict: impl Into<PathBuf>) -> Self {
         Self {
             dict: dict.into(),
-            glossary: None,
-            english_glossary: None,
             english: None,
             emoji: Vec::new(),
             language_model: None,
             bundled_dicts_dir: None,
             dictionaries: DictionariesConfig::default(),
-            levels_dir: None,
             user_dir: None,
             input_log: false,
         }

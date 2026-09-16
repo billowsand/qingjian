@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
 use qingjian_core::sentence::SentenceScorer;
-use qingjian_core::{Language, ModeKeys, ShuangpinScheme};
+use qingjian_core::{ModeKeys, ShuangpinScheme};
 use qingjian_platform::protocol::{
     ClientMessage, Frame, KeyEvent, KeyModifiers, KeyOutcome, PROTOCOL_VERSION, ServerMessage,
     SessionId,
@@ -70,9 +70,7 @@ fn router_asking_with(config: RouterConfig) -> Router {
 fn router_in(config: RouterConfig, app: Option<String>) -> Router {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../..");
     let dict = root.join("assets/sample/dict.tsv");
-    let glossary = root.join("assets/sample/glossary-en.tsv");
     let mut engine = assembly::assemble(&AssemblySpec {
-        glossary: Some((Language::English, glossary)),
         english: Some(root.join("assets/sample/english.tsv")),
         ..AssemblySpec::new(dict)
     })
@@ -164,7 +162,7 @@ const WIN: KeyModifiers = KeyModifiers {
     ..ALT_OFF
 };
 
-/// 平台缺省的译词键：macOS 是 Alt，Windows 是 Ctrl（Alt 被系统菜单截走）。
+/// 旧版本的译词键（macOS 是 Alt，Windows 是 Ctrl）：本壳已没有这个功能，用来测它确实不再是快捷键。
 #[cfg(not(windows))]
 const TRANSLATE: KeyModifiers = KeyModifiers {
     alt: true,
@@ -174,11 +172,6 @@ const TRANSLATE: KeyModifiers = KeyModifiers {
 const TRANSLATE: KeyModifiers = KeyModifiers {
     ctrl: true,
     ..ALT_OFF
-};
-
-const TRANSLATE_SECOND: KeyModifiers = KeyModifiers {
-    shift: true,
-    ..TRANSLATE
 };
 
 /// 当前页里 `text` 排第几（1 起）。
@@ -594,27 +587,13 @@ fn shift_uppercase_while_composing_commits_raw_first() {
 }
 
 #[test]
-fn alt_digit_commits_first_translation() {
+fn translate_modifier_digit_is_passed_through() {
     let mut router = router();
-    let (_, _, frame) = type_letters(&mut router, "nihao");
-    let slot = slot_of(&frame, "你好");
-    // 缺省译词键（mac ⌥ / Windows Ctrl）+ 数字：上屏那个候选的第一个译词，组句结束。
-    let (outcome, commit, after) = press(&mut router, digit_with(slot, TRANSLATE));
-    assert_eq!(
-        (outcome, commit.as_deref()),
-        (KeyOutcome::Consumed, Some("hello"))
-    );
-    assert!(after.is_empty());
-}
-
-#[test]
-fn second_translation_key_without_second_sense_is_swallowed() {
-    let mut router = router();
-    let (_, _, frame) = type_letters(&mut router, "nihao");
-    let slot = slot_of(&frame, "你好");
-    // 样例释义表里「你好」只有一条译文：第二个译词键（Shift+译词键）+ 数字吞掉不动，组句还在。
-    let (outcome, commit, after) = press(&mut router, digit_with(slot, TRANSLATE_SECOND));
-    assert_eq!((outcome, commit), (KeyOutcome::Consumed, None));
+    type_letters(&mut router, "nihao");
+    // 本壳不带译文功能：以前的译词键（mac ⌥ / Windows Ctrl）+ 数字不再配到任何快捷键，
+    // 组句中也整键归应用（Ctrl+数字是很多应用的切标签页热键），组句不受影响。
+    let (outcome, commit, after) = press(&mut router, digit_with(1, TRANSLATE));
+    assert_eq!((outcome, commit), (KeyOutcome::Passthrough, None));
     assert_eq!(preedit(&after), "ni'hao");
 }
 
@@ -656,10 +635,6 @@ fn learning_data_persists_to_user_dir() {
     let _ = std::fs::remove_dir_all(&user_dir);
     std::fs::create_dir_all(&user_dir).unwrap();
     let engine = assembly::assemble(&AssemblySpec {
-        glossary: Some((
-            Language::English,
-            root.join("assets/sample/glossary-en.tsv"),
-        )),
         user_dir: Some(user_dir.clone()),
         ..AssemblySpec::new(root.join("assets/sample/dict.tsv"))
     })

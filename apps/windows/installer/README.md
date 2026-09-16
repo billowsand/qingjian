@@ -13,8 +13,8 @@ C:\Program Files\Qingjian\
     qingjian-settings.exe     设置界面
     Microsoft.UI.Xaml.dll …   设置程序自带的 Windows App Runtime（自包含部署，见下节；约 56 MB / 185 个文件）
     qingjian.ico              开始菜单 / 启动项快捷方式的图标（exe 里也嵌了一份）
-    data\generated\           dict.qj / lm.qj / glossary-{en,ja,zh}.qj / english.tsv / dicts\*.qj
-    assets\                   emoji\ levels\ sample\
+    data\generated\           dict.qj / lm.qj / english.tsv / dicts\*.qj
+    assets\                   emoji\ sample\
 ```
 
 Server 与设置程序按 **exe 相对**定位随包资源（`qingjian_platform::resources`）：装机时资源与 exe 同级，
@@ -68,6 +68,11 @@ powershell -ExecutionPolicy Bypass -File apps\windows\installer\build.ps1
 脚本 release 构建三个产物、从 `apps\windows\server\Cargo.toml` 读版本、找 `ISCC.exe`、编 `qingjian.iss`，
 成品在 `target\installer\Qingjian-<版本>-Setup.exe`。改了数据 / 脚本但二进制没变时加 `-SkipBuild`；`-Sign` 用自签证书签产物
 （uiAccess 要求 Server 签名 + 装 Program Files）。
+
+`ISCC.exe` 按「Program Files 里的 7 → 每用户安装的 7（`%LOCALAPPDATA%\Programs\Inno Setup 7`）→ PATH → 6」找，
+找不到就用 `QINGJIAN_ISCC` 指定。`data\generated` 里 iscc 要用的表都得在（`dict.qj` / `lm.qj` / `english.tsv` / `dicts\*.qj`）：
+少一张 iscc 会报 `Source file ... does not exist`，说明本机的产品数据没生成全（或 `data` Release 上的包旧了，跑 `tools/release/data-bundle.sh` 重传）。
+`data\model\model.qjm` 可选，没有就不装本地整句模型。
 
 也可手动：`iscc /DAppVersion=0.1.0 apps\windows\installer\qingjian.iss`。
 

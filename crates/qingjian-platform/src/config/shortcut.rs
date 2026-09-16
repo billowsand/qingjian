@@ -76,18 +76,22 @@ mod tests {
 
     #[test]
     fn old_files_without_modifier_keys_still_parse_and_get_defaults() {
+        // 缺省修饰键分平台（Windows 上 Alt+数字被系统截走，用 ctrl），比缺省值而不是写死的平台值
+        let default = ShortcutConfig::default();
         let parsed: ShortcutConfig = toml::from_str("expression = \"i\"\n").unwrap();
         assert_eq!(parsed.mode.expression, 'i');
         assert_eq!(
             parsed.translation_keys(),
-            (Modifiers::OPTION, Modifiers::SHIFT_OPTION)
+            (default.translation, default.translation_second)
         );
+        // 两组相同算没配好，也退回缺省
         let same: ShortcutConfig =
             toml::from_str("translation = \"option\"\ntranslation_second = \"option\"\n").unwrap();
         assert_eq!(
             same.translation_keys(),
-            (Modifiers::OPTION, Modifiers::SHIFT_OPTION)
+            (default.translation, default.translation_second)
         );
+        // 两组不同且都非空就照用，与平台缺省无关
         let swapped: ShortcutConfig =
             toml::from_str("translation = \"control+option\"\ntranslation_second = \"option\"\n")
                 .unwrap();
@@ -98,10 +102,14 @@ mod tests {
     fn delete_keys_fall_back_when_clashing_with_translation_keys() {
         let parsed: ShortcutConfig = toml::from_str("").unwrap();
         assert_eq!(parsed.delete_keys(), Modifiers::SHIFT);
-        let clash: ShortcutConfig = toml::from_str("delete_candidate = \"option\"\n").unwrap();
+        // 与缺省的第一组译词键撞（那个键分平台）→ 退回缺省
+        let clash = ShortcutConfig {
+            delete_candidate: ShortcutConfig::default().translation,
+            ..ShortcutConfig::default()
+        };
         assert_eq!(clash.delete_keys(), Modifiers::SHIFT);
-        let custom: ShortcutConfig =
-            toml::from_str("delete_candidate = \"control+shift\"\n").unwrap();
-        assert!(custom.delete_keys().control);
+        // 与缺省两组译词键都不撞（command 不在缺省里，两个平台都一样）→ 照用
+        let custom: ShortcutConfig = toml::from_str("delete_candidate = \"command\"\n").unwrap();
+        assert_eq!(custom.delete_keys(), custom.delete_candidate);
     }
 }

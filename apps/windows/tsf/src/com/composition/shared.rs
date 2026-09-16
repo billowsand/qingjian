@@ -13,9 +13,6 @@ pub(crate) struct Shared {
     /// Server 上次回的帧非空；决定 `OnTestKeyDown` 要不要吃功能键。
     composing: Cell<bool>,
 
-    /// 「翻译选中文字」评审进行中：所有键交给 Server 定接受 / 取消，轮询定时器照常拉云端译文。
-    translating: Cell<bool>,
-
     /// 最近一次收键的文档上下文；失焦 / 停用回调不带上下文，落定拼音要用它。
     last_context: RefCell<Option<ITfContext>>,
 
@@ -34,7 +31,6 @@ impl Shared {
         Rc::new(Self {
             composition: RefCell::new(None),
             composing: Cell::new(false),
-            translating: Cell::new(false),
             last_context: RefCell::new(None),
             server_stale: Cell::new(false),
             foreground: Cell::new(false),
@@ -70,14 +66,6 @@ impl Shared {
         self.composing.set(value);
     }
 
-    pub(crate) fn translating(&self) -> bool {
-        self.translating.get()
-    }
-
-    pub(crate) fn set_translating(&self, value: bool) {
-        self.translating.set(value);
-    }
-
     /// 通知 Server 收起候选窗口。引擎正被别处借着或没连上时静默跳过。
     pub(crate) fn hide_candidates(&self) {
         if let Ok(mut guard) = self.client.try_borrow_mut()
@@ -107,7 +95,6 @@ impl Shared {
     /// 组句结束（应用终止组句 / 断线 / 失焦上屏）：不再当作在组句，并让 Server 收候选窗口。
     pub(crate) fn end_composing(&self) {
         self.composing.set(false);
-        self.translating.set(false);
         self.hide_candidates();
     }
 

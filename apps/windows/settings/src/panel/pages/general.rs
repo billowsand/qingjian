@@ -1,18 +1,10 @@
-//! 「通用」页：学习语言、每页候选数、双拼、英文模式候选。
+//! 「通用」页：每页候选数、双拼、英文模式候选。
 
 use qingjian_platform::MAX_PAGE_SIZE;
 use windows_reactor::*;
 
 use crate::panel::controls::{field, index_of, page};
 use crate::panel::{Message, Settings};
-
-/// 学习语言：界面名 + 配置写法。
-pub(crate) const LANGUAGES: [(&str, &str); 4] = [
-    ("英语", "en"),
-    ("日语", "ja"),
-    ("西班牙语", "es"),
-    ("不显示译文", "off"),
-];
 
 /// 双拼方案：界面名 + 配置写法（空串为全拼）。
 pub(crate) const SHUANGPIN: [(&str, &str); 5] = [
@@ -38,15 +30,6 @@ pub(crate) fn view(settings: &Settings, context: &mut ViewContext<Settings>) -> 
     let g = &settings.config.general;
     let english_off = !settings.config.apps.english_candidates_off.is_empty();
     let rows = [
-        field(
-            "学习语言",
-            "候选词右侧显示哪种语言的译词，只列出装了释义表的语言；「不显示译文」同时关掉生词标记与释义兜底。",
-            string_combo(
-                &LANGUAGES,
-                &g.learning_language,
-                context.callback(Message::LearningLanguage),
-            ),
-        ),
         field(
             "每页候选数",
             "",

@@ -5,7 +5,7 @@ use qingjian_platform::protocol::{
     read_message, write_message,
 };
 
-use super::{KeyReply, KeyResponse};
+use super::KeyResponse;
 use crate::error::ClientError;
 
 /// 连 Server 的一个会话客户端，开在一条已连好的双工流上（Windows 下是命名管道，测试里是内存流）。
@@ -52,43 +52,11 @@ impl<S: Read + Write> EngineClient<S> {
         Ok(())
     }
 
-    /// 送一个按键等结果。触发「翻译选中文字」快捷键时回 [`KeyReply::NeedSelection`]，
-    /// 调用方须读当前选区再用 [`Self::selection`] 回给 Server。
-    pub fn key(&mut self, event: KeyEvent) -> Result<KeyReply, ClientError> {
+    /// 送一个按键等结果。
+    pub fn key(&mut self, event: KeyEvent) -> Result<KeyResponse, ClientError> {
         let message = ClientMessage::Key {
             session: self.session,
             event,
-        };
-        match self.call(&message)? {
-            ServerMessage::KeyResult {
-                outcome,
-                commit,
-                frame,
-                ..
-            } => Ok(KeyReply::Result(KeyResponse {
-                outcome,
-                commit,
-                frame,
-            })),
-            ServerMessage::RequestSelection { request, .. } => {
-                Ok(KeyReply::NeedSelection { request })
-            }
-            _ => Err(ClientError::Unexpected("expected key result")),
-        }
-    }
-
-    /// 把读到的选区发给 Server，等它回翻译候选帧。空选区时 Server 不进入翻译、回空帧。
-    pub fn selection(
-        &mut self,
-        request: u64,
-        text: String,
-        rect: ScreenRect,
-    ) -> Result<KeyResponse, ClientError> {
-        let message = ClientMessage::Selection {
-            session: self.session,
-            request,
-            text,
-            rect,
         };
         match self.call(&message)? {
             ServerMessage::KeyResult {
@@ -101,7 +69,7 @@ impl<S: Read + Write> EngineClient<S> {
                 commit,
                 frame,
             }),
-            _ => Err(ClientError::Unexpected("expected key result for selection")),
+            _ => Err(ClientError::Unexpected("expected key result")),
         }
     }
 

@@ -118,6 +118,25 @@ english_candidates_off = [
     };
 }
 
+/// 模板 `[general]` 里的学习语言一项（macOS）。Windows 壳不带译文功能，模板里不列它，
+/// 见下面 `#[cfg(windows)]` 那份；字段本身两个平台都在，缺省 `en`。
+#[cfg(not(windows))]
+macro_rules! template_learning_language {
+    () => {
+        r#"# 学习语言（en 英语 / ja 日语 / es 西班牙语 / off 不显示译文）：候选旁显示哪种语言的译文，要有对应的释义表才生效
+learning_language = "en"
+"#
+    };
+}
+
+/// Windows 壳不带译文功能：模板里没有学习语言这一项。
+#[cfg(windows)]
+macro_rules! template_learning_language {
+    () => {
+        ""
+    };
+}
+
 /// 模板 `[shortcut]` 一节里的修饰键组合（macOS 命名）。缺省值两个平台一样，只是写法与注释按平台的键名。
 #[cfg(not(windows))]
 macro_rules! template_shortcut_keys {
@@ -136,36 +155,32 @@ delete_candidate = "shift"
 }
 
 /// 模板 `[shortcut]` 一节里的修饰键组合（Windows 键名：alt / ctrl / win，读回来与 macOS 的 option / control / command 等价）。
+/// 译词相关的组合不列：Windows 壳不带译文功能。
 #[cfg(windows)]
 macro_rules! template_shortcut_keys {
     () => {
-        r#"# 数字键配这些修饰键上屏候选的译词：translation 第一个译词，translation_second 第二个（候选右侧有两个译词时）
-# 任意修饰键组合（alt / shift / ctrl / win 用 + 连）。Alt+数字会被 Windows 当菜单快捷键截走，缺省用 Ctrl；组句时才拦，不打字时照常放行给应用
-translation = "ctrl"
-translation_second = "shift+ctrl"
-# 把应用里选中的文字译成学习语言（要开着云服务）：Windows 上还没接
-translate_selection = "ctrl+alt+t"
-# 数字键配这些修饰键删掉候选：用户词（云端选过的、自动造的）整个删掉，词库里的词清掉对它的学习记录。组句中要打感叹号先把词上屏
+        r#"# 数字键配这些修饰键删掉候选：用户词（云端选过的、自动造的）整个删掉，词库里的词清掉对它的学习记录。组句中要打感叹号先把词上屏
+# 任意修饰键组合（alt / shift / ctrl / win 用 + 连）。Alt+数字会被 Windows 当菜单快捷键截走，缺省用 Shift；组句时才拦，不打字时照常放行给应用
 delete_candidate = "shift"
 "#
     };
 }
 
-/// 首次运行写出的模板：默认值全部列出并注释，用户改一处即可。`[shortcut]` 的修饰键与 `[apps]` 分平台，
-/// 见 [`template_shortcut_keys!`] / [`template_apps!`]。
+/// 首次运行写出的模板：默认值全部列出并注释，用户改一处即可。学习语言、`[shortcut]` 的修饰键与 `[apps]` 分平台，
+/// 见 [`template_learning_language!`] / [`template_shortcut_keys!`] / [`template_apps!`]。
 pub const TEMPLATE: &str = concat!(
     r#"# 青简输入法配置。保存后自动生效；也可以在菜单栏的输入法菜单里改。
 
 [general]
-# 学习语言（en 英语 / ja 日语 / es 西班牙语 / off 不显示译文）：候选旁显示哪种语言的译文，要有对应的释义表才生效
-learning_language = "en"
-# 每页候选数（1–9）
+"#,
+    template_learning_language!(),
+    r#"# 每页候选数（1–9）
 page_size = 9
 # 翻页键对：前一个上一页、后一个下一页。可选 "[]" 或 ",."；选 ",." 的话组句中敲逗号句号是翻页而不是上屏加标点
 page_keys = "[]"
 # 候选窗口外观：system 跟随系统 / light 浅色 / dark 深色
 theme = "system"
-# 候选窗口排布：vertical 竖排 / horizontal 横排（横排只给高亮候选显示译文）
+# 候选窗口排布：vertical 竖排 / horizontal 横排
 layout = "vertical"
 # 候选窗口由谁绘制：qingjian 青简渲染器（各平台一致，主题走它）/ system 系统原生绘制（渲染器有问题时的退路）
 renderer = "qingjian"
@@ -243,7 +258,8 @@ enabled = true
 # 云联想：把光标附近的文本发到下面的接口，让模型补全整句 / 联想下文。默认关闭。
 # 开启后菜单栏的「中 / 英」旁会带一个云朵标识；Secure Input（密码框）里绝不发送。
 enabled = false
-# OpenAI 兼容接口地址与模型名（DeepSeek 默认值）
+# OpenAI 兼容接口地址与模型名（DeepSeek 默认值）。本机自己跑模型（LM Studio / Ollama）填 "http://127.0.0.1:端口" 即可，
+# 路径不写会自动补 /v1，密钥也可以留空（这些服务不校验）
 base_url = "https://api.deepseek.com"
 model = "deepseek-v4-flash"
 # 推理强度（reasoning_effort）：none 关掉模型的思考，联想要快；留空则不发这个参数
@@ -364,7 +380,7 @@ impl Config {
         };
         toml::from_str(&source).map_err(|source| ConfigError::Parse {
             path: path.to_owned(),
-            source,
+            source: Box::new(source),
         })
     }
 
@@ -394,7 +410,7 @@ impl Config {
         };
         let mut document: DocumentMut = source.parse().map_err(|source| ConfigError::Edit {
             path: path.to_owned(),
-            source,
+            source: Box::new(source),
         })?;
         // 分节不存在时先建成标准表，否则 toml_edit 会写成顶层的行内表 `predict = { enabled = true }`
         if !document.get(section).is_some_and(|item| item.is_table()) {
@@ -430,7 +446,7 @@ impl Config {
         };
         let mut document: DocumentMut = source.parse().map_err(|source| ConfigError::Edit {
             path: path.to_owned(),
-            source,
+            source: Box::new(source),
         })?;
         if !document.get(section).is_some_and(|item| item.is_table()) {
             document[section] = toml_edit::table();
@@ -507,7 +523,11 @@ mod tests {
         assert_eq!(config.general.log_level, LogLevel::Info);
         assert_eq!(config.shortcut.mode.expression, 'i');
         assert_eq!(config.shortcut.mode.question, 'u');
-        assert_eq!(config.shortcut.translation, Modifiers::OPTION);
+        // 缺省译词修饰键分平台（Windows 用 ctrl，macOS / Linux 用 option），比缺省值而不是写死的平台值
+        assert_eq!(
+            config.shortcut.translation,
+            ShortcutConfig::default().translation
+        );
     }
 
     #[test]

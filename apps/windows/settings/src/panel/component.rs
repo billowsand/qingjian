@@ -24,7 +24,6 @@ impl Component for Settings {
             page: "general".to_string(),
             cloud_status: CloudStatus::Idle,
             families: qingjian_render::system_fonts::families(),
-            font_query: None,
         }
     }
 
@@ -34,9 +33,6 @@ impl Component for Settings {
             Message::Navigate(None) => {}
 
             // 通用页
-            Message::LearningLanguage(Some(i)) if i < general::LANGUAGES.len() => {
-                self.save("general", "learning_language", general::LANGUAGES[i].1);
-            }
             Message::PageSize(Some(value)) => {
                 let size = (value.round() as i64).clamp(1, 9);
                 self.save("general", "page_size", size);
@@ -78,29 +74,13 @@ impl Component for Settings {
             Message::Renderer(Some(i)) if i < CandidateRenderer::ALL.len() => {
                 self.save("general", "renderer", CandidateRenderer::ALL[i].key());
             }
-            Message::FontQuery(text) => {
-                let text = text.trim().to_owned();
-                let exact = self
-                    .families
-                    .iter()
-                    .find(|family| family.eq_ignore_ascii_case(&text))
-                    .cloned();
-                match exact {
-                    Some(family) => {
-                        self.font_query = None;
-                        self.save("general", "font", family);
-                    }
-                    None if text.is_empty() => {
-                        self.font_query = None;
-                        self.save("general", "font", "");
-                    }
-                    None => self.font_query = Some(text),
-                }
-            }
-            Message::Font(family) => {
-                self.font_query = None;
+            Message::Font(Some(0)) => self.save("general", "font", ""),
+            Message::Font(Some(index)) if index <= self.families.len() => {
+                let family = self.families[index - 1].clone();
                 self.save("general", "font", family);
             }
+            // 最后那一项是配置里写了、但系统里没装的字体：保持原值，不动配置
+            Message::Font(_) => {}
             Message::StatusBar(on) => self.save("status_bar", "enabled", on),
 
             // 云服务页
@@ -142,19 +122,8 @@ impl Component for Settings {
                 self.save("shortcut", "question", shortcut::MODE_KEYS[i]);
             }
             Message::QuestionMark(on) => self.save("shortcut", "question_mark", on),
-            Message::Translation(Some(i)) if i < shortcut::MODIFIERS.len() => {
-                self.save("shortcut", "translation", shortcut::MODIFIERS[i].1);
-            }
-            Message::TranslationSecond(Some(i)) if i < shortcut::MODIFIERS.len() => {
-                self.save("shortcut", "translation_second", shortcut::MODIFIERS[i].1);
-            }
             Message::DeleteCandidate(Some(i)) if i < shortcut::MODIFIERS.len() => {
                 self.save("shortcut", "delete_candidate", shortcut::MODIFIERS[i].1);
-            }
-            Message::TranslateSelection(Some(i)) if i < shortcut::MODIFIERS.len() => {
-                let key = self.config.shortcut.translate_selection.key;
-                let combo = format!("{}+{key}", shortcut::MODIFIERS[i].1);
-                self.save("shortcut", "translate_selection", combo);
             }
 
             // 模糊音页

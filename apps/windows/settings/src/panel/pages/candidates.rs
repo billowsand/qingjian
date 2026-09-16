@@ -6,6 +6,9 @@ use windows_reactor::*;
 use crate::panel::controls::{field, page};
 use crate::panel::{Message, Settings};
 
+/// 「系统字体」项的下标：列表第 0 项，对应配置里的空串。
+const SYSTEM_FONT: usize = 0;
+
 /// 枚举下拉：按 `label()` 列项，选中 `current`（找不到取 0）。
 fn mode_combo<T: PartialEq + Copy>(
     all: &'static [T],
@@ -19,19 +22,30 @@ fn mode_combo<T: PartialEq + Copy>(
         .on_selection_changed(callback)
 }
 
-pub(crate) fn view(settings: &Settings, context: &mut ViewContext<Settings>) -> View {
-    let g = &settings.config.general;
-    let font_text = settings
-        .font_query
-        .clone()
-        .unwrap_or_else(|| g.font.clone());
-    let query = font_text.to_lowercase();
-    let suggestions: Vec<String> = settings
+/// 字体下拉：第 0 项是「系统字体」，其余是系统里装的字族（DirectWrite 列举，已按名字排序）。
+/// 配置里写了、但系统里没装的字族补在最后并选中它，免得下拉框显示的和配置里存的对不上。
+/// 返回（列表，选中项）。
+fn font_combo(settings: &Settings) -> (Vec<String>, usize) {
+    let configured = settings.config.general.font.trim();
+    let mut options: Vec<String> = Vec::with_capacity(settings.families.len() + 1);
+    options.push("系统字体（默认）".to_owned());
+    options.extend(settings.families.iter().cloned());
+    let mut selected = settings
         .families
         .iter()
-        .filter(|family| family.to_lowercase().contains(&query))
-        .cloned()
-        .collect();
+        .position(|family| family.eq_ignore_ascii_case(configured))
+        .map(|index| index + 1)
+        .unwrap_or(SYSTEM_FONT);
+    if selected == SYSTEM_FONT && !configured.is_empty() {
+        options.push(configured.to_owned());
+        selected = options.len() - 1;
+    }
+    (options, selected)
+}
+
+pub(crate) fn view(settings: &Settings, context: &mut ViewContext<Settings>) -> View {
+    let g = &settings.config.general;
+    let (font_options, font_selected) = font_combo(settings);
     let rows = [
         field(
             "外观",
@@ -45,7 +59,7 @@ pub(crate) fn view(settings: &Settings, context: &mut ViewContext<Settings>) -> 
         ),
         field(
             "排布",
-            "横排时只给高亮的候选显示译词。",
+            "",
             mode_combo(
                 &LayoutMode::ALL,
                 g.layout,
@@ -65,14 +79,12 @@ pub(crate) fn view(settings: &Settings, context: &mut ViewContext<Settings>) -> 
         ),
         field(
             "字体",
-            "只对青简渲染器生效；留空用系统字体，没装的字体自动回到系统字体。",
-            AutoSuggestBox::new()
+            "只对青简渲染器生效；下拉列表是系统里装的字体，选「系统字体」用默认；配置里的字体没装时自动回到系统字体。",
+            ComboBox::new()
                 .width(260.0)
-                .text(font_text)
-                .placeholder_text("系统字体")
-                .items_source(suggestions)
-                .on_text_changed(context.callback(Message::FontQuery))
-                .on_suggestion_chosen(context.callback(Message::Font)),
+                .items_source(font_options)
+                .selected_index(font_selected)
+                .on_selection_changed(context.callback(Message::Font)),
         ),
         field(
             "拼音显示",

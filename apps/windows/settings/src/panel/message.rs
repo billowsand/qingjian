@@ -7,7 +7,6 @@ pub(crate) enum Message {
     Navigate(Option<String>),
 
     // 通用页
-    LearningLanguage(Option<usize>),
     PageSize(Option<f64>),
     Shuangpin(Option<usize>),
     Zhuyin(bool),
@@ -23,10 +22,8 @@ pub(crate) enum Message {
     Layout(Option<usize>),
     Preedit(Option<usize>),
     Renderer(Option<usize>),
-    /// 字体框里的文字变了：空或正好是某个字族名就落盘。
-    FontQuery(String),
-    /// 从提示里选了一个字族。
-    Font(String),
+    /// 从系统字体列表里选了一个：0 是「系统字体」，其后按 `Settings::families` 的下标。
+    Font(Option<usize>),
     StatusBar(bool),
 
     // 云服务页
@@ -45,11 +42,7 @@ pub(crate) enum Message {
     ModeExpression(Option<usize>),
     ModeQuestion(Option<usize>),
     QuestionMark(bool),
-    Translation(Option<usize>),
-    TranslationSecond(Option<usize>),
     DeleteCandidate(Option<usize>),
-    /// 只换修饰键，字母键固定用当前的。
-    TranslateSelection(Option<usize>),
 
     // 模糊音页
     /// 配置键 + 新值。

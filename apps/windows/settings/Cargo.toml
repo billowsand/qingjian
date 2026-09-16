@@ -22,7 +22,6 @@ windows-reactor = "0.100"
 qingjian-render.workspace = true
 qingjian-learning.workspace = true
 qingjian-core.workspace = true
-qingjian-translate.workspace = true
 jiff.workspace = true
 rfd = "0.17"
 
