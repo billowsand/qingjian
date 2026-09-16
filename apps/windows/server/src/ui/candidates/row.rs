@@ -7,7 +7,14 @@ use qingjian_render::{Row, Tone};
 /// `position` 是页内下标（从 0 起）。
 pub(crate) fn from_candidate(position: usize, candidate: &Candidate) -> Row {
     let mut annotation = Vec::new();
+    // 敲了辅码时 Core 给每条候选标上它自己的辅码（栏 ms）：排在最前，让人一眼看到该敲哪个码
+    if let Some(fuma) = &candidate.fuma {
+        annotation.push((fuma.clone(), Tone::Faint));
+    }
     if let Some(reading) = &candidate.reading {
+        if !annotation.is_empty() {
+            annotation.push((" · ".to_owned(), Tone::Faint));
+        }
         annotation.push((reading.clone(), Tone::Gloss));
     }
     if let Some(translation) = &candidate.translation {

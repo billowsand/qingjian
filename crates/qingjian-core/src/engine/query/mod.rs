@@ -1,6 +1,7 @@
 //! 候选生成：按模式分派查询，整句转换与词级查找，位置展开。
 
 use super::*;
+use crate::engine::fuma::FumaCodes;
 
 mod english_tail;
 mod result;
@@ -82,9 +83,11 @@ impl Engine {
             return Ok(self.query_raw(keys, rest, start));
         }
         // 双拼先解成全拼（音节间已用 `'` 连好，切分没有歧义），之后与全拼同路；解不动的键当尾巴。
-        // 辅码激活时末 2 键是过滤键，decode 已把它们剥掉；这里单独留着敲出的两码供过滤用
+        // 辅码两码都敲了时 decode 已把它们剥掉，这里留着敲出的码供过滤 / 置顶用
         let decoded = self.decode(keys);
-        let fuma_typed = self.fuma_input(keys).map(|f| f.typed);
+        let fuma_codes = self.fuma_codes(keys);
+        // 只有两码那档排除别的候选；首码那档不排他，英文词与 emoji 照常出
+        let fuma_filters = matches!(fuma_codes, Some(FumaCodes::Both(_)));
         let scope: &str = decoded.as_ref().map_or(keys, |d| d.pinyin());
         // 末尾是英文词（`woxiangxuehaorust`）：拼音候选与整句只按头段算，尾段整个跟在整句后面。
         // 整段也能读成拼音时（`database`、`…rust` 当简拼）两种读法比分，英文赢了才按头段算，
@@ -180,6 +183,7 @@ impl Engine {
                     coverage: segmentation.letters(),
                     abbreviated,
                     weight: self.learner.weight(hit.text),
+                    fuma_hit: false,
                     penalty: expanded.penalty(hit.syllables()),
                 });
             }
@@ -204,6 +208,7 @@ impl Engine {
                         coverage: prefix_letters,
                         abbreviated,
                         weight: self.learner.weight(hit.text),
+                        fuma_hit: false,
                         penalty: expanded.penalty(hit.syllables()),
                     });
                 }
@@ -211,10 +216,21 @@ impl Engine {
         }
         let lookup = start.elapsed();
 
-        // 辅码激活时严格过滤：词级候选按文本首末字形码对敲出的两码，对不上不出（语义同水杉）。
+        // 辅码：两码都敲了就严格过滤，词级候选按文本首末字形码对敲出的两码，对不上不出（语义同水杉）；
+        // 只敲了首码时不排除任何候选（`ljm` 的 蓝莓 还要出），只把首码对得上的标出来由排序顶到最前。
         // 前缀候选也按它们自己的文本算（开发 覆不满 kai'fa'zhe 的时候同样过这道闸）
-        if let (Some(typed), Some(table)) = (fuma_typed, self.fuma.as_ref()) {
-            scored.retain(|item| table.matches(item.hit.text, typed));
+        match fuma_codes {
+            Some(FumaCodes::Both(codes)) => {
+                scored.retain(|item| self.fuma_expected(item.hit.text) == Some(codes));
+            }
+            Some(codes @ FumaCodes::First(_)) => {
+                for item in &mut scored {
+                    item.fuma_hit = self
+                        .fuma_expected(item.hit.text)
+                        .is_some_and(|expected| codes.admits(expected));
+                }
+            }
+            None => {}
         }
 
         let start = Instant::now();
@@ -249,6 +265,7 @@ impl Engine {
                 syllables: s.hit.syllables().map(str::to_owned).collect(),
                 reading: None,
                 translation: None,
+                fuma: None,
             })
             .collect();
         // 中文优先：整句先进去占第一，英文词紧跟其后（第二）；关掉时英文词先进、整句排在开头的英文后面。
@@ -261,11 +278,11 @@ impl Engine {
                 english_tail.as_ref().filter(|_| correction.is_none()),
                 head_wins,
             );
-            if fuma_typed.is_none() {
+            if !fuma_filters {
                 self.insert_english(&mut items, unlikely);
             }
         } else {
-            if fuma_typed.is_none() {
+            if !fuma_filters {
                 self.insert_english(&mut items, unlikely);
             }
             self.insert_sentence(
@@ -278,8 +295,17 @@ impl Engine {
         }
         // 快捷候选按敲的键认（`rq` 日期），双拼下也是
         self.insert_shortcuts(&mut items, keys);
-        if fuma_typed.is_none() {
+        if !fuma_filters {
             self.insert_emoji(&mut items);
+        }
+        // 敲了辅码就给候选标上各自的辅码：用户看着 蓝 cm、缆 cf 才知道下次该敲哪个码。
+        // 没敲辅码时不标，候选窗照旧（标注那一栏要留给译文）
+        if fuma_codes.is_some() {
+            for item in &mut items {
+                item.fuma = self
+                    .fuma_expected(&item.text)
+                    .map(|codes| codes.iter().collect());
+            }
         }
         let rank = start.elapsed();
 
@@ -299,7 +325,7 @@ impl Engine {
             decoded_keys: self.shuangpin.is_some() || self.zhuyin,
             typed_display,
             // 拼音行单独画出敲的那两个辅码键（解码已把它们剥掉，不画就一点痕迹都没有）
-            fuma: fuma_typed.map(|_| keys[keys.len() - 2..].to_owned()),
+            fuma: self.fuma_keys().map(str::to_owned),
             correction,
             timings: Timings {
                 parse,
@@ -320,6 +346,7 @@ impl Engine {
                 syllables: Vec::new(),
                 reading: None,
                 translation: None,
+                fuma: None,
             });
         }
         Query {
@@ -350,6 +377,7 @@ impl Engine {
             syllables: Vec::new(),
             reading: None,
             translation: None,
+            fuma: None,
         }];
         Query {
             segmentations: Vec::new(),
@@ -387,6 +415,7 @@ impl Engine {
             syllables: Vec::new(),
             reading: None,
             translation: None,
+            fuma: None,
         })
         .collect();
         self.insert_emoji(&mut items);
@@ -425,6 +454,7 @@ impl Engine {
                         syllables: Vec::new(),
                         reading: None,
                         translation: None,
+                        fuma: None,
                     }],
                 },
                 scope.to_owned(),
@@ -549,6 +579,7 @@ impl Engine {
             syllables: conversion.syllables,
             reading: None,
             translation: None,
+            fuma: None,
         })
     }
 

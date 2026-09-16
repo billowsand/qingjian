@@ -1,6 +1,7 @@
 //! 候选排序。
 //!
 //! 词级排序规则：
+//! 0. 敲了辅码首码时，首码对得上的词优先（`ljm` → 栏 排在 蓝莓 前；不排除别的候选，只是提到最前）
 //! 1. 音节数与输入完全一致的词优先（`kaifa` → 开发 排在 开发者 前）
 //! 2. 覆盖输入字母多者优先（`kaif` → 开发者 排在 开 前）
 //! 3. 切分里非末尾的简拼音节少者优先（`kaifa` 按 `kai fa` 读的 开放 排在按 `kai f a` 读的 开放啊 前）
@@ -99,6 +100,7 @@ mod tests {
                 coverage: 5,
                 abbreviated: 0,
                 weight: 0,
+                fuma_hit: false,
                 penalty: 0.0,
             },
             Scored {
@@ -107,6 +109,7 @@ mod tests {
                 coverage: 5,
                 abbreviated: 0,
                 weight: 5,
+                fuma_hit: false,
                 penalty: 0.0,
             },
             Scored {
@@ -115,6 +118,7 @@ mod tests {
                 coverage: 5,
                 abbreviated: 0,
                 weight: 0,
+                fuma_hit: false,
                 penalty: 0.0,
             },
         ];
@@ -132,6 +136,7 @@ mod tests {
                 coverage: 2,
                 abbreviated: 0,
                 weight: 0,
+                fuma_hit: false,
                 penalty: 0.0,
             },
             Scored {
@@ -140,6 +145,7 @@ mod tests {
                 coverage: 2,
                 abbreviated: 0,
                 weight: 0,
+                fuma_hit: false,
                 penalty: 0.0,
             },
         ];
@@ -183,6 +189,7 @@ mod tests {
                 coverage: 5,
                 abbreviated: 1,
                 weight: 0,
+                fuma_hit: false,
                 penalty: 0.0,
             },
             Scored {
@@ -191,6 +198,7 @@ mod tests {
                 coverage: 5,
                 abbreviated: 0,
                 weight: 0,
+                fuma_hit: false,
                 penalty: 0.0,
             },
         ];
@@ -215,6 +223,7 @@ mod tests {
                 coverage: 4,
                 abbreviated: 0,
                 weight: 0,
+                fuma_hit: false,
                 penalty: 0.0,
             },
             Scored {
@@ -223,6 +232,7 @@ mod tests {
                 coverage: 4,
                 abbreviated: 0,
                 weight: 0,
+                fuma_hit: false,
                 penalty: 0.0,
             },
         ];

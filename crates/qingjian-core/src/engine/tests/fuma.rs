@@ -115,6 +115,91 @@ fn fuma_codes_go_away_with_a_prefix_candidate() {
     assert_eq!(engine.composition().text(), "fa");
 }
 
+/// 只敲首码（小写单键）：它还可能是下一个字的声母，两种读法都留着，辅码对得上的顶到最前。
+#[test]
+fn first_code_boosts_without_excluding() {
+    let mut engine = fuma_engine();
+    // 开=fk、发=xa。`kdf` 读成 `kai f…`：开发 / 开饭 / 开放 / 开发者 都是 f 声母的简拼词。
+    // 同时 f 是 开（fk）与 开发（f + x）的辅码首码，这两条被顶到最前，其余照常留在后面
+    engine.set_input("kdf");
+    let items = &engine.query().unwrap().candidates.items;
+    let texts: Vec<&str> = items.iter().map(|c| c.text.as_str()).collect();
+    assert_eq!(&texts[..2], &["开发", "开"], "辅码首码对得上的排最前");
+    // 首末字不在表里的（开饭 / 开放 / 开发者）没被排除，只是排在后面
+    assert!(texts[2..].contains(&"开放"), "不排他：{texts:?}");
+}
+
+/// 两码那档（切不成音节的一对小写键）没有歧义，严格过滤。
+#[test]
+fn both_codes_filter_even_in_lower_case() {
+    let mut engine = fuma_engine();
+    // 开=fk：`fk` 解不成一个音节，是辅码
+    engine.set_input("kdfk");
+    let items = &engine.query().unwrap().candidates.items;
+    assert!(!items.is_empty());
+    assert!(items.iter().all(|c| c.text == "开"));
+    // 两键正好是一个合法音节时不抢：`fa` 是 fa，`kdfa` 照常读成 kai'fa
+    engine.set_input("kdfa");
+    assert_eq!(engine.query().unwrap().marked_text(), "kai'fa");
+}
+
+/// 敲了辅码就给每条候选标上它自己的辅码，让人知道下次该敲哪个码。
+#[test]
+fn candidates_carry_their_own_codes() {
+    let mut engine = fuma_engine();
+    engine.set_input("kdf");
+    let items = &engine.query().unwrap().candidates.items;
+    let kai = items.iter().find(|c| c.text == "开").unwrap();
+    assert_eq!(kai.fuma.as_deref(), Some("fk"));
+    // 词组取首字第 1 码 + 末字第 1 码
+    let kaifa = items.iter().find(|c| c.text == "开发").unwrap();
+    assert_eq!(kaifa.fuma.as_deref(), Some("fx"));
+    // 没敲辅码时不标，标注那一栏留给译文
+    engine.set_input("kd");
+    assert!(
+        engine
+            .query()
+            .unwrap()
+            .candidates
+            .items
+            .iter()
+            .all(|c| c.fuma.is_none())
+    );
+}
+
+/// 首码那档选中辅码候选时，那一键跟着一起吃掉；选普通前缀候选时它留着当下一个字的声母。
+#[test]
+fn first_code_is_eaten_only_by_its_own_candidate() {
+    let mut engine = fuma_engine();
+    engine.set_input("kdf");
+    let kai = engine
+        .query()
+        .unwrap()
+        .candidates
+        .items
+        .iter()
+        .find(|c| c.text == "开")
+        .cloned()
+        .unwrap();
+    engine.commit(&kai);
+    // 开 的首码就是 f：连辅码键一起吃光
+    assert!(engine.composition().is_empty());
+
+    // 同样的输入选 开发（盖满 `kai f…` 的简拼词）：按拼音算，也是全吃
+    engine.set_input("kdf");
+    let kaifa = engine
+        .query()
+        .unwrap()
+        .candidates
+        .items
+        .iter()
+        .find(|c| c.text == "开发")
+        .cloned()
+        .unwrap();
+    engine.commit(&kaifa);
+    assert!(engine.composition().is_empty());
+}
+
 #[test]
 fn fuma_shows_up_in_the_pinyin_line() {
     let mut engine = fuma_engine();

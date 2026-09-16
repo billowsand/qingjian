@@ -17,15 +17,19 @@ TSV 解析、查询与生成工具把 `lue` / `nue` 统一成 `lve` / `nve`。
 `english`（英文模式候选）/ `fuma`（辅码：字级形码表 `FumaTable`，每行 `字=两码`，表在 `assets/fuma/xiaohe.txt`；
   词组辅码不存表，`expected_codes` 运行时按「单字两码、多字首字第 1 码 + 末字第 1 码」现算，`matches` 严格过滤，首末字不在表里即不匹配；
   同字重复后一条覆盖前一条，与水杉引擎 `HelpcodeUtils` 的语义一致。表权利归方案作者，随包分发前要先拿授权，否则改为运行时用户导入）/
-  `engine/fuma.rs`（辅码激活判定 `fuma_input`：末 2 键都是字母且含大写、去掉后前缀能解成完整双拼才激活，第一键大写时两码反转；
-  注音模式下整套不介入（`fuma_scheme` 一并挡掉）。判定挂在每次 `Engine::decode` 上，所以写成零分配：末 2 键按字节看，
-  `decode_keys` 返回 `Cow`，辅码关着时原样借用键串。`Engine::decode` 先剥辅码段再小写化解码，所有 decode 消费方自动不含辅码；
-  `query_inner` rank 前按 `matches` 严格过滤词级候选，云端词在 `validate_cloud_words` 里过同一道闸，
-  辅码激活时不出英文候选与 emoji，整句在 `plain_sentence` 里同规则过滤；
-  上屏时 `consumed_by` 盖满拼音就连辅码 2 键一起吃，盖不满的由 `commit::consume_scope` 把末尾那对辅码键丢掉
-  （否则剩下的拼音还背着它，下一次查询又被筛一遍）；`take_raw` 剥辅码段；`delete_syllable_backward` / 音节光标跳认辅码键为字母。
-  拼音行单独画辅码段：`Query::fuma` 存敲的两键原样，`marked_segments` 推一段 `MarkedKind::Fuma`，
-  一路镜像到 `PreeditKind::Fuma` / `PreeditStyle::Fuma`，两条绘制路径（自绘渲染器与系统绘制）都画淡。
+  `engine/fuma.rs`（辅码键判定 `fuma_input`，两档：**一个小写键**（`ljm`）与「下一个字的声母」有歧义，
+  不从解码里剥掉（简拼词 蓝莓 照常出），匹配的候选靠 `Scored::fuma_hit` 顶到排序最前（`FumaCodes::First`）；
+  **两个键**（切不成一个音节的一对小写键，或含大写）没有歧义，从解码里剥掉并只留匹配的候选（`FumaCodes::Both`），
+  第一键大写时两码反转。注音模式下整套不介入（`fuma_scheme` 一并挡掉）。判定挂在每次 `Engine::decode` 上，
+  所以写成零分配：末键按字节看，`decode_keys` 返回 `Cow`，辅码关着时原样借用键串。
+  两码那档在 `query_inner` rank 前按 `expected_codes` 严格过滤，云端词在 `validate_cloud_words` 里过同一道闸，
+  不出英文候选与 emoji，整句在 `plain_sentence` 里同规则过滤；首码那档只置顶，什么都不排除。
+  上屏消耗：两码那档盖满拼音就连 2 键一起吃，盖不满的由 `commit::consume_scope` 丢掉；
+  首码那档由 `commit::consumed_first_code` 判断——盖满辅码键之前那段拼音、首码又对得上的才多吃那一键，
+  普通前缀候选（蓝）不吃，那一键留着当下一个字的声母。`take_raw` 剥两码那档；`delete_syllable_backward` / 音节光标跳认辅码键为字母。
+  显示：`Candidate::fuma` 是这条候选自己的两码（敲了辅码才填，候选窗标在 annotation 最前）；
+  `Query::fuma` 是要补画进拼音行的辅码段（只有两码那档，首码那档的键还在拼音里），
+  经 `MarkedKind::Fuma` → `PreeditKind::Fuma` → `PreeditStyle::Fuma` 一路镜像，两条绘制路径都画淡。
   配置 `[general] fuma`，`Engine::set_fuma` 收 `Arc<FumaTable>`（表几千条，Server 与 Engine 共用一份，热加载只克隆指针）/ `fuma_enabled`）/
   `engine`（`query::EnglishTail`：句末英文词并入整句，`woxiangxuehaorust` → 我想学好rust，尾段也像拼音时按分数与拼音读法比）。
 `Engine` 是对外唯一门面，`Translator` / `Learner` trait 在 `engine` 模块；词库是「主词库 + 附加词库（`set_extra_dictionaries`）+ 用户词」的列表。

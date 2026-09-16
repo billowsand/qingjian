@@ -74,6 +74,7 @@ pub fn candidates(input: &str, expression: char, now: &Zoned) -> Vec<Candidate> 
             syllables: Vec::new(),
             reading: None,
             translation: None,
+            fuma: None,
         })
         .collect()
 }

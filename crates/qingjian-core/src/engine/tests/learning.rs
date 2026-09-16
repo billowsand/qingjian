@@ -526,6 +526,7 @@ fn committing_the_translation_learns_the_word_and_returns_the_gloss() {
         syllables: vec!["zhe".into()],
         reading: None,
         translation: None,
+        fuma: None,
     };
     assert_eq!(engine.commit_translation(&zhe, 0), None);
     assert_eq!(engine.composition().text(), "zhe");

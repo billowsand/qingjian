@@ -22,6 +22,10 @@ pub struct Scored<'a> {
     /// 用户选择过的次数，来自 Learner。
     pub weight: u32,
 
+    /// 敲了辅码首码、这个词的首码对得上：排在所有其他项之前。
+    /// 首码那档不排除别的候选（`ljm` 的 蓝莓 还要出），靠这一项把 栏 顶到最前。
+    pub fuma_hit: bool,
+
     /// 靠模糊音 / 敲错变体命中的代价（某个音节与敲的不同；0 是敲的原样）：从上下文得分里扣掉，
     /// 预选时词频按 e^(-代价) 打折，同分排在原样命中后面。
     pub penalty: f64,
@@ -29,13 +33,15 @@ pub struct Scored<'a> {
 
 /// 预选键：结构项之后按用户选择次数与词库词频，命中太多时先用它砍到够排的量（不必算上下文得分）。
 /// 打包成一个整数、越大越靠前：单字母简拼一键命中几万条，逐条比元组太慢。
-/// 位从高到低：精确(1) 覆盖字母数(8) 简拼数的补(8) 末音节完整(1) 选择次数(32) 打折后词频(32) 原样命中(1) 字数的补(8)；
+/// 位从高到低：辅码命中(1) 精确(1) 覆盖字母数(8) 简拼数的补(8) 末音节完整(1) 选择次数(32) 打折后词频(32) 原样命中(1) 字数的补(8)；
 /// 与 [`SortKey`] 的前几项同序，只是不拿文本做最后的平手项（预选边界上的平手谁留下无所谓）。
 pub type PreselectKey = u128;
 
-/// 排序键，越小越靠前。元组的顺序即排序规则，见模块文档；第五项是同输入串下的选择次数，
-/// 第六项是上下文得分（毫分，整数才能比较）。文本借自词库，键可以脱离 `Scored` 存放。
+/// 排序键，越小越靠前。元组的顺序即排序规则，见模块文档；第一项是辅码首码命中，
+/// 第六项是同输入串下的选择次数，第七项是上下文得分（毫分，整数才能比较）。
+/// 文本借自词库，键可以脱离 `Scored` 存放。
 pub type SortKey<'a> = (
+    Reverse<bool>,
     Reverse<bool>,
     Reverse<usize>,
     usize,
@@ -62,7 +68,8 @@ impl<'a> Scored<'a> {
         let chars = u128::from(u8::try_from(self.hit.text.chars().count()).unwrap_or(u8::MAX));
         let coverage = u128::from(u8::try_from(self.coverage).unwrap_or(u8::MAX));
         let abbreviated = u128::from(u8::try_from(self.abbreviated).unwrap_or(u8::MAX));
-        (u128::from(self.hit.exact) << 90)
+        (u128::from(self.fuma_hit) << 91)
+            | (u128::from(self.hit.exact) << 90)
             | (coverage << 82)
             | ((0xFF - abbreviated) << 74)
             | (u128::from(self.full_last) << 73)
@@ -75,6 +82,7 @@ impl<'a> Scored<'a> {
     /// `choice` 是同输入串下的选择次数，`score` 是上下文得分（log 概率，已含用户加分与模糊音 / 敲错扣分）。
     pub(super) fn key(&self, choice: u32, score: f64) -> SortKey<'a> {
         (
+            Reverse(self.fuma_hit),
             Reverse(self.hit.exact),
             Reverse(self.coverage),
             self.abbreviated,

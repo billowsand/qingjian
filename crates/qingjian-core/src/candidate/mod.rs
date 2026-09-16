@@ -40,4 +40,9 @@ pub struct Candidate {
 
     /// 学习语言下的译文；查不到或尚未就绪时为 `None`。
     pub translation: Option<Translation>,
+
+    /// 这个候选的辅码（`栏` → `ms`），只在敲了辅码时填：候选窗标出来，用户才知道下次该敲什么。
+    /// 表里查不到首末字时为 `None`。老 DLL 不认识这个字段，serde 会忽略掉（未知字段不像枚举变体那样报错）。
+    #[serde(default)]
+    pub fuma: Option<String>,
 }

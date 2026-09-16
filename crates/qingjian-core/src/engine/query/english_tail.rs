@@ -138,6 +138,7 @@ impl Engine {
             syllables,
             reading: None,
             translation: None,
+            fuma: None,
         })
     }
 }
