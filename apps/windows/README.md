@@ -26,8 +26,7 @@ Engine 只此一份，跑在独立的 Server 进程；每个应用进程里的 T
 两个产物的依赖集合刻意不同：DLL 只依赖 `qingjian-core`、`qingjian-platform` 与官方 `windows` crate（COM
 `implement` 宏），Server 才依赖词库 / 学习 / 云联想（含 tokio）整棵树。合成一个 package 后，DLL 的
 编译单元会拉进 Server 的依赖；用 feature 区分也不行，workspace 一起构建时 feature 会统一。crate 边界就是
-「DLL 不含 Engine」这条约束的强制手段。判断标准与 macOS 的 IMK 壳一致：换掉平台适配层，不应该需要改
-Core 的任何一行。
+「DLL 不含 Engine」这条约束的强制手段。判断标准：换掉平台适配层，不应该需要改 Core 的任何一行。
 
 ## 三个部分
 
@@ -46,7 +45,7 @@ Core 的任何一行。
 
 ## 构建
 
-本机（macOS / Linux）只做交叉 `check`，产出不了可用二进制，但协议层的端到端测试能跑：
+本机（非 Windows）只做交叉 `check`，产出不了可用二进制，但协议层的端到端测试能跑：
 
 ```bash
 cargo check --target x86_64-pc-windows-gnu -p qingjian-windows-server -p qingjian-windows-tsf

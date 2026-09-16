@@ -20,14 +20,9 @@ pub fn default_data_file(name: &str) -> PathBuf {
     PathBuf::from("assets/sample").join(name)
 }
 
-/// 缺省配置文件位置：与输入法共用同一份。
+/// 缺省配置文件位置：与输入法共用同一份（`%APPDATA%\Qingjian\config.toml`）。
 pub fn default_config_file() -> PathBuf {
-    if cfg!(target_os = "macos")
-        && let Some(home) = std::env::var_os("HOME")
-    {
-        return PathBuf::from(home).join("Library/Application Support/Qingjian/config.toml");
-    }
-    PathBuf::from("config.toml")
+    qingjian_platform::dirs::config_path().unwrap_or_else(|| PathBuf::from("config.toml"))
 }
 
 #[derive(Debug, Parser)]
@@ -57,7 +52,7 @@ pub struct Args {
     #[arg(long)]
     pub user_dict: Option<PathBuf>,
 
-    /// 配置文件路径。缺省：~/Library/Application Support/Qingjian/config.toml（macOS）或 ./config.toml
+    /// 配置文件路径。缺省：`%APPDATA%\Qingjian\config.toml`，拿不到环境变量时用 ./config.toml
     #[arg(long)]
     pub config: Option<PathBuf>,
 

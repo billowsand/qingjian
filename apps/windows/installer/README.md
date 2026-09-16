@@ -1,7 +1,7 @@
 # 青简 Windows 安装包
 
 用 [Inno Setup](https://jrsoftware.org/isinfo.php) 打的安装包，把 TSF DLL（64 位与 32 位各一份）、Server、设置程序与随包数据一起装进
-`C:\Program Files\Qingjian`，注册文本服务，并设登录自启。对应 macOS 的 pkg。
+`C:\Program Files\Qingjian`，注册文本服务，并设登录自启。
 
 ## 安装布局
 

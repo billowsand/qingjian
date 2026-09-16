@@ -111,14 +111,4 @@ mod tests {
         assert!((trak.tracking_em(8.0) * 2048.0 - 12.0).abs() < 1e-3);
         assert!((trak.tracking_em(40.0) * 2048.0 + 40.0).abs() < 1e-3);
     }
-
-    #[cfg(target_os = "macos")]
-    #[test]
-    fn reads_sf_tracking_table() {
-        let data = std::fs::read("/System/Library/Fonts/SFNS.ttf").unwrap();
-        let trak = Trak::parse(&data, 0).unwrap();
-        assert_eq!(trak.units_per_em, 2048.0);
-        assert!((trak.tracking_em(12.0)).abs() < 1e-6);
-        assert!((trak.tracking_em(16.0) * 2048.0 + 40.0).abs() < 1e-3);
-    }
 }

@@ -13,7 +13,7 @@ pub enum ClientMessage {
         session: SessionId,
 
         /// 宿主应用的 exe 文件名（`Code.exe`），DLL 加载在应用进程里直接取；取不到为 `None`。
-        /// Server 据此查 `[apps]` 分节的按应用设置（对应 macOS 的 bundle identifier）。
+        /// Server 据此查 `[apps]` 分节的按应用设置。
         #[serde(default)]
         app: Option<String>,
 
@@ -46,7 +46,7 @@ pub enum ClientMessage {
         session: SessionId,
     },
 
-    /// 组句起始时 DLL 主动送来的应用光标前文，给本地整句模型当前文（对应 macOS 壳在组句第一键读 `surrounding_text`）。
+    /// 组句起始时 DLL 主动送来的应用光标前文，给本地整句模型当前文。
     /// 在起组句的那次编辑会话里顺手读，不另开会话、不回话；密码框 / 读不到时不发，Server 退回本会话历史。
     Surrounding {
         /// 会话标识。

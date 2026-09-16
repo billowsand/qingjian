@@ -25,7 +25,7 @@ pub struct KeyModifiers {
     #[serde(default)]
     pub caps: bool,
 
-    /// 持久的英文模式（Windows 单击 Shift 切换，DLL 记状态）。中文模式为 `false`。macOS 壳不用这个字段。
+    /// 持久的英文模式（Windows 单击 Shift 切换，DLL 记状态）。中文模式为 `false`。
     #[serde(default)]
     pub english_mode: bool,
 }
@@ -46,14 +46,14 @@ impl KeyModifiers {
     }
 }
 
-/// 配置里的修饰键组合按 macOS 命名（option / command），落到 Windows 键位：⌥ 是 Alt、⌃ 是 Ctrl、⌘ 是 Win。
+/// 配置里的修饰键组合与协议一一对应（配置里写 alt / ctrl / win）。
 impl From<Modifiers> for KeyModifiers {
     fn from(modifiers: Modifiers) -> Self {
         Self {
-            ctrl: modifiers.control,
+            ctrl: modifiers.ctrl,
             shift: modifiers.shift,
-            alt: modifiers.option,
-            win: modifiers.command,
+            alt: modifiers.alt,
+            win: modifiers.win,
             caps: false,
             english_mode: false,
         }

@@ -3,99 +3,52 @@ use std::str::FromStr;
 
 use serde::{Deserialize, Serialize};
 
-/// 一组修饰键。配置里写成 `shift+option` 这样的串（顺序随意，`alt` / `ctrl` / `cmd` 也认）。
+/// 一组修饰键。配置里写成 `ctrl+alt` 这样的串（顺序随意，`win` / `cmd` 也认，
+/// 老的 macOS 写法 `option` / `command` 也照收，分别当 Alt 与 Win）。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(try_from = "String", into = "String")]
 pub struct Modifiers {
-    /// ⌥
-    pub option: bool,
+    /// Alt
+    pub alt: bool,
 
-    /// ⇧
+    /// Shift
     pub shift: bool,
 
-    /// ⌃
-    pub control: bool,
+    /// Ctrl
+    pub ctrl: bool,
 
-    /// ⌘
-    pub command: bool,
+    /// Win（⊞）
+    pub win: bool,
 }
 
 impl Modifiers {
-    pub const OPTION: Self = Self {
-        option: true,
-        shift: false,
-        control: false,
-        command: false,
-    };
-
-    pub const SHIFT_OPTION: Self = Self {
-        option: true,
-        shift: true,
-        control: false,
-        command: false,
-    };
-
     pub const SHIFT: Self = Self {
-        option: false,
+        alt: false,
         shift: true,
-        control: false,
-        command: false,
-    };
-
-    /// ⌃ / Ctrl。Windows 上译词键的缺省（Alt 会被系统菜单截走）。
-    pub const CONTROL: Self = Self {
-        option: false,
-        shift: false,
-        control: true,
-        command: false,
-    };
-
-    /// ⇧⌃ / Shift+Ctrl。
-    pub const SHIFT_CONTROL: Self = Self {
-        option: false,
-        shift: true,
-        control: true,
-        command: false,
+        ctrl: false,
+        win: false,
     };
 
     pub fn is_empty(&self) -> bool {
-        !(self.option || self.shift || self.control || self.command)
+        !(self.alt || self.shift || self.ctrl || self.win)
     }
 
-    /// 配置文件里的写法，固定顺序 control+shift+option+command。
+    /// 配置文件里的写法，固定顺序 ctrl+shift+alt+win。
     pub fn key(&self) -> String {
         let mut parts = Vec::new();
-        if self.control {
-            parts.push("control");
+        if self.ctrl {
+            parts.push("ctrl");
         }
         if self.shift {
             parts.push("shift");
         }
-        if self.option {
-            parts.push("option");
+        if self.alt {
+            parts.push("alt");
         }
-        if self.command {
-            parts.push("command");
+        if self.win {
+            parts.push("win");
         }
         parts.join("+")
-    }
-
-    /// 给人看的符号，按 macOS 的习惯顺序 ⌃⇧⌥⌘。
-    pub fn label(&self) -> String {
-        let mut out = String::new();
-        if self.control {
-            out.push('⌃');
-        }
-        if self.shift {
-            out.push('⇧');
-        }
-        if self.option {
-            out.push('⌥');
-        }
-        if self.command {
-            out.push('⌘');
-        }
-        out
     }
 }
 
@@ -106,10 +59,10 @@ impl FromStr for Modifiers {
         let mut out = Self::default();
         for token in text.split(['+', ' ']).filter(|t| !t.is_empty()) {
             match token.to_ascii_lowercase().as_str() {
-                "option" | "alt" | "⌥" => out.option = true,
+                "alt" | "option" | "⌥" => out.alt = true,
                 "shift" | "⇧" => out.shift = true,
-                "control" | "ctrl" | "⌃" => out.control = true,
-                "command" | "cmd" | "⌘" => out.command = true,
+                "control" | "ctrl" | "⌃" => out.ctrl = true,
+                "win" | "command" | "cmd" | "⌘" => out.win = true,
                 other => return Err(format!("unknown modifier: {other}")),
             }
         }
@@ -146,22 +99,27 @@ mod tests {
 
     #[test]
     fn parses_aliases_in_any_order_and_prints_canonically() {
-        assert_eq!("option".parse::<Modifiers>().unwrap(), Modifiers::OPTION);
+        let both: Modifiers = "alt+shift".parse().unwrap();
         assert_eq!(
-            "alt+shift".parse::<Modifiers>().unwrap(),
-            Modifiers::SHIFT_OPTION
+            both,
+            Modifiers {
+                alt: true,
+                shift: true,
+                ctrl: false,
+                win: false,
+            }
         );
-        assert_eq!(Modifiers::SHIFT_OPTION.key(), "shift+option");
-        assert_eq!(Modifiers::SHIFT_OPTION.label(), "⇧⌥");
+        assert_eq!(both.key(), "shift+alt");
+        assert_eq!("ctrl+alt".parse::<Modifiers>().unwrap().key(), "ctrl+alt");
+        assert_eq!("option".parse::<Modifiers>().unwrap().key(), "alt");
+        assert_eq!(
+            "shift+command".parse::<Modifiers>().unwrap().key(),
+            "shift+win"
+        );
         assert!("".parse::<Modifiers>().is_err());
         assert!("hyper".parse::<Modifiers>().is_err());
-        for option in [
-            "option",
-            "shift+option",
-            "control+option",
-            "control+shift+command",
-        ] {
-            assert_eq!(option.parse::<Modifiers>().unwrap().key(), option);
+        for combo in ["ctrl", "shift+alt", "ctrl+shift+win"] {
+            assert_eq!(combo.parse::<Modifiers>().unwrap().key(), combo);
         }
     }
 }

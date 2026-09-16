@@ -51,36 +51,6 @@ fn valid_code(code: &str) -> bool {
     !code.is_empty() && code.len() <= 32 && code.bytes().all(|c| c.is_ascii_lowercase())
 }
 
-/// 把系统的文本替换（macOS「键盘 → 文本替换」这类「输入码 → 短语」表）并进自定义短语：
-/// 每条占该输入码最靠前的空位（1–9），输入码不是小写字母、短语为空、九位都满、或用户已有同码同文本的规则时跳过。
-/// 结果保证通过 [`validate_phrases`]（前提是 `base` 本身合法）。
-pub fn merge_replacements<'a>(
-    base: &[CustomPhrase],
-    replacements: impl IntoIterator<Item = (&'a str, &'a str)>,
-) -> Vec<CustomPhrase> {
-    let mut phrases = base.to_vec();
-    for (code, text) in replacements {
-        if !valid_code(code) || text.is_empty() {
-            continue;
-        }
-        if phrases.iter().any(|p| p.code == code && p.text == text) {
-            continue;
-        }
-        let Some(position) =
-            (1..=9).find(|n| !phrases.iter().any(|p| p.code == code && p.position == *n))
-        else {
-            continue;
-        };
-        phrases.push(CustomPhrase {
-            code: code.to_owned(),
-            text: text.to_owned(),
-            position,
-            enabled: true,
-        });
-    }
-    phrases
-}
-
 impl CustomPhrase {
     /// 单行预览保留 Unicode 字符边界，用可见符号表示换行和制表符。
     pub fn preview(text: &str, max_chars: usize) -> String {
@@ -106,47 +76,5 @@ impl CustomPhrase {
             preview.push('…');
         }
         preview
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::{CustomPhrase, merge_replacements, validate_phrases};
-
-    fn phrase(code: &str, text: &str, position: usize) -> CustomPhrase {
-        CustomPhrase {
-            code: code.into(),
-            text: text.into(),
-            position,
-            enabled: true,
-        }
-    }
-
-    #[test]
-    fn replacements_take_the_first_free_slot_of_their_code() {
-        let base = vec![phrase("yx", "第一位", 1), phrase("ee", "：", 1)];
-        let merged = merge_replacements(
-            &base,
-            [
-                ("yx", "qi@example.com"),
-                ("omw", "On my way!"),
-                ("ee", "："),
-                ("Gs", "大写不算"),
-                ("a1", "带数字不算"),
-                ("", "空码不算"),
-                ("kong", ""),
-            ],
-        );
-        validate_phrases(&merged).unwrap();
-        assert_eq!(merged.len(), 4);
-        assert_eq!(merged[2], phrase("yx", "qi@example.com", 2));
-        assert_eq!(merged[3], phrase("omw", "On my way!", 1));
-    }
-
-    #[test]
-    fn replacements_stop_at_nine_slots_per_code() {
-        let base: Vec<_> = (1..=9).map(|n| phrase("x", &n.to_string(), n)).collect();
-        let merged = merge_replacements(&base, [("x", "第十条")]);
-        assert_eq!(merged.len(), 9);
     }
 }

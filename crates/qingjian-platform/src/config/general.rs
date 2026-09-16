@@ -53,10 +53,10 @@ pub struct GeneralConfig {
     pub chinese_first: bool,
 
     /// 中文模式下不在组句时敲的标点转成全角（`，。？！` 等，数字后的 `.` 保持半角）。
-    /// Windows 悬浮状态条上可点切换；macOS 在偏好设置中选择默认模式。
+    /// 悬浮状态条上可点着切。
     pub full_width_punctuation: bool,
 
-    /// 英文模式下的同一件事，中英各记一份；缺省半角。只有 Windows 用（macOS 英文模式一律半角）。
+    /// 英文模式下的同一件事，中英各记一份；缺省半角。
     pub english_full_width_punctuation: bool,
 
     /// 双拼方案：空串为全拼，否则 `xiaohe` / `ziranma` / `microsoft` / `sogou`（见 [`ShuangpinScheme`]）。
@@ -74,9 +74,6 @@ pub struct GeneralConfig {
 
     /// 学习输入习惯：按选择调整候选顺序、记新词与敲错纠正。关掉后不再记，已学的仍参与排序。
     pub learning: bool,
-
-    /// 把系统的文本替换（macOS「键盘 → 文本替换」）并进自定义短语：输入码敲全后短语占该码最靠前的空位。只有 macOS 用。
-    pub system_text_replacements: bool,
 }
 
 impl Default for GeneralConfig {
@@ -99,7 +96,6 @@ impl Default for GeneralConfig {
             log_level: LogLevel::default(),
             input_log: true,
             learning: true,
-            system_text_replacements: true,
         }
     }
 }

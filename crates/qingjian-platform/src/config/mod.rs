@@ -2,7 +2,6 @@ mod apps;
 mod candidate_renderer;
 mod dictionaries;
 mod general;
-mod key_combo;
 mod layout_mode;
 mod log_level;
 mod model;
@@ -22,15 +21,13 @@ use toml_edit::DocumentMut;
 use crate::error::ConfigError;
 
 pub use apps::{
-    AppsConfig, DEFAULT_ENGLISH_CANDIDATES_OFF, DEFAULT_ENGLISH_CANDIDATES_OFF_MACOS,
-    DEFAULT_ENGLISH_CANDIDATES_OFF_WINDOWS,
+    AppsConfig, DEFAULT_ENGLISH_CANDIDATES_OFF, DEFAULT_ENGLISH_CANDIDATES_OFF_WINDOWS,
 };
 pub use candidate_renderer::CandidateRenderer;
 pub use dictionaries::{DEFAULT_DOMAINS, DictionariesConfig};
 pub use general::{
     DEFAULT_PAGE_KEYS, GeneralConfig, LEARNING_LANGUAGE_OFF, MAX_PAGE_SIZE, PAGE_KEY_OPTIONS,
 };
-pub use key_combo::KeyCombo;
 pub use layout_mode::LayoutMode;
 pub use log_level::LogLevel;
 pub use model::LocalModelConfig;
@@ -53,7 +50,7 @@ pub struct Config {
     #[serde(deserialize_with = "deserialize_phrases")]
     pub custom_phrases: Vec<qingjian_core::CustomPhrase>,
 
-    /// 快捷键：前缀模式键（表达式 / 问字）与上屏译词的修饰键组合。
+    /// 快捷键：前缀模式键（表达式 / 问字）与修饰键组合。
     pub shortcut: ShortcutConfig,
 
     /// 模糊音开关。
@@ -83,25 +80,8 @@ fn deserialize_phrases<'de, D: serde::Deserializer<'de>>(
     Ok(phrases)
 }
 
-/// 模板的 `[apps]` 一节（macOS）：应用按 bundle identifier 认。名单要与 [`DEFAULT_ENGLISH_CANDIDATES_OFF`] 一致，
+/// 模板的 `[apps]` 一节：应用按宿主进程的 exe 文件名认。名单要与 [`DEFAULT_ENGLISH_CANDIDATES_OFF`] 一致，
 /// 测试 `template_parses_to_defaults` 会核对。用宏而不是常量，是因为 `concat!` 只收字面量。
-#[cfg(not(windows))]
-macro_rules! template_apps {
-    () => {
-        r#"[apps]
-# 按应用改行为，条目是 bundle identifier（`*` 结尾按前缀匹配）。开着「详细日志」时切到一个应用会把它的 bundle identifier 记进日志
-# 英文模式（Caps Lock）下不给候选的应用：终端与代码编辑器里候选窗口会挡住应用自己的补全，vim 里 Tab 和方向键也另有含义。设成 [] 就处处都给
-english_candidates_off = [
-  "com.apple.Terminal", "com.googlecode.iterm2", "dev.warp.Warp-Stable", "com.mitchellh.ghostty", "io.alacritty", "net.kovidgoyal.kitty",
-  "com.microsoft.VSCode", "com.todesktop.230313mzl4w4u92", "dev.zed.Zed", "com.jetbrains.*", "org.vim.MacVim", "com.sublimetext.*",
-  "com.apple.dt.Xcode", "com.neovide.neovide",
-]
-"#
-    };
-}
-
-/// 模板的 `[apps]` 一节（Windows）：应用按宿主进程的 exe 文件名认。名单要与 [`DEFAULT_ENGLISH_CANDIDATES_OFF`] 一致。
-#[cfg(windows)]
 macro_rules! template_apps {
     () => {
         r#"[apps]
@@ -118,45 +98,7 @@ english_candidates_off = [
     };
 }
 
-/// 模板 `[general]` 里的学习语言一项（macOS）。Windows 壳不带译文功能，模板里不列它，
-/// 见下面 `#[cfg(windows)]` 那份；字段本身两个平台都在，缺省 `en`。
-#[cfg(not(windows))]
-macro_rules! template_learning_language {
-    () => {
-        r#"# 学习语言（en 英语 / ja 日语 / es 西班牙语 / off 不显示译文）：候选旁显示哪种语言的译文，要有对应的释义表才生效
-learning_language = "en"
-"#
-    };
-}
-
-/// Windows 壳不带译文功能：模板里没有学习语言这一项。
-#[cfg(windows)]
-macro_rules! template_learning_language {
-    () => {
-        ""
-    };
-}
-
-/// 模板 `[shortcut]` 一节里的修饰键组合（macOS 命名）。缺省值两个平台一样，只是写法与注释按平台的键名。
-#[cfg(not(windows))]
-macro_rules! template_shortcut_keys {
-    () => {
-        r#"# 数字键配这些修饰键上屏候选的译词：translation 第一个译词，translation_second 第二个（候选右侧有两个译词时）
-# 任意修饰键组合（option / shift / control / command 用 + 连），偏好设置里点按钮录制；别用 control+数字（系统切桌面）和 command+数字（应用切标签页）
-translation = "option"
-translation_second = "shift+option"
-# 把应用里选中的文字译成学习语言（要开着云服务）：译文先出现在候选窗口，回车替换选中的文字，Esc 保留原文
-# 修饰键 + 一个字母或数字，任意组合；避开 ⌘T 这类应用常用键
-translate_selection = "control+option+t"
-# 数字键配这些修饰键删掉候选：用户词（云端选过的、自动造的）整个删掉，词库里的词清掉对它的学习记录。组句中要打感叹号先把词上屏
-delete_candidate = "shift"
-"#
-    };
-}
-
-/// 模板 `[shortcut]` 一节里的修饰键组合（Windows 键名：alt / ctrl / win，读回来与 macOS 的 option / control / command 等价）。
-/// 译词相关的组合不列：Windows 壳不带译文功能。
-#[cfg(windows)]
+/// 模板 `[shortcut]` 一节里的修饰键组合（键名：alt / shift / ctrl / win）。
 macro_rules! template_shortcut_keys {
     () => {
         r#"# 数字键配这些修饰键删掉候选：用户词（云端选过的、自动造的）整个删掉，词库里的词清掉对它的学习记录。组句中要打感叹号先把词上屏
@@ -166,14 +108,13 @@ delete_candidate = "shift"
     };
 }
 
-/// 首次运行写出的模板：默认值全部列出并注释，用户改一处即可。学习语言、`[shortcut]` 的修饰键与 `[apps]` 分平台，
-/// 见 [`template_learning_language!`] / [`template_shortcut_keys!`] / [`template_apps!`]。
+/// 首次运行写出的模板：默认值全部列出并注释，用户改一处即可。
+/// 见 [`template_shortcut_keys!`] / [`template_apps!`]。
 pub const TEMPLATE: &str = concat!(
-    r#"# 青简输入法配置。保存后自动生效；也可以在菜单栏的输入法菜单里改。
+    r#"# 青简输入法配置。保存后自动生效。
 
 [general]
 "#,
-    template_learning_language!(),
     r#"# 每页候选数（1–9）
 page_size = 9
 # 翻页键对：前一个上一页、后一个下一页。可选 "[]" 或 ",."；选 ",." 的话组句中敲逗号句号是翻页而不是上屏加标点
@@ -192,22 +133,20 @@ preedit = "both"
 english_candidates = true
 # 中文模式下整段输入是英文词时（hello / key）是否让中文候选排第一、英文词第二；缺省 false：拼音不像话的输入英文词排第一
 chinese_first = false
-# 中文模式下（没在组句时）敲的标点转全角：, . ? ! : ; ( ) 等，数字后面的 . 保持半角。Windows 上悬浮状态条的「，。」格可以点着切；macOS 在偏好设置中选择默认中文标点模式
+# 中文模式下（没在组句时）敲的标点转全角：, . ? ! : ; ( ) 等，数字后面的 . 保持半角；悬浮状态条的「，。」格可以点着切
 full_width_punctuation = true
-# 英文模式下的同一件事，中英各记一份，状态条切的是当前模式那份；只有 Windows 用
+# 英文模式下的同一件事，中英各记一份，状态条切的是当前模式那份
 english_full_width_punctuation = false
 # 双拼方案：留空为全拼；xiaohe 小鹤 / ziranma 自然码 / microsoft 微软 / sogou 搜狗
 # 开着时 v / u / i 都是音节键，表达式模式没有入口，问字只能靠 question_mark 打开后用 ? 进；微软、搜狗方案的 ; 键是 ing
 shuangpin = ""
-# 日志级别：info 缺省 / debug 详细（会记录敲的拼音与上屏的文字，配合作者排查问题时再开）。日志在 ~/Library/Logs/Qingjian/
+# 日志级别：info 缺省 / debug 详细（会记录敲的拼音与上屏的文字，配合作者排查问题时再开）。日志在 %LOCALAPPDATA%\Qingjian\logs\
 log_level = "info"
 # 输入日志：每次上屏记一行到数据目录的 input-log.jsonl（敲的键、看到的候选、选了什么），只写在这台电脑上，不上传；
 # 用来离线评测排序和训练个人模型。false 不记；「高级」页可以清空
 input_log = true
 # 学习输入习惯：按你的选择调整候选顺序、记新词与敲错纠正。false 不再学，已学的仍参与排序；学习数据在数据目录，删掉文件即清空
 learning = true
-# 把系统设置「键盘 → 文本替换」里的条目当自定义短语：输入码（小写字母）敲全后短语出现在该码最靠前的空位；只有 macOS 用
-system_text_replacements = true
 
 # 自定义短语示例：取消下面各行注释后启用；同码同位置不能重复。
 # [[custom_phrases]]
@@ -256,7 +195,7 @@ enabled = true
 
 [predict]
 # 云联想：把光标附近的文本发到下面的接口，让模型补全整句 / 联想下文。默认关闭。
-# 开启后菜单栏的「中 / 英」旁会带一个云朵标识；Secure Input（密码框）里绝不发送。
+# 开启后状态条上会带一个云朵标识；密码框里绝不发送。
 enabled = false
 # OpenAI 兼容接口地址与模型名（DeepSeek 默认值）。本机自己跑模型（LM Studio / Ollama）填 "http://127.0.0.1:端口" 即可，
 # 路径不写会自动补 /v1，密钥也可以留空（这些服务不校验）
@@ -523,11 +462,6 @@ mod tests {
         assert_eq!(config.general.log_level, LogLevel::Info);
         assert_eq!(config.shortcut.mode.expression, 'i');
         assert_eq!(config.shortcut.mode.question, 'u');
-        // 缺省译词修饰键分平台（Windows 用 ctrl，macOS / Linux 用 option），比缺省值而不是写死的平台值
-        assert_eq!(
-            config.shortcut.translation,
-            ShortcutConfig::default().translation
-        );
     }
 
     #[test]

@@ -1,25 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-/// 缺省不给英文候选的应用（macOS，按 bundle identifier）：终端、代码编辑器、IDE。这些地方的英文候选窗口会挡住应用自己的补全，
-/// vim / nano 里 Tab 与方向键又都有别的意思。`*` 结尾是前缀匹配。
-pub const DEFAULT_ENGLISH_CANDIDATES_OFF_MACOS: &[&str] = &[
-    "com.apple.Terminal",
-    "com.googlecode.iterm2",
-    "dev.warp.Warp-Stable",
-    "com.mitchellh.ghostty",
-    "io.alacritty",
-    "net.kovidgoyal.kitty",
-    "com.microsoft.VSCode",
-    "com.todesktop.230313mzl4w4u92", // Cursor
-    "dev.zed.Zed",
-    "com.jetbrains.*",
-    "org.vim.MacVim",
-    "com.sublimetext.*",
-    "com.apple.dt.Xcode",
-    "com.neovide.neovide",
-];
-
-/// 缺省不给英文候选的应用（Windows，按宿主进程的 exe 文件名）。输入法 DLL 加载在拥有窗口的那个进程里：
+/// 缺省不给英文候选的应用（按宿主进程的 exe 文件名）。输入法 DLL 加载在拥有窗口的那个进程里：
 /// 经典控制台的窗口属于 `conhost.exe`（cmd / PowerShell 自己没有窗口），Windows Terminal 是 `WindowsTerminal.exe`。
 /// JetBrains 各 IDE 的 exe 名没有共同前缀，只能逐个列。
 pub const DEFAULT_ENGLISH_CANDIDATES_OFF_WINDOWS: &[&str] = &[
@@ -48,22 +29,16 @@ pub const DEFAULT_ENGLISH_CANDIDATES_OFF_WINDOWS: &[&str] = &[
     "neovide.exe",
 ];
 
-/// 本平台的缺省名单：macOS 上是 bundle identifier，Windows 上是 exe 文件名。
-#[cfg(windows)]
+/// 本平台的缺省名单：exe 文件名。
 pub const DEFAULT_ENGLISH_CANDIDATES_OFF: &[&str] = DEFAULT_ENGLISH_CANDIDATES_OFF_WINDOWS;
 
-/// 本平台的缺省名单：macOS 上是 bundle identifier，Windows 上是 exe 文件名。
-#[cfg(not(windows))]
-pub const DEFAULT_ENGLISH_CANDIDATES_OFF: &[&str] = DEFAULT_ENGLISH_CANDIDATES_OFF_MACOS;
-
-/// 配置文件 `[apps]` 分节：按应用改行为。应用的标识 macOS 上是 bundle identifier，Windows 上是宿主进程的 exe 文件名。
+/// 配置文件 `[apps]` 分节：按应用改行为。应用的标识是宿主进程的 exe 文件名。
 ///
 /// 现在只有一项：哪些应用里英文模式不给候选（纯直通）。以后按应用定 preedit 模式等也放这里。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct AppsConfig {
-    /// 英文模式（Caps Lock）下不给候选的应用。条目是 bundle identifier（`com.jetbrains.*`）或 exe 文件名（`Code.exe`），
-    /// `*` 结尾按前缀匹配。全局开关 `[general] english_candidates` 关着时这里不起作用。
+    /// 英文模式（Caps Lock）下不给候选的应用。条目是 exe 文件名（`Code.exe`），`*` 结尾按前缀匹配。全局开关 `[general] english_candidates` 关着时这里不起作用。
     pub english_candidates_off: Vec<String>,
 }
 
@@ -94,7 +69,7 @@ impl AppsConfig {
     }
 }
 
-/// `pattern` 是完整的应用标识，或 `*` 结尾的前缀。不区分大小写（bundle identifier 与 Windows 文件名本身都不区分）。
+/// `pattern` 是完整的应用标识（exe 文件名），或 `*` 结尾的前缀。不区分大小写（Windows 文件名本身不区分）。
 fn matches_app(pattern: &str, app: &str) -> bool {
     let pattern = pattern.trim();
     match pattern.strip_suffix('*') {
@@ -110,18 +85,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn macos_list_covers_terminals_and_ides_with_prefix_patterns() {
-        let apps = AppsConfig::with_english_candidates_off(DEFAULT_ENGLISH_CANDIDATES_OFF_MACOS);
-        assert!(apps.english_candidates_off("com.apple.Terminal"));
-        assert!(apps.english_candidates_off("com.jetbrains.intellij"));
-        assert!(apps.english_candidates_off("com.jetbrains.rustrover"));
-        assert!(apps.english_candidates_off("COM.MICROSOFT.VSCODE"));
-        assert!(!apps.english_candidates_off("com.apple.TextEdit"));
-        assert!(!apps.english_candidates_off("com.jetbrains"));
-        assert!(!apps.english_candidates_off(""));
-    }
-
-    #[test]
     fn windows_list_matches_exe_names_case_insensitively() {
         let apps = AppsConfig::with_english_candidates_off(DEFAULT_ENGLISH_CANDIDATES_OFF_WINDOWS);
         assert!(apps.english_candidates_off("conhost.exe"));
@@ -133,31 +96,23 @@ mod tests {
     }
 
     #[test]
-    fn default_list_follows_the_platform() {
+    fn default_list_is_the_windows_one() {
         let apps = AppsConfig::default();
-        assert_eq!(
-            apps.english_candidates_off("Code.exe"),
-            cfg!(windows),
-            "Windows 缺省名单按 exe 名"
-        );
-        assert_eq!(
-            apps.english_candidates_off("com.microsoft.VSCode"),
-            !cfg!(windows),
-            "macOS 缺省名单按 bundle identifier"
-        );
+        assert!(apps.english_candidates_off("Code.exe"));
+        assert!(!apps.english_candidates_off("notepad.exe"));
     }
 
     #[test]
     fn empty_list_turns_the_feature_off() {
         let apps: AppsConfig = toml::from_str("english_candidates_off = []").unwrap();
         assert!(!apps.has_english_candidates_off());
-        assert!(!apps.english_candidates_off("com.apple.Terminal"));
+        assert!(!apps.english_candidates_off("conhost.exe"));
     }
 
     #[test]
     fn prefix_pattern_needs_the_whole_prefix() {
-        assert!(matches_app("com.jetbrains.*", "com.jetbrains.goland"));
-        assert!(!matches_app("com.jetbrains.*", "com.jetbrain"));
+        assert!(matches_app("idea*", "idea64.exe"));
+        assert!(!matches_app("idea*", "ide.exe"));
         assert!(matches_app("*", "anything"));
     }
 }
