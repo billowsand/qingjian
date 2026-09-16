@@ -2,15 +2,15 @@
 
 > 打字这件事，不该把你的话交给别人。
 
-青简（Qingjian）是一个用 **Rust** 开发的跨平台拼音输入法。整句输入、简拼、拼写纠错、模糊音、双拼、英文模式，
+青简（Qingjian）是一个用 **Rust** 开发的拼音输入法（Windows）。整句输入、简拼、拼写纠错、模糊音、双拼、英文模式，
 全部在本机完成——**不上传任何数据，没有账号，没有统计上报，不联网检查更新。**
 
 https://github.com/user-attachments/assets/d145fde9-a641-4543-8b15-dd7a2685de3d
 
-上面这段话全部由青简在 macOS 上输入：整句拼音一口气敲完，停顿一下由本地小模型重排候选。
+上面这段话全部由青简输入：整句拼音一口气敲完，停顿一下由本地小模型重排候选。
 
 - 官网：[qingjian.app](https://qingjian.app)
-- 下载：[qingjian.app/download](https://qingjian.app/download)（macOS、Windows）
+- 下载：[qingjian.app/download](https://qingjian.app/download)（Windows）
 - 文档：[qingjian.app/docs](https://qingjian.app/docs)（安装、按键、设置、数据与隐私）
 - 反馈：[GitHub Issues](https://github.com/qingjian-team/qingjian/issues/new/choose)
 - QQ 群：[902314603](https://qm.qq.com/q/jBvn2gGTxm)（青简输入法用户内测体验交流群）
@@ -68,15 +68,13 @@ https://github.com/user-attachments/assets/d145fde9-a641-4543-8b15-dd7a2685de3d
 
 ## 平台
 
-青简从一开始就按跨平台架构设计：核心输入引擎平台无关，各平台只负责接入系统输入接口与候选窗口。
+核心输入引擎平台无关，壳只负责接入系统输入接口与候选窗口。目前只有 Windows 壳：
 
 ```text
-macOS    → Input Method Kit (IMK)
 Windows  → Text Services Framework (TSF)
-Linux    → IBus / Fcitx
 ```
 
-开发顺序是 macOS 优先；Windows 版已进入内测（TSF 文本服务 + 独立的输入引擎进程）。
+输入引擎跑在独立的 Server 进程里，DLL 只负责 TSF 与画候选窗（见 `apps/windows/README.md`）。
 
 ---
 

@@ -1,5 +1,7 @@
 # 跨平台 UI 与自绘渲染器（2026-09-13）
 
+> 本仓库是 Windows 专版：`apps/macos` 已删除，下面 macOS 相关的调研、spike 记录与对比保留为历史，结论仍然适用（Windows 壳贴渲染器出的位图）。
+
 ## 起因
 
 主题功能提上日程，同时有人建议用 Flutter 一类跨平台框架，「一套 UI 跑 Windows / macOS / Linux / iOS / Android」。

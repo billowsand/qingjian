@@ -21,11 +21,8 @@ description: 随包的小模型在本机给整句候选重新排序：怎么生�
 
 ## 关掉
 
-「偏好设置 → 云服务」（Windows：「设置 → 云服务」）关闭「本地整句模型」，或配置文件 `[model]` 里 `enabled = false`。关闭后只用词库统计，与云联想互不影响。
+「设置 → 云服务」关闭「本地整句模型」，或配置文件 `[model]` 里 `enabled = false`。关闭后只用词库统计，与云联想互不影响。
 
 ## 自己的模型
 
-把 `.qjm` 模型文件放进用户数据目录的 `model/` 下，重启输入法后优先使用（训练仓库直接导出的 `model.safetensors`、`config.json`、`vocab.json` 三个文件放进去也认；两者都有时用 `.qjm`）：
-
-- **macOS**：`~/Library/Application Support/Qingjian/model/`
-- **Windows**：`%APPDATA%\Qingjian\model\`
+把 `.qjm` 模型文件放进用户数据目录的 `model/` 下（`%APPDATA%\Qingjian\model\`），重启输入法后优先使用（训练仓库直接导出的 `model.safetensors`、`config.json`、`vocab.json` 三个文件放进去也认；两者都有时用 `.qjm`）：

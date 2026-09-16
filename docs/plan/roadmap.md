@@ -2,6 +2,9 @@
 
 各阶段有依赖关系：先把 Core 和 CLI 打通再碰平台 API，否则会在没有可测试内核的情况下调试 IMK。
 
+> 本仓库是 Windows 专版：`apps/macos` 已删除，译文 / 学习语言（译词、生词标记、释义兜底、翻译选中文字）在 Windows 上不提供。
+> 下面与 macOS、译文相关的段落保留为上游历史记录，不再维护。
+
 ## Phase 1 — Core
 
 - [x] 基础 Composition 状态机

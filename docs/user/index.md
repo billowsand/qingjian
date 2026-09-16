@@ -1,20 +1,20 @@
 ---
 title: 从第一次输入开始
 order: 0
-description: 青简输入法使用文档（macOS 与 Windows 测试版）：安装、按键、输入与纠错、云联想、词库、数据位置与卸载。
+description: 青简输入法使用文档（Windows）：安装、按键、输入与纠错、云联想、词库、数据位置与卸载。
 ---
 
 青简是一个用 Rust 写的拼音输入法：整句输入、简拼、拼写纠错、模糊音、双拼、英文模式，全部在本机完成。
 
 不上传任何数据，没有账号，没有统计上报。云联想是可选的补充，缺省关闭。
 
-macOS 版与 Windows 版均为测试版，Linux 版在计划中。两个平台功能相同，按键按各自系统的习惯设计，见 [按键与快捷键](getting-started/keys.md)。
+Windows 版为测试版。按键见 [按键与快捷键](getting-started/keys.md)。
 
 ## 从哪里开始
 
 - 尚未安装：[安装](getting-started/install.md)。
 - 已安装：[第一次输入](getting-started/first-input.md)，介绍中英切换、选词、翻页与选错后的退回。
-- 查某个键的作用：[按键与快捷键](getting-started/keys.md)，两个平台并列。
+- 查某个键的作用：[按键与快捷键](getting-started/keys.md)。
 - 输入一整句后由本机模型重排候选：[本地整句模型](input/local-model.md)。
 - 联网补全整句、答字：[云联想](cloud/index.md)，缺省关闭，需自行填写 AI 服务商。
 - 青简在本机保存了哪些文件：[数据与日志](help/data-and-logs.md)。

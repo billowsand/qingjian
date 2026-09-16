@@ -10,10 +10,10 @@
 ```text
 docs/user/
 ├── index.md              # 文档首页
-├── getting-started/      # 开始使用：安装、第一次输入、按键与快捷键（两个平台并排的总表）
+├── getting-started/      # 开始使用：安装、第一次输入、按键与快捷键（总表）
 ├── input/                # 输入：英文模式、拼写纠错、模糊音与双拼、快捷输入、本地整句模型、统计
 ├── cloud/                # 云联想（可选）
-├── settings/             # 设置：偏好设置、词库
+├── settings/             # 设置：设置各页、词库
 └── help/                 # 帮助：数据与日志、卸载、反馈
 ```
 
@@ -36,9 +36,9 @@ docs/user/
 ## 写法
 
 - 说明书体：陈述句，不用「一下 / 多半 / 照常 / 免得」这类口语助词与副词，不拟人、不调侃；条件用「若…则」，可行用「可」，必要用「需」；术语固定（候选窗口、拼音行、上屏、组合键）。
-- 面向普通用户，不出现实现词（`config.toml`、marked text、Viterbi、panic、600 权限这类）。要指路时说「偏好设置 → 高级」，不说文件名；
+- 面向普通用户，不出现实现词（`config.toml`、marked text、Viterbi、panic、600 权限这类）。要指路时说「设置 → 高级」，不说文件名；
   数据文件位置只在 [help/data-and-logs.md](help/data-and-logs.md) 一处列出。
 - 按键按键帽写：`Space`、`Enter`、`Backspace`、`Delete`、`Esc`、`Tab`、`←` `→` `↑` `↓`、`Home` / `End`、`PageUp` / `PageDown`；
-  macOS 修饰键用符号（`⌥ + 数字`、`⌃⌥T`、`⇧ + Tab`），Windows 用单词（`Ctrl + 数字`、`Ctrl + Alt + T`）；菜单与页名用「」：「系统设置 → 隐私与安全性」。
+  修饰键用单词（`Ctrl + 数字`、`Ctrl + Alt + T`、`Shift + Tab`）；菜单与页名用「」：「设置 → 高级」。
 - 一个功能改了行为，同一个提交里改这里对应的页；README 的安装 / 基本用法 / 隐私一节与这里重复的内容以这里为准，README 只留概要。
 - 事实来源是代码与 `docs/design/candidate-ui.md`（按键约定）、`docs/design/architecture.md`；写之前对一遍，不凭印象。
