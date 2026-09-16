@@ -170,11 +170,37 @@ struct RawWord {
     pinyin: String,
 }
 
+/// 从模型回复里取出 JSON：先当整段就是 JSON，再剥 ``` 围栏，最后取第一个 `{` 到最后一个 `}`。
+/// 本机服务不发 `response_format`（见 [`crate::endpoint`]），模型常把 JSON 包在围栏或解释里；
+/// 云端服务偶尔也这么干，多这层容错少丢一次联想。
+fn parse_json(content: &str) -> Option<RawReply> {
+    let text = content.trim();
+    if let Ok(raw) = serde_json::from_str(text) {
+        return Some(raw);
+    }
+    // ```json … ```（或 ``` … ```）：取第一对围栏之间的内容
+    if let Some((_, rest)) = text.split_once("```")
+        && let Some(fenced) = rest.split("```").next()
+    {
+        let fenced = fenced.trim();
+        let fenced = fenced.strip_prefix("json").unwrap_or(fenced).trim();
+        if let Ok(raw) = serde_json::from_str(fenced) {
+            return Some(raw);
+        }
+    }
+    let (Some(start), Some(end)) = (text.find('{'), text.rfind('}')) else {
+        return None;
+    };
+    (start < end)
+        .then(|| serde_json::from_str(&text[start..=end]).ok())
+        .flatten()
+}
+
 /// 解析模型回复：去空、去重、去换行，截到 `max_items`。不要与本地首选相同的词，也不要没给拼音的词。
 pub fn parse_reply(content: &str, request: &PredictionRequest) -> Reply {
-    let raw: RawReply = match serde_json::from_str(content.trim()) {
-        Ok(raw) => raw,
-        Err(_) => return Reply::default(),
+    let raw: RawReply = match parse_json(content) {
+        Some(raw) => raw,
+        None => return Reply::default(),
     };
     if request.kind == PredictionKind::Question {
         return parse_answers(raw.answers, request.max_items);
@@ -300,6 +326,32 @@ mod tests {
         assert!(prompt.contains("\"pinyin\":\"zhang'tao\""));
         assert!(prompt.contains("\"syllables\":2"));
         assert!(prompt.contains("\"local_candidates\":[\"张涛\",\"张贴\"]"));
+    }
+
+    /// 本机服务不发 `response_format`，模型会把 JSON 包在围栏或解释里；剥掉之后照常解析。
+    #[test]
+    fn json_is_found_inside_fences_and_prose() {
+        let bare = r#"{"words": [{"text": "账套", "pinyin": "zhang tao"}]}"#;
+        for wrapped in [
+            bare.to_owned(),
+            format!("```json\n{bare}\n```"),
+            format!("```\n{bare}\n```"),
+            format!("好的，这是结果：\n{bare}\n希望有帮助。"),
+            format!("```json\n{bare}\n```\n以上。"),
+        ] {
+            let parsed = parse_reply(&wrapped, &request("zhang'tao", false));
+            assert_eq!(
+                parsed.words.first().map(|word| word.text.as_str()),
+                Some("账套"),
+                "没解析出：{wrapped}"
+            );
+        }
+        // 实在没有 JSON 就什么都不给，不要编
+        assert!(
+            parse_reply("我不知道。", &request("zhang'tao", false))
+                .words
+                .is_empty()
+        );
     }
 
     #[test]

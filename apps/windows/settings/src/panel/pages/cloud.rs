@@ -73,7 +73,7 @@ pub(crate) fn view(settings: &Settings, context: &mut ViewContext<Settings>) -> 
         ),
         field(
             "接口地址",
-            "",
+            "OpenAI 兼容接口地址。本机自己跑模型（LM Studio / Ollama）填 http://127.0.0.1:端口 即可，路径不写会自动补 /v1。",
             TextBox::new()
                 .text(p.base_url.clone())
                 .on_text_changed(context.callback(Message::CloudBaseUrl)),
@@ -87,7 +87,7 @@ pub(crate) fn view(settings: &Settings, context: &mut ViewContext<Settings>) -> 
         ),
         field(
             "API 密钥",
-            "只保存在这台电脑上，不会随配置文件导出，也不显示已填的值。留空则读环境变量 QINGJIAN_API_KEY。",
+            "只保存在这台电脑上，不会随配置文件导出，也不显示已填的值。留空则读环境变量 QINGJIAN_API_KEY；本机服务（LM Studio / Ollama）不用填。",
             PasswordBox::new()
                 .password(p.api_key.clone().unwrap_or_default())
                 .placeholder_text("留空则读环境变量 QINGJIAN_API_KEY")
@@ -106,7 +106,7 @@ pub(crate) fn view(settings: &Settings, context: &mut ViewContext<Settings>) -> 
                 )),
         ),
         note(
-            "用上面填的地址、模型、密钥发一条最小请求。走不通时先查这里；Server 进程看不到终端里的代理变量。",
+            "用上面填的地址、模型、密钥发一条最小请求，最多等 30 秒（本机模型第一次加载要时间）。走不通时先查这里；Server 进程看不到终端里的代理变量。",
         ),
     ];
     page("云服务", StackPanel::new().spacing(16.0).children(rows))

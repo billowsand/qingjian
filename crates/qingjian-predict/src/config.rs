@@ -1,6 +1,9 @@
 use qingjian_core::PredictionPolicy;
 use serde::{Deserialize, Serialize};
 
+/// 本机服务不要密钥时发的占位值：接口不校验，只是让 `Authorization` 头有东西。
+const LOCAL_API_KEY: &str = "local";
+
 /// 云联想配置。默认**关闭**，开启后光标附近的文本会发往 `base_url`。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
@@ -65,6 +68,7 @@ impl Default for PredictConfig {
 
 impl PredictConfig {
     /// 配置里的密钥优先，其次环境变量；两边都没有返回 `None`。
+    /// 本机 / 局域网的服务（LM Studio、Ollama）不要密钥，给个占位值，免得只想在本机跑模型的人卡在「先填密钥」这一步。
     pub fn resolve_api_key(&self) -> Option<String> {
         self.api_key
             .as_deref()
@@ -73,6 +77,7 @@ impl PredictConfig {
             .map(str::to_owned)
             .or_else(|| std::env::var(&self.api_key_env).ok())
             .filter(|k| !k.trim().is_empty())
+            .or_else(|| crate::endpoint::is_local(&self.base_url).then(|| LOCAL_API_KEY.to_owned()))
     }
 
     pub fn policy(&self) -> PredictionPolicy {

@@ -12,6 +12,7 @@ use qingjian_core::PredictionRequest;
 use reqwest::header::{HeaderMap, HeaderValue};
 
 use crate::config::PredictConfig;
+use crate::endpoint;
 use crate::error::PredictError;
 use crate::prompt::{self, Reply};
 
@@ -41,18 +42,24 @@ pub struct ChatClient {
 
     /// 推理强度；`None` 表示不发这个参数。
     reasoning_effort: Option<ReasoningEffort>,
+
+    /// 要不要发 `response_format: json_object`；本机 / 局域网服务不发（见 [`crate::endpoint`]）。
+    json_object: bool,
 }
 
 impl ChatClient {
     pub fn new(config: &PredictConfig, api_key: String) -> Self {
+        // 裸地址（`http://127.0.0.1:12345`）补上 `/v1`，自建服务容易漏
+        let base_url = endpoint::normalize(&config.base_url);
         let openai = OpenAIConfig::new()
-            .with_api_base(config.base_url.trim_end_matches('/'))
+            .with_api_base(&base_url)
             .with_api_key(api_key);
         Self {
-            client: Client::with_config(openai).with_http_client(http_client(&config.base_url)),
+            client: Client::with_config(openai).with_http_client(http_client(&base_url)),
             model: config.model.clone(),
             timeout: Duration::from_millis(config.timeout_ms),
             reasoning_effort: parse_reasoning_effort(&config.reasoning_effort),
+            json_object: endpoint::wants_json_object(&base_url),
         }
     }
 
@@ -80,8 +87,12 @@ impl ChatClient {
         args.model(&self.model)
             .messages(messages)
             .max_tokens(max_tokens)
-            .temperature(TEMPERATURE)
-            .response_format(ResponseFormat::JsonObject);
+            .temperature(TEMPERATURE);
+        // `json_object` 不是所有 OpenAI 兼容接口都认：LM Studio 只认 `json_schema` / `text`，
+        // 收到 `json_object` 直接 400。本机服务不发，靠提示词里的 JSON 约定 + 解析端的容错。
+        if self.json_object {
+            args.response_format(ResponseFormat::JsonObject);
+        }
         if let Some(effort) = self.reasoning_effort.clone() {
             args.reasoning_effort(effort);
         }
@@ -189,6 +200,75 @@ mod tests {
             header_seen_by_server(http_client("https://api.deepseek.com")),
             None
         );
+    }
+
+    /// 本机地址不发 `response_format`：LM Studio 只认 `json_schema` / `text`，收到 `json_object` 直接 400。
+    /// 顺带确认裸地址补了 `/v1`（请求落在 `/v1/chat/completions`）。
+    #[test]
+    fn local_endpoint_omits_response_format_and_gets_v1() {
+        let (body, path) = chat_request_body("http://127.0.0.1:0");
+        assert!(!body.contains("response_format"), "{body}");
+        assert!(body.contains("\"temperature\""), "{body}");
+        assert_eq!(path, "/v1/chat/completions");
+    }
+
+    /// 真发一个请求到本地端口，返回（请求体，请求路径）。
+    fn chat_request_body(base_url_without_port: &str) -> (String, String) {
+        use std::io::{BufRead, BufReader, Read, Write};
+        use std::net::TcpListener;
+
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = listener.local_addr().unwrap();
+        let config = PredictConfig {
+            base_url: base_url_without_port.replace(":0", &format!(":{}", addr.port())),
+            ..PredictConfig::default()
+        };
+        let client = ChatClient::new(&config, "sk-test".to_owned());
+        let server = std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut reader = BufReader::new(stream.try_clone().unwrap());
+            let mut request_line = String::new();
+            reader.read_line(&mut request_line).unwrap();
+            let path = request_line
+                .split_whitespace()
+                .nth(1)
+                .unwrap_or("")
+                .to_owned();
+            let mut length = 0usize;
+            loop {
+                let mut line = String::new();
+                reader.read_line(&mut line).unwrap();
+                if line.trim().is_empty() {
+                    break;
+                }
+                if let Some((name, value)) = line.split_once(':')
+                    && name.eq_ignore_ascii_case("content-length")
+                {
+                    length = value.trim().parse().unwrap();
+                }
+            }
+            let mut body = vec![0u8; length];
+            reader.read_exact(&mut body).unwrap();
+            let reply =
+                r#"{"id":"1","object":"chat.completion","created":0,"model":"m","choices":[]}"#;
+            stream
+                .write_all(
+                    format!(
+                        "HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{reply}",
+                        reply.len()
+                    )
+                    .as_bytes(),
+                )
+                .unwrap();
+            (String::from_utf8(body).unwrap(), path)
+        });
+        // 回复里没有 choices，客户端解出来是错的；这里只看它发出去的请求
+        let _ = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap()
+            .block_on(async { client.chat("系统", "用户", 8).await });
+        server.join().unwrap()
     }
 
     /// 起一个只答一次的 HTTP 服务，返回请求里 `x-opencode-session` 的值。

@@ -10,6 +10,7 @@ mod chat_client;
 mod cloud_predictor;
 mod config;
 mod connection;
+mod endpoint;
 mod error;
 mod gloss;
 mod prompt;

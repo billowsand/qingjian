@@ -18,6 +18,10 @@ const USER_PROMPT: &str = "回复 JSON 对象 {\"ok\": true}，不要别的内�
 /// 回复 token 上限：只要几个字。
 const MAX_TOKENS: u32 = 32;
 
+/// 测试连接的超时下限：本机模型第一次加载要几十秒，用联想那个 5 秒超时会误报失败；
+/// 这是用户点的一次性诊断，等得起。
+const TIMEOUT_MS: u64 = 30_000;
+
 /// 一次进行中的连通性测试。
 pub struct ConnectionTest {
     /// 测试线程送回的结果；线程只发一次。
@@ -30,7 +34,9 @@ impl ConnectionTest {
         let api_key = config
             .resolve_api_key()
             .ok_or_else(|| PredictError::MissingApiKey(config.api_key_env.clone()))?;
-        let client = ChatClient::new(config, api_key);
+        let mut config = config.clone();
+        config.timeout_ms = config.timeout_ms.max(TIMEOUT_MS);
+        let client = ChatClient::new(&config, api_key);
         let model = config.model.clone();
         let (sender, result) = mpsc::channel();
         std::thread::Builder::new()

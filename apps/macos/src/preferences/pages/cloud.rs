@@ -84,7 +84,7 @@ impl CloudPage {
         note(
             layout,
             mtm,
-            "文本框按回车保存。密钥只保存在这台电脑上，不会随配置文件导出，也不显示已填的值。",
+            "文本框按回车保存。密钥只保存在这台电脑上，不会随配置文件导出，也不显示已填的值；本机自己跑模型（LM Studio / Ollama）不用填密钥，地址里的 /v1 可省。",
         );
         let test = button(mtm, "测试连接", Setting::TestCloud, target);
         layout.place(&test, PAGE_PADDING, 120.0, ROW_HEIGHT + 4.0);
@@ -92,7 +92,7 @@ impl CloudPage {
         note(
             layout,
             mtm,
-            "用上面填的地址、模型、密钥发一条最小请求，结果显示在窗口底部。输入法进程看不到终端里的代理变量，走不通时先查这个。",
+            "用上面填的地址、模型、密钥发一条最小请求（最多等 30 秒），结果显示在窗口底部。输入法进程看不到终端里的代理变量，走不通时先查这个。",
         );
         Self {
             local_model,
