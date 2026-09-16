@@ -124,7 +124,8 @@ fn draw_top_line(hdc: HDC, data: &RenderData, y: i32) -> i32 {
     for (text, kind) in &data.preedit {
         let (color, strike) = match kind {
             PreeditKind::Typed => (theme.gloss_color, false),
-            PreeditKind::Rest => (theme.pos_color, false),
+            // 辅码段与光标后的剩余拼音同样画淡，都是「不是当前在打的拼音」
+            PreeditKind::Rest | PreeditKind::Fuma => (theme.pos_color, false),
             PreeditKind::Corrected => (theme.pos_color, true),
         };
         let width = draw_text(hdc, theme.annotation_font, color, x, top, text);

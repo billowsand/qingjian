@@ -12,6 +12,9 @@ pub enum PreeditKind {
     /// 光标停在中间时，作用域之后剩下的拼音：只显示不参与候选，画淡一点。
     Rest,
 
+    /// 激活的辅码段（末尾那两个键）：不是拼音，画淡一点与拼音区分开。
+    Fuma,
+
     /// 拼写纠错里被改掉的原字母：画删除线。
     Corrected,
 }
@@ -21,6 +24,7 @@ impl From<MarkedKind> for PreeditKind {
         match kind {
             MarkedKind::Typed => Self::Typed,
             MarkedKind::Rest => Self::Rest,
+            MarkedKind::Fuma => Self::Fuma,
             MarkedKind::Corrected => Self::Corrected,
         }
     }

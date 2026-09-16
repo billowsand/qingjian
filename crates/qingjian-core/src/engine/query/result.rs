@@ -52,6 +52,10 @@ pub struct Query {
 
     /// 开启双拼或注音时的显示字串（如 "ㄅㄨˋ"）。如果有此值，preedit 就优先显示它，而不是拼音。
     pub typed_display: Option<String>,
+
+    /// 激活的辅码段，用户敲的那两个键原样（`rN`）；解码把它剥掉了，拼音行得单独把它画出来，
+    /// 否则敲进去的辅码毫无痕迹、候选被筛空了也看不出是为什么。没激活时为 `None`。
+    pub fuma: Option<String>,
 }
 
 impl Query {
@@ -98,6 +102,15 @@ impl Query {
             if !typed.is_empty() {
                 segments.push(MarkedSegment::new(typed, MarkedKind::Typed));
             }
+        }
+        // 辅码段跟在拼音后面，空格隔开：`ni'hao rN`
+        if let Some(fuma) = &self.fuma {
+            let text = if segments.is_empty() {
+                fuma.clone()
+            } else {
+                format!(" {fuma}")
+            };
+            segments.push(MarkedSegment::new(text, MarkedKind::Fuma));
         }
         if !self.rest.is_empty() {
             let rest = if segments.is_empty() {

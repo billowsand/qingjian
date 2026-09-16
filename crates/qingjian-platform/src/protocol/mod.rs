@@ -16,7 +16,14 @@ mod session;
 
 /// 协议版本，DLL 开会话时带上。加消息 / 改字段语义时 +1；Server 只对不上时记警告（老 DLL 在没重启的
 /// 应用里还会活很久，serde 的缺省字段 / 忽略未知字段让两边仍能对话）。
-pub const PROTOCOL_VERSION: u32 = 4;
+///
+/// 但**枚举新加的变体不在「忽略未知」的保护范围里**：老 DLL 收到不认识的变体名，
+/// 整条消息反序列化就失败。所以新变体要么等老 DLL 淘汰，要么由 Server 按会话版本降级发送
+/// （见 `dispatch::composed` 里对 [`PreeditKind::Fuma`] 的处理）。
+pub const PROTOCOL_VERSION: u32 = 5;
+
+/// 从这版起 preedit 里可能出现 [`PreeditKind::Fuma`]；更早的 DLL 要降级成它认识的种类。
+pub const FUMA_PREEDIT_PROTOCOL: u32 = 5;
 
 pub mod frame;
 pub mod key;

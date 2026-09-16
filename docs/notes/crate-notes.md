@@ -24,6 +24,8 @@ TSV 解析、查询与生成工具把 `lue` / `nue` 统一成 `lve` / `nve`。
   辅码激活时不出英文候选与 emoji，整句在 `plain_sentence` 里同规则过滤；
   上屏时 `consumed_by` 盖满拼音就连辅码 2 键一起吃，盖不满的由 `commit::consume_scope` 把末尾那对辅码键丢掉
   （否则剩下的拼音还背着它，下一次查询又被筛一遍）；`take_raw` 剥辅码段；`delete_syllable_backward` / 音节光标跳认辅码键为字母。
+  拼音行单独画辅码段：`Query::fuma` 存敲的两键原样，`marked_segments` 推一段 `MarkedKind::Fuma`，
+  一路镜像到 `PreeditKind::Fuma` / `PreeditStyle::Fuma`，两条绘制路径（自绘渲染器与系统绘制）都画淡。
   配置 `[general] fuma`，`Engine::set_fuma` 收 `Arc<FumaTable>`（表几千条，Server 与 Engine 共用一份，热加载只克隆指针）/ `fuma_enabled`）/
   `engine`（`query::EnglishTail`：句末英文词并入整句，`woxiangxuehaorust` → 我想学好rust，尾段也像拼音时按分数与拼音读法比）。
 `Engine` 是对外唯一门面，`Translator` / `Learner` trait 在 `engine` 模块；词库是「主词库 + 附加词库（`set_extra_dictionaries`）+ 用户词」的列表。

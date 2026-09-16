@@ -8,4 +8,8 @@ pub(crate) struct SessionInfo {
 
     /// 该会话当前落在私密输入框里（DLL 随 `ClientMessage::Privacy` 报来）；焦点切回来时按它重设 Engine。
     pub(crate) private: bool,
+
+    /// DLL 编译时的协议版本（老 DLL 不报，读成 0）。发帧前据此把它不认识的新枚举变体降级，
+    /// 否则整条消息在它那边反序列化就失败。
+    pub(crate) protocol: u32,
 }

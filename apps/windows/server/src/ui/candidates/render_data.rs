@@ -92,6 +92,7 @@ impl RenderData {
                     style: match kind {
                         PreeditKind::Typed => PreeditStyle::Typed,
                         PreeditKind::Rest => PreeditStyle::Rest,
+                        PreeditKind::Fuma => PreeditStyle::Fuma,
                         PreeditKind::Corrected => PreeditStyle::Struck,
                     },
                 })

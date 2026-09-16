@@ -12,6 +12,13 @@ impl Router {
         self.sessions.len()
     }
 
+    /// 聚焦会话那份 DLL 的协议版本；老 DLL 不报，按 0 算（见 [`SessionInfo::protocol`]）。
+    pub(super) fn focused_protocol(&self) -> u32 {
+        self.focused
+            .and_then(|session| self.sessions.get(&session))
+            .map_or(0, |info| info.protocol)
+    }
+
     /// 聚焦会话所在应用的 exe 名；DLL 没报时为 `None`。
     pub(super) fn focused_app(&self) -> Option<&str> {
         self.focused

@@ -77,7 +77,8 @@ impl Renderer {
         for segment in &preedit.segments {
             let style = match segment.style {
                 PreeditStyle::Typed => m.annotation_style(m.theme.colors.gloss),
-                PreeditStyle::Rest => m.annotation_style(m.theme.colors.pos),
+                // 辅码段与光标后的剩余拼音同样画淡，都是「不是当前在打的拼音」
+                PreeditStyle::Rest | PreeditStyle::Fuma => m.annotation_style(m.theme.colors.pos),
                 PreeditStyle::Struck => m.annotation_style(m.theme.colors.pos).struck(),
             };
             cursor_x += self.draw_text(canvas, &segment.text, &style, cursor_x, top);

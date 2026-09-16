@@ -116,6 +116,38 @@ fn fuma_codes_go_away_with_a_prefix_candidate() {
 }
 
 #[test]
+fn fuma_shows_up_in_the_pinyin_line() {
+    let mut engine = fuma_engine();
+    // 激活时辅码段单独一段跟在拼音后面，原样保留大小写：敲的是 `fX` 就显示 `fX`
+    engine.set_input("kdfafX");
+    let query = engine.query().unwrap();
+    assert_eq!(query.marked_text(), "kai'fa fX");
+    let segments = query.marked_segments();
+    assert_eq!(segments.len(), 2);
+    assert_eq!(segments[0].kind, MarkedKind::Typed);
+    assert_eq!(segments[1].kind, MarkedKind::Fuma);
+    assert_eq!(segments[1].text, " fX");
+    // 光标算在辅码段之后（用户正在末尾敲）
+    assert_eq!(query.marked_cursor(), "kai'fa fX".chars().count());
+
+    // 反转写法照样原样显示
+    engine.set_input("kdfaXf");
+    assert_eq!(engine.query().unwrap().marked_text(), "kai'fa Xf");
+
+    // 没激活时拼音行不变，一个字都不多
+    engine.set_input("kdfafa");
+    let query = engine.query().unwrap();
+    assert_eq!(query.marked_text(), "kai'fa'fa");
+    assert!(query.fuma.is_none());
+    assert!(
+        query
+            .marked_segments()
+            .iter()
+            .all(|s| s.kind != MarkedKind::Fuma)
+    );
+}
+
+#[test]
 fn fuma_stays_out_of_zhuyin() {
     let mut engine = fuma_engine();
     engine.set_zhuyin_mode(true);

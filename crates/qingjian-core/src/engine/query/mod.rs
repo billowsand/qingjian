@@ -126,6 +126,8 @@ impl Engine {
                     rest,
                     decoded_keys: self.shuangpin.is_some() || self.zhuyin,
                     typed_display: decoded.as_ref().map(|d| d.marked()),
+                    // 连第一个字母都切不动，辅码不可能激活
+                    fuma: None,
                     correction: None,
                     timings: Timings {
                         parse: start.elapsed(),
@@ -296,6 +298,8 @@ impl Engine {
             rest,
             decoded_keys: self.shuangpin.is_some() || self.zhuyin,
             typed_display,
+            // 拼音行单独画出敲的那两个辅码键（解码已把它们剥掉，不画就一点痕迹都没有）
+            fuma: fuma_typed.map(|_| keys[keys.len() - 2..].to_owned()),
             correction,
             timings: Timings {
                 parse,
@@ -327,6 +331,8 @@ impl Engine {
             rest,
             decoded_keys: self.shuangpin.is_some() || self.zhuyin,
             typed_display: None,
+            // 这些模式下辅码不激活（辅码要求前缀是完整双拼）
+            fuma: None,
             correction: None,
             timings: Timings {
                 parse: Duration::ZERO,
@@ -354,6 +360,8 @@ impl Engine {
             rest,
             decoded_keys: self.shuangpin.is_some() || self.zhuyin,
             typed_display: None,
+            // 这些模式下辅码不激活（辅码要求前缀是完整双拼）
+            fuma: None,
             correction: None,
             timings: Timings {
                 parse: Duration::ZERO,
@@ -392,6 +400,8 @@ impl Engine {
             rest,
             decoded_keys: self.shuangpin.is_some() || self.zhuyin,
             typed_display: None,
+            // 这些模式下辅码不激活（辅码要求前缀是完整双拼）
+            fuma: None,
             correction: None,
             timings: Timings {
                 parse: Duration::ZERO,
@@ -433,6 +443,8 @@ impl Engine {
             rest,
             decoded_keys: self.shuangpin.is_some() || self.zhuyin,
             typed_display: None,
+            // 这些模式下辅码不激活（辅码要求前缀是完整双拼）
+            fuma: None,
             correction: None,
             timings: Timings {
                 parse: start.elapsed(),

@@ -3,12 +3,28 @@
 mod state;
 
 use qingjian_core::{Candidate, CandidateLayout, CandidateList, CloudWord};
-use qingjian_platform::protocol::{Frame, PreeditKind, PreeditSegment};
+use qingjian_platform::protocol::{FUMA_PREEDIT_PROTOCOL, Frame, PreeditKind, PreeditSegment};
 
 pub(super) use self::state::Composed;
 use super::Router;
 
 impl Router {
+    /// 把聚焦会话那份 DLL 不认识的 preedit 种类降级成它认识的。
+    ///
+    /// 枚举新加的变体不在 serde「忽略未知字段」的保护范围里：老 DLL 收到不认识的变体名，
+    /// **整条消息**反序列化就失败，帧丢了候选窗就不动了。升级安装后没重启的应用里还跑着老 DLL，
+    /// 所以按会话报来的协议版本降级。辅码段降成 `Rest`：老 DLL 照样画淡、内联也照样拼上，行为不变。
+    fn downgrade_preedit(&self, segments: &mut [PreeditSegment]) {
+        if self.focused_protocol() >= FUMA_PREEDIT_PROTOCOL {
+            return;
+        }
+        for segment in segments {
+            if segment.kind == PreeditKind::Fuma {
+                segment.kind = PreeditKind::Rest;
+            }
+        }
+    }
+
     /// 缓冲变化后：按 Engine 状态重建 [`Composed`]，发一次云联想请求，归零高亮与整句补全。
     pub(super) fn recompose(&mut self) {
         self.highlight = 0;
@@ -23,8 +39,9 @@ impl Router {
         self.attach_loaded_model();
         let built = self.engine.query().ok().map(|query| {
             let items = query.candidates.items.clone();
-            let preedit: Vec<PreeditSegment> =
+            let mut preedit: Vec<PreeditSegment> =
                 query.marked_segments().iter().map(Into::into).collect();
+            self.downgrade_preedit(&mut preedit);
             // 光标用 Core 的映射：自动补的 `'` 会让显示串比敲的长。
             (items, preedit, query.marked_cursor())
         });

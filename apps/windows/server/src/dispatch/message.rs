@@ -36,6 +36,7 @@ impl Router {
                     SessionInfo {
                         app,
                         private: false,
+                        protocol,
                     },
                 );
                 None

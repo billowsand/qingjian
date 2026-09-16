@@ -6,8 +6,8 @@ use std::sync::{Arc, Mutex};
 use qingjian_core::sentence::SentenceScorer;
 use qingjian_core::{ModeKeys, ShuangpinScheme};
 use qingjian_platform::protocol::{
-    ClientMessage, Frame, KeyEvent, KeyModifiers, KeyOutcome, PROTOCOL_VERSION, ServerMessage,
-    SessionId,
+    ClientMessage, Frame, KeyEvent, KeyModifiers, KeyOutcome, PROTOCOL_VERSION, PreeditKind,
+    ServerMessage, SessionId,
 };
 use qingjian_platform::{AppsConfig, DEFAULT_ENGLISH_CANDIDATES_OFF_WINDOWS};
 use qingjian_windows_server::dispatch::{StatusEvent, StatusSink, StatusView};
@@ -1252,6 +1252,37 @@ fn fuma_keys_filter_candidates_strictly() {
     press(&mut router, letter_with('X', SHIFT));
     let (_, _, frame) = press(&mut router, letter('f'));
     assert_eq!(candidate_texts(&frame), vec!["开发"]);
+}
+
+/// 辅码段要画在拼音行里：不然敲进去的辅码一点痕迹都没有，候选被筛空了也看不出原因。
+#[test]
+fn fuma_keys_show_in_the_preedit() {
+    let mut router = fuma_router();
+    type_letters(&mut router, "kdfaf");
+    let (_, _, frame) = press(&mut router, letter_with('X', SHIFT));
+    assert_eq!(preedit(&frame), "kai'fa fX");
+    // 辅码段单独一段，DLL 与渲染器据此画淡
+    let kinds: Vec<PreeditKind> = frame.preedit.iter().map(|s| s.kind).collect();
+    assert_eq!(kinds, vec![PreeditKind::Typed, PreeditKind::Fuma]);
+}
+
+/// 老 DLL（升级安装后没重启的应用）不认识 `PreeditKind::Fuma`：整条消息会反序列化失败，
+/// 所以发帧前按会话报来的协议版本降级成它认识的 `Rest`。
+#[test]
+fn fuma_preedit_downgrades_for_old_dlls() {
+    let mut router = fuma_router();
+    // 同一个会话按老协议重开（DLL 断线重连就是这条路）
+    router.handle(ClientMessage::OpenSession {
+        session: SESSION,
+        app: None,
+        protocol: PROTOCOL_VERSION - 1,
+    });
+    type_letters(&mut router, "kdfaf");
+    let (_, _, frame) = press(&mut router, letter_with('X', SHIFT));
+    // 文本一字不差，只是种类降了级
+    assert_eq!(preedit(&frame), "kai'fa fX");
+    let kinds: Vec<PreeditKind> = frame.preedit.iter().map(|s| s.kind).collect();
+    assert_eq!(kinds, vec![PreeditKind::Typed, PreeditKind::Rest]);
 }
 
 /// 辅码开着、但注音也开着时辅码整套不介入（注音走自己的解码）。
