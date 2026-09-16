@@ -255,20 +255,26 @@ impl Engine {
         self
     }
 
+    /// 接学习语言的释义表（候选旁的译词、生词标记、释义兜底）。
     pub fn with_translator(mut self, translator: Box<dyn Translator>) -> Self {
         self.translator = translator;
         self
     }
 
-    /// 运行时换学习语言的释义表。
     /// 接英文候选用的释义表（英→中）。
     pub fn with_english_translator(mut self, translator: Box<dyn Translator>) -> Self {
         self.english_translator = translator;
         self
     }
 
+    /// 运行时换学习语言的释义表（配置热加载）。
     pub fn set_translator(&mut self, translator: Box<dyn Translator>) {
         self.translator = translator;
+    }
+
+    /// 运行时换英文候选的释义表；学习语言关掉时清成 `NoTranslator`。
+    pub fn set_english_translator(&mut self, translator: Box<dyn Translator>) {
+        self.english_translator = translator;
     }
 
     pub fn with_mode_keys(mut self, keys: ModeKeys) -> Self {

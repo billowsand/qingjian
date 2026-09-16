@@ -128,11 +128,13 @@ impl Host {
         }
     }
 
-    /// 学习语言变了就换释义表，`off` 换成不翻译；文件缺失或坏了保持原样，只记日志。
+    /// 学习语言变了就换释义表，`off` 换成不翻译（英文候选的中文释义跟着一起装 / 卸）；
+    /// 文件缺失或坏了保持原样，只记日志。
     pub(super) fn apply_learning_language(&mut self, general: &GeneralConfig) {
         if general.learning_language_off() {
             if self.learning_language.take().is_some() {
                 self.engine.set_translator(Box::new(NoTranslator));
+                self.engine.set_english_translator(Box::new(NoTranslator));
                 tracing::info!("学习语言已关，不显示译文");
             }
             return;
@@ -153,6 +155,13 @@ impl Host {
                     "释义表已切换"
                 );
                 self.engine.set_translator(Box::new(glossary));
+                // 学习语言开着才装英文候选的中文释义
+                match load_glossary(Language::Chinese) {
+                    Ok(english) => self.engine.set_english_translator(Box::new(english)),
+                    Err(error) => {
+                        tracing::warn!(%error, "英→中释义表加载失败，英文候选不显示中文")
+                    }
+                }
                 self.learning_language = Some(language);
             }
             Err(error) => tracing::warn!(%error, "释义表加载失败，学习语言不变"),

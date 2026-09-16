@@ -64,7 +64,7 @@ impl GeneralPage {
         note(
             layout,
             mtm,
-            "候选词右侧显示哪种语言的译词，只列出安装了释义表的语言；「不显示译文」同时关掉生词标记与释义兜底。",
+            "候选词右侧显示哪种语言的译词，只列出安装了释义表的语言；不想要译文就选「不显示译文」：它同时关掉生词标记、释义兜底与英文候选的中文释义。",
         );
         let page_size_titles: Vec<String> = (1..=MAX_PAGE_SIZE).map(|n| n.to_string()).collect();
         let page_size = row_popup(

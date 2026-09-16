@@ -75,8 +75,10 @@ pub fn init(mtm: MainThreadMarker, info: &BundleInfo) -> Result<(), HostError> {
         paths::dicts_dir().as_deref(),
         &settings.config().dictionaries,
     ));
-    // 英文候选的中文释义（英→中）可选：没有这张表英文候选右侧就留空
-    if let Ok(path) =
+    // 英文候选的中文释义（英→中）可选：没有这张表英文候选右侧就留空；学习语言关着（不显示译文）就不装
+    if learning_language.is_none() {
+        tracing::info!("学习语言关着，英文候选不显示中文释义");
+    } else if let Ok(path) =
         paths::resource("glossary-zh.qj").or_else(|_| paths::resource("glossary-zh.tsv"))
     {
         match Glossary::from_path(Language::Chinese, &path) {
