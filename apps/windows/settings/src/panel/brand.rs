@@ -17,23 +17,26 @@ pub(super) fn logo(size: f64) -> Image {
         .height(size)
 }
 
-/// 导航栏顶部的品牌条：Logo + 「字在设置」+ 版本号。
+/// 导航栏顶部的品牌条：保持与安装器、设计稿相同的 Logo + 名字 + 品牌句层级。
 pub(super) fn header() -> View {
     StackPanel::new()
         .orientation(Orientation::Horizontal)
-        .spacing(10.0)
-        .margin(Thickness::new(16.0, 8.0, 16.0, 8.0))
+        .spacing(12.0)
+        .margin(Thickness::new(16.0, 12.0, 16.0, 16.0))
         .children((
-            logo(28.0).vertical_alignment(VerticalAlignment::Center),
-            TextBlock::new()
-                .text("字在设置")
-                .font_size(18.0)
-                .font_weight(FontWeight::SEMI_BOLD)
-                .vertical_alignment(VerticalAlignment::Center),
-            TextBlock::new()
-                .text(VERSION)
-                .font_size(12.0)
-                .opacity(0.6)
-                .vertical_alignment(VerticalAlignment::Bottom),
+            logo(44.0).vertical_alignment(VerticalAlignment::Center),
+            StackPanel::new()
+                .spacing(1.0)
+                .vertical_alignment(VerticalAlignment::Center)
+                .children((
+                    TextBlock::new()
+                        .text("字在")
+                        .font_size(20.0)
+                        .font_weight(FontWeight::SEMI_BOLD),
+                    TextBlock::new()
+                        .text("更自在的输入")
+                        .font_size(12.0)
+                        .opacity(0.62),
+                )),
         ))
 }

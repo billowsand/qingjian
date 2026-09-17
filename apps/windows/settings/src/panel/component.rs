@@ -8,7 +8,7 @@ use super::pages::{about, dictionaries, general};
 use super::{Message, Settings, brand};
 
 /// 左侧导航栏宽度。
-const PANE_WIDTH: f64 = 200.0;
+const PANE_WIDTH: f64 = 220.0;
 
 impl Component for Settings {
     type Input = ();
@@ -62,7 +62,7 @@ impl Component for Settings {
             Message::LocalModel(on) => self.save("model", "enabled", on),
             Message::ChineseFirst(on) => self.save("general", "chinese_first", on),
 
-            // 外观页
+            // 候选窗口页
             Message::Theme(Some(i)) if i < ThemeMode::ALL.len() => {
                 self.save("general", "theme", ThemeMode::ALL[i].key());
             }
@@ -169,7 +169,7 @@ impl Component for Settings {
         };
         let items = [
             item("general", "通用", Symbol::Setting),
-            item("appearance", "外观", Symbol::View),
+            item("appearance", "候选窗口", Symbol::View),
             item("dictionaries", "词库", Symbol::Library),
             item("advanced", "高级", Symbol::Repair),
             item("about", "关于", Symbol::Help),
@@ -181,10 +181,10 @@ impl Component for Settings {
             .is_pane_toggle_button_visible(false)
             .is_back_button_visible(NavigationViewBackButtonVisible::Collapsed)
             .is_settings_visible(false)
-            .always_show_header(true)
+            .always_show_header(false)
             .on_selected_tag_changed(context.callback(Message::Navigate))
             .slots([
-                SlotView::new(NavigationViewSlot::Header, brand::header()),
+                SlotView::new(NavigationViewSlot::PaneCustomContent, brand::header()),
                 SlotView::collection(NavigationViewSlot::MenuItems, items),
                 SlotView::new(NavigationViewSlot::Content, self.page_content(context)),
             ])

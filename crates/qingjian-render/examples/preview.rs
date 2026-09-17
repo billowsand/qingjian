@@ -113,10 +113,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    // Windows 的悬浮状态条：三格
+    // Windows 的悬浮状态条：握柄 + 模式方章 / 双拼简称 + 标点 + 设置
     let cells = [
         StatusCell::Grip,
-        StatusCell::text("中 · 小鹤", true),
+        StatusCell::mode("中", Some("鹤"), true),
         StatusCell::text("，。", true),
         StatusCell::Gear,
     ];

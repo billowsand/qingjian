@@ -25,7 +25,7 @@ pub(crate) enum Message {
     LocalModel(bool),
     ChineseFirst(bool),
 
-    // 外观页
+    // 候选窗口页
     Theme(Option<usize>),
     Layout(Option<usize>),
     Preedit(Option<usize>),

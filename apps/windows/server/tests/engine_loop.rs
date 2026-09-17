@@ -668,7 +668,7 @@ fn status_bar_follows_mode_when_enabled() {
 }
 
 #[test]
-fn status_bar_shows_shuangpin_scheme_in_chinese() {
+fn status_bar_passes_shuangpin_scheme_key_in_chinese() {
     let config = RouterConfig {
         status_enabled: true,
         shuangpin: Some(ShuangpinScheme::Xiaohe),
@@ -683,7 +683,7 @@ fn status_bar_shows_shuangpin_scheme_in_chinese() {
         english: false,
     });
 
-    assert_eq!(recorder.calls(), vec![Some("中 · 小鹤双拼".to_owned())]);
+    assert_eq!(recorder.calls(), vec![Some("中 · xiaohe".to_owned())]);
 }
 
 #[test]

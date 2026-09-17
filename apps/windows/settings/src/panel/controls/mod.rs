@@ -10,7 +10,7 @@ pub(super) use self::files::{
 };
 
 /// 页面大标题字号。
-const TITLE_SIZE: f64 = 24.0;
+const TITLE_SIZE: f64 = 28.0;
 
 /// 分组标题字号。
 const GROUP_SIZE: f64 = 16.0;
@@ -161,21 +161,48 @@ pub(super) fn index_of(options: &[(&str, &str)], value: &str) -> usize {
     options.iter().position(|(_, v)| *v == value).unwrap_or(0)
 }
 
-/// 一页外壳：可滚动 + 大标题 + 若干分组。
-pub(super) fn page(title: &str, groups: impl IntoIterator<Item = View>) -> View {
-    let mut children: Vec<View> = vec![
+/// 每页底部的本地隐私状态与品牌落款；薄荷点只表达「数据留在本机」。
+fn privacy_footer() -> View {
+    Grid::new()
+        .columns([GridLength::Auto, GridLength::STAR, GridLength::Auto])
+        .column_spacing(8.0)
+        .children((
+            Border::new()
+                .grid_column(0)
+                .width(8.0)
+                .height(8.0)
+                .corner_radius(4.0)
+                .background(Color::argb(255, 85, 214, 194))
+                .vertical_alignment(VerticalAlignment::Center),
+            TextBlock::new()
+                .grid_column(1)
+                .text("数据只留在本机")
+                .font_size(NOTE_SIZE)
+                .opacity(0.72),
+            TextBlock::new()
+                .grid_column(2)
+                .text("字在 · 更自在的输入")
+                .font_size(NOTE_SIZE)
+                .opacity(0.52),
+        ))
+}
+
+/// 一页外壳：可滚动 + 标题 / 一句话说明 + 若干分组。
+pub(super) fn page(title: &str, subtitle: &str, groups: impl IntoIterator<Item = View>) -> View {
+    let header = StackPanel::new().spacing(4.0).children((
         TextBlock::new()
             .text(title)
             .font_size(TITLE_SIZE)
-            .font_weight(FontWeight::SEMI_BOLD)
-            .into(),
-    ];
+            .font_weight(FontWeight::SEMI_BOLD),
+        note(subtitle),
+    ));
+    let mut children: Vec<View> = vec![header];
     children.extend(groups);
-    children.push(note("●  全部本地处理，不上传任何数据"));
+    children.push(privacy_footer());
     ScrollViewer::new().content(column(
         StackPanel::new()
             .spacing(GROUP_GAP)
-            .margin(Thickness::new(24.0, 16.0, 24.0, 24.0)),
+            .margin(Thickness::new(28.0, 20.0, 28.0, 28.0)),
         children,
     ))
 }

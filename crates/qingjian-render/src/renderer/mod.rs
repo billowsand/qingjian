@@ -22,7 +22,7 @@ use crate::text::{TextPainter, TextSize, TextStyle};
 use crate::theme::{FontSpec, Theme};
 
 pub use rendered::Rendered;
-pub use status::{RenderedStatus, StatusCell};
+pub use status::{RenderedStatus, StatusCell, shuangpin_mark};
 
 /// preedit 光标的宽度（点）。
 const CARET_WIDTH: f32 = 1.5;

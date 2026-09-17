@@ -27,7 +27,7 @@ use windows::Win32::UI::WindowsAndMessaging::{
 use windows::core::{Error, PCWSTR, Result, w};
 
 use qingjian_platform::ThemeMode;
-use qingjian_render::StatusCell;
+use qingjian_render::{StatusCell, shuangpin_mark};
 
 use self::cell::CellSpec;
 use self::placement::{Placement, StatusAction};
@@ -159,22 +159,27 @@ impl StatusBar {
         }
     }
 
-    /// 模式格的文字：中 / A，开着双拼时跟方案名。
+    /// GDI 退路的模式文字；默认渲染器把「中」画成品牌方章、方案标记放在右边。
     fn mode_text(view: &StatusView) -> String {
         if view.english {
             return "A".to_owned();
         }
-        match &view.scheme {
-            Some(scheme) => format!("中 · {scheme}"),
+        match view.scheme.as_deref().and_then(shuangpin_mark) {
+            Some(mark) => format!("中 · {mark}"),
             None => "中".to_owned(),
         }
     }
 
     /// 渲染器要的四格：握柄、模式（品牌色）、标点（生效时品牌色，否则灰）、齿轮。
     fn status_cells(view: &StatusView) -> Vec<StatusCell> {
+        let scheme = if view.english {
+            None
+        } else {
+            view.scheme.as_deref().and_then(shuangpin_mark)
+        };
         vec![
             StatusCell::Grip,
-            StatusCell::text(Self::mode_text(view), true),
+            StatusCell::mode(if view.english { "A" } else { "中" }, scheme, !view.english),
             StatusCell::text(if view.full_width { "，。" } else { ",." }, view.full_width),
             StatusCell::Gear,
         ]
@@ -438,5 +443,40 @@ unsafe extern "system" fn wndproc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: 
             LRESULT(0)
         }
         _ => unsafe { DefWindowProcW(hwnd, msg, wparam, lparam) },
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use qingjian_platform::ThemeMode;
+    use qingjian_render::StatusCell;
+
+    use super::{StatusBar, StatusView};
+
+    fn view(english: bool, scheme: Option<&str>) -> StatusView {
+        StatusView {
+            english,
+            scheme: scheme.map(str::to_owned),
+            full_width: false,
+            theme: ThemeMode::System,
+            anchor: None,
+        }
+    }
+
+    #[test]
+    fn shuangpin_uses_compact_scheme_marks() {
+        let xiaohe = view(false, Some("xiaohe"));
+        assert_eq!(StatusBar::mode_text(&xiaohe), "中 · 鹤");
+        assert_eq!(
+            StatusBar::status_cells(&xiaohe)[1],
+            StatusCell::mode("中", Some("鹤"), true)
+        );
+
+        let english = view(true, Some("xiaohe"));
+        assert_eq!(StatusBar::mode_text(&english), "A");
+        assert_eq!(
+            StatusBar::status_cells(&english)[1],
+            StatusCell::mode("A", None::<&str>, false)
+        );
     }
 }

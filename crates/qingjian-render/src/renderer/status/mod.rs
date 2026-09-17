@@ -3,7 +3,7 @@
 mod cell;
 mod rendered;
 
-pub use cell::StatusCell;
+pub use cell::{StatusCell, shuangpin_mark};
 pub use rendered::RenderedStatus;
 
 use super::{Metrics, Rendered, Renderer};
@@ -18,6 +18,15 @@ const GEAR_SIZE: f32 = 15.0;
 
 /// 点阵拖拽握柄占的宽度（点）。
 const GRIP_WIDTH: f32 = 9.0;
+
+/// 中 / A 方章的边长（点）。
+const MODE_BADGE_SIZE: f32 = 28.0;
+
+/// 方章与双拼单字标记的间距（点）。
+const MODE_SCHEME_GAP: f32 = 8.0;
+
+/// 中文态右上角的本地生效圆点直径（点）。
+const MODE_LOCAL_DOT: f32 = 6.0;
 
 /// 格间细线的宽度（点）。
 const SEPARATOR_WIDTH: f32 = 1.0;
@@ -99,6 +108,12 @@ impl Renderer {
     fn status_cell_width(&mut self, cell: &StatusCell, m: &Metrics) -> f32 {
         match cell {
             StatusCell::Grip => m.px(GRIP_WIDTH),
+            StatusCell::Mode { scheme, .. } => {
+                let scheme_width = scheme.as_ref().map_or(0.0, |scheme| {
+                    m.px(MODE_SCHEME_GAP) + self.measure(scheme, &m.text_style()).width
+                });
+                m.px(MODE_BADGE_SIZE) + scheme_width
+            }
             StatusCell::Text { text, .. } => self.measure(text, &m.text_style()).width,
             StatusCell::Gear => m.px(GEAR_SIZE),
         }
@@ -132,6 +147,56 @@ impl Renderer {
                             m.theme.colors.pos,
                         );
                     }
+                }
+            }
+            StatusCell::Mode {
+                text,
+                scheme,
+                local,
+            } => {
+                let badge = m.px(MODE_BADGE_SIZE);
+                let gap = m.px(MODE_SCHEME_GAP);
+                let scheme_width = scheme
+                    .as_ref()
+                    .map_or(0.0, |scheme| self.measure(scheme, &m.text_style()).width);
+                let content_width = badge + scheme.as_ref().map_or(0.0, |_| gap + scheme_width);
+                let left = x + (width - content_width) / 2.0;
+                let top = y + (height - badge) / 2.0;
+                canvas.fill_round_rect(left, top, badge, badge, m.px(7.0), m.theme.colors.accent);
+
+                let badge_style =
+                    m.style(m.theme.text_font, crate::color::Color::rgb(255, 255, 255));
+                let badge_text = self.measure(text, &badge_style);
+                self.draw_text(
+                    canvas,
+                    text,
+                    &badge_style,
+                    left + (badge - badge_text.width) / 2.0,
+                    top + (badge - badge_text.height) / 2.0,
+                );
+
+                if *local {
+                    let dot = m.px(MODE_LOCAL_DOT);
+                    canvas.fill_round_rect(
+                        left + badge - dot - m.px(2.0),
+                        top + m.px(2.0),
+                        dot,
+                        dot,
+                        dot / 2.0,
+                        m.theme.colors.caret,
+                    );
+                }
+
+                if let Some(scheme) = scheme {
+                    let style = m.text_style();
+                    let size = self.measure(scheme, &style);
+                    self.draw_text(
+                        canvas,
+                        scheme,
+                        &style,
+                        left + badge + gap,
+                        y + (height - size.height) / 2.0,
+                    );
                 }
             }
             StatusCell::Text { text, emphasized } => {
@@ -177,7 +242,7 @@ mod tests {
         let mut renderer = Renderer::new(library);
         let cells = [
             StatusCell::Grip,
-            StatusCell::text("中 · 小鹤", true),
+            StatusCell::mode("中", Some("鹤"), true),
             StatusCell::text(",.", false),
             StatusCell::Gear,
         ];

@@ -1,10 +1,10 @@
-//! 「外观」页：主题预览、明暗、排布、渲染引擎、字体、拼音显示位置、悬浮状态条。
+//! 「候选窗口」页：主题预览、明暗、排布、渲染引擎、字体、拼音显示位置、悬浮状态条。
 
 use qingjian_platform::{CandidateRenderer, LayoutMode, PreeditMode, ThemeMode};
-use qingjian_render::{Color as RenderColor, Palette};
+use qingjian_render::{Color as RenderColor, Palette, shuangpin_mark};
 use windows_reactor::*;
 
-use crate::panel::controls::{field, group, note, page};
+use crate::panel::controls::{block, field, group, note, page};
 use crate::panel::{Message, Settings};
 
 /// 「系统字体」项的下标：列表第 0 项，对应配置里的空串。
@@ -121,6 +121,108 @@ fn theme_preview(mode: ThemeMode) -> View {
     ))
 }
 
+/// 钴蓝模式方章：中文态右上角的薄荷点表示输入与学习都在本地生效。
+fn mode_badge(palette: Palette) -> View {
+    Grid::new().width(34.0).height(34.0).children((
+        Border::new()
+            .background(ui_color(palette.accent))
+            .corner_radius(9.0),
+        TextBlock::new()
+            .text("中")
+            .font_size(17.0)
+            .foreground(ui_color(RenderColor::rgb(255, 255, 255)))
+            .horizontal_alignment(HorizontalAlignment::Center)
+            .vertical_alignment(VerticalAlignment::Center),
+        Border::new()
+            .width(7.0)
+            .height(7.0)
+            .margin(Thickness::new(0.0, 4.0, 4.0, 0.0))
+            .background(ui_color(palette.caret))
+            .corner_radius(3.5)
+            .horizontal_alignment(HorizontalAlignment::Right)
+            .vertical_alignment(VerticalAlignment::Top),
+    ))
+}
+
+fn preview_separator(palette: Palette) -> View {
+    Border::new()
+        .width(1.0)
+        .height(24.0)
+        .background(ui_color(palette.pos))
+        .opacity(0.45)
+        .vertical_alignment(VerticalAlignment::Center)
+        .into()
+}
+
+/// 不是另造一套图片：用当前配置与渲染器 Palette 拼出状态条的实际信息层级。
+fn status_preview_card(settings: &Settings, palette: Palette) -> View {
+    let g = &settings.config.general;
+    let punctuation = if g.full_width_punctuation {
+        "，。"
+    } else {
+        ",."
+    };
+    Border::new()
+        .background(ui_color(palette.background))
+        .border_brush(ui_color(palette.highlight))
+        .border_thickness(1.0)
+        .corner_radius(12.0)
+        .padding(Thickness::xy(12.0, 8.0))
+        .content(
+            StackPanel::new()
+                .orientation(Orientation::Horizontal)
+                .spacing(11.0)
+                .vertical_alignment(VerticalAlignment::Center)
+                .children((
+                    preview_text("⠿", 15.0, palette.pos),
+                    preview_separator(palette),
+                    mode_badge(palette),
+                    preview_text(
+                        shuangpin_mark(&g.shuangpin).unwrap_or(""),
+                        16.0,
+                        palette.text,
+                    ),
+                    preview_separator(palette),
+                    preview_text(
+                        punctuation,
+                        15.0,
+                        if g.full_width_punctuation {
+                            palette.accent
+                        } else {
+                            palette.gloss
+                        },
+                    ),
+                    preview_separator(palette),
+                    preview_text("⚙", 16.0, palette.gloss),
+                )),
+        )
+}
+
+fn status_preview_variant(label: &str, settings: &Settings, palette: Palette) -> View {
+    StackPanel::new().spacing(5.0).children((
+        preview_text(label, 12.0, palette.gloss),
+        status_preview_card(settings, palette),
+    ))
+}
+
+fn status_preview(settings: &Settings) -> View {
+    match settings.config.general.theme {
+        ThemeMode::System => StackPanel::new()
+            .orientation(Orientation::Horizontal)
+            .spacing(12.0)
+            .children((
+                status_preview_variant("浅色", settings, Palette::light()),
+                status_preview_variant("深色", settings, Palette::dark()),
+            )),
+        ThemeMode::Light => {
+            StackPanel::new().children([status_preview_variant("浅色", settings, Palette::light())])
+        }
+        ThemeMode::Dark => {
+            StackPanel::new().children([status_preview_variant("深色", settings, Palette::dark())])
+        }
+    }
+}
+
 fn window_group(settings: &Settings, context: &mut ViewContext<Settings>) -> View {
     let g = &settings.config.general;
     let (font_options, font_selected) = font_combo(settings);
@@ -189,20 +291,31 @@ fn status_group(settings: &Settings, context: &mut ViewContext<Settings>) -> Vie
     group(
         Symbol::DockBottom,
         "悬浮状态条",
-        [field(
-            Symbol::Switch,
-            "显示悬浮状态条",
-            "桌面上常驻、可拖动的小条：从左侧点阵处拖动，点「中 / A」切换模式（开着双拼时还显示方案名），点「，。」切全角 / 半角标点，点齿轮打开设置。只在当前输入法是字在时显示，拖到哪下次还在哪。",
-            ToggleSwitch::new()
-                .is_on(settings.config.status_bar.enabled)
-                .on_toggled(context.callback(Message::StatusBar)),
-        )],
+        [
+            block(
+                Symbol::Preview,
+                "实时预览",
+                StackPanel::new().spacing(8.0).children((
+                    status_preview(settings),
+                    note("双拼方案在窄状态条上收成单字：小鹤「鹤」、自然码「自」、微软「微」、搜狗「搜」。"),
+                )),
+            ),
+            field(
+                Symbol::Switch,
+                "显示悬浮状态条",
+                "桌面上常驻、可拖动的小条：从左侧点阵处拖动，点模式方章切换中 / 英，点「，。」切全角 / 半角标点，点齿轮打开设置。只在当前输入法是字在时显示，拖到哪下次还在哪。",
+                ToggleSwitch::new()
+                    .is_on(settings.config.status_bar.enabled)
+                    .on_toggled(context.callback(Message::StatusBar)),
+            ),
+        ],
     )
 }
 
 pub(crate) fn view(settings: &Settings, context: &mut ViewContext<Settings>) -> View {
     page(
-        "外观",
+        "候选窗口",
+        "自如展现，输入更高效",
         [
             theme_preview(settings.config.general.theme),
             window_group(settings, context),

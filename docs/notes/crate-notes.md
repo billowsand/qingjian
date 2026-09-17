@@ -124,7 +124,8 @@ Engine 侧在 `engine/rescoring/`：接了打分器就取 Viterbi 前 `RESCORE_P
 
 用户可见品牌是「字在」，内部 crate、可执行文件、`Qingjian` 数据与安装目录、`.qj` 格式名暂不迁移。图标矢量源在 `assets/icon/logo.svg`，
 `assets/icon/generate.py` 生成主 PNG 与 TSF / 设置 / Server / 安装器共用的多尺寸 `qingjian.ico`。
-设置程序把 `assets/icon/logo.png` 用 `include_bytes!` 编进 exe（`panel/brand.rs`），导航栏品牌条与「关于」页共用，不依赖随包文件。
+设置程序把 `assets/icon/logo.png` 用 `include_bytes!` 编进 exe（`panel/brand.rs`），品牌条与「关于」页共用，不依赖随包文件；
+「候选窗口」页用渲染器 `Palette` 同时预览候选窗和悬浮状态条。状态条的 `StatusCell::Mode` 画钴蓝模式方章，双拼方案收成 `鹤 / 自 / 微 / 搜`。
 它的分节页、卡片与排版取值见 `docs/design/candidate-ui.md`「设置程序」。
 
 TSF 原有数字 / OEM 标点 / 空格键码按当前布局用 `ToUnicodeEx` 解析（bit 2 避免改变键盘状态），

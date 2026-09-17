@@ -117,7 +117,7 @@
 
 - **壳**：`apps/windows/server/src/ui/painter/`，候选窗口与悬浮状态条共用一份渲染器（字体库与字形缓存一份）；`layered::present` 把渲染器出的预乘 RGBA 位图换成 BGRA 后 `UpdateLayeredWindow` 贴上，阴影由渲染器画（`Shadow::mac_panel()`，参数与 macOS 面板一致；分层窗口没有系统阴影）。倍数取 DPI / 96。
   `[general] renderer = "system"` 时两个窗口走原来的 GDI 画法，与 macOS 一样是过渡期退路；渲染器建不起来（字体库加载失败）也自动退回。
-- **状态条**：渲染器新增 `render_status`（`StatusCell::{Text, Gear}`，返回位图与各格右边界供点击命中）。齿轮改成矢量画：Segoe UI Emoji 排在回退链前面会把 U+2699 画成彩色。
+- **状态条**：渲染器的 `render_status` 接收 `StatusCell::{Grip, Mode, Text, Gear}`，返回位图与各格右边界供点击命中；`Mode` 把「中 / A」画成钴蓝方章，中文态有薄荷点，双拼在右侧只留「鹤 / 自 / 微 / 搜」。齿轮用矢量画，避免 Segoe UI Emoji 把 U+2699 画成彩色。
 - **配置**：`[general] renderer` / `[general] font` 经 `CandidateSink::configure` 送到 UI 线程，装上时与热加载变了时各送一次；字族名按 DirectWrite 的系统字体集合找文件（`qingjian_render::system_fonts`），设置程序的「字体」框也从它列字族。
 - **候选行类型**：Windows 壳直接用渲染器的 `Row` / `Tone`，不再有自己的一份；macOS 壳还留着 `convert.rs`，spike 定型后一起去掉。
 - **删候选的提示**：渲染器画在拼音行右侧（与 macOS 一致）；GDI 画法仍在拼音行下方。

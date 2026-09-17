@@ -92,6 +92,7 @@ fn diagnostics_group(settings: &Settings, context: &mut ViewContext<Settings>) -
 pub(crate) fn view(settings: &Settings, context: &mut ViewContext<Settings>) -> View {
     page(
         "高级",
+        "本地数据、日志与诊断工具",
         [
             files_group(context),
             diagnostics_group(settings, context),

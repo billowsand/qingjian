@@ -151,7 +151,7 @@ pub(crate) fn view(settings: &Settings, context: &mut ViewContext<Settings>) -> 
                 )),
         ))
     });
-    page("词库", [bundled, imported])
+    page("词库", "只加载你真正会用到的词", [bundled, imported])
 }
 
 /// 挪进 `dicts\removed`，不真删（与 macOS 一致）。

@@ -27,7 +27,7 @@ pub use fonts::directwrite as system_fonts;
 pub use fonts::{FontLibrary, UiFont};
 pub use frame::{Frame, Preedit, PreeditSegment, PreeditStyle, Row, Tone};
 pub use layout::Layout;
-pub use renderer::{Rendered, RenderedStatus, Renderer, StatusCell};
+pub use renderer::{Rendered, RenderedStatus, Renderer, StatusCell, shuangpin_mark};
 pub use shadow::Shadow;
 pub use theme::{FontSpec, Palette, Theme};
 

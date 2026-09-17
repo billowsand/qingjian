@@ -90,10 +90,7 @@ impl Router {
             Some(english) if self.config.status_enabled => {
                 self.status.show_status(StatusView {
                     english,
-                    scheme: self
-                        .config
-                        .shuangpin
-                        .map(|scheme| scheme.label().to_owned()),
+                    scheme: self.config.shuangpin.map(|scheme| scheme.key().to_owned()),
                     full_width: self.full_width_for(english),
                     theme: self.config.theme,
                     anchor: self.config.status_pos,

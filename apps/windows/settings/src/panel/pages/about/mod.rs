@@ -8,9 +8,9 @@ use windows_reactor::*;
 use crate::panel::controls::{block, note, page};
 use crate::panel::{Message, Settings, brand};
 
-pub(crate) const WEBSITE_URL: &str = "https://qingjian.app";
+pub(crate) const WEBSITE_URL: &str = "https://github.com/billowsand/qingjian/releases";
 
-pub(crate) const REPOSITORY_URL: &str = "https://github.com/qingjian-team";
+pub(crate) const REPOSITORY_URL: &str = "https://github.com/billowsand/qingjian";
 
 /// 与仓库根 `LICENSE` 一致。
 const LICENSE_NOTE: &str = "自由软件，GPL-3.0-or-later 许可证：可以自由使用、修改与再分发，修改后分发须同样开源。官方渠道免费。";
@@ -46,7 +46,7 @@ fn identity() -> View {
             .into(),
         note("字在本机，表达自在。"),
         TextBlock::new()
-            .text(concat!("字在 Windows ", env!("QINGJIAN_VERSION")))
+            .text(format!("字在 Windows {}", brand::VERSION))
             .font_size(14.0)
             .font_weight(FontWeight::SEMI_BOLD)
             .into(),
@@ -72,7 +72,7 @@ fn links(context: &mut ViewContext<Settings>) -> View {
         .children((
             Button::new()
                 .on_click(context.message(Message::OpenWebsite))
-                .content("官网"),
+                .content("下载"),
             Button::new()
                 .on_click(context.message(Message::OpenRepository))
                 .content("GitHub"),
@@ -105,6 +105,7 @@ fn credits() -> View {
 pub(crate) fn view(settings: &Settings, context: &mut ViewContext<Settings>) -> View {
     page(
         "关于",
+        "字在本机，表达自在",
         [
             StackPanel::new()
                 .spacing(16.0)

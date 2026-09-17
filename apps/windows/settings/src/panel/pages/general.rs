@@ -179,6 +179,7 @@ fn quality_group(settings: &Settings, context: &mut ViewContext<Settings>) -> Vi
 pub(crate) fn view(settings: &Settings, context: &mut ViewContext<Settings>) -> View {
     page(
         "通用",
+        "输入方案、按键与候选行为",
         [
             scheme_group(settings, context),
             keys_group(settings, context),
