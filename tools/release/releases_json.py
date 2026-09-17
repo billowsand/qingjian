@@ -24,8 +24,8 @@ meta-dir 下每个 tag 一个目录，放那次发布的 SHA256SUMS（每个包�
         "version": "0.1.0", "date": "2026-09-07", "channel": "beta", "notes": ["…"],
         "commit": "869ad00…（40 位）", "built_at": "2026-09-07T08:38:12Z", "toolchain": "rustc 1.96.0 (…)",
         "assets": [
-          {"platform": "windows", "arch": "x64", "file": "Qingjian-0.1.0-Setup.exe",
-           "url": "https://github.com/…/releases/download/windows-v0.1.0/Qingjian-0.1.0-Setup.exe", "size": 123456, "sha256": "…"}
+          {"platform": "windows", "arch": "x64", "file": "Zizai-0.1.0-Setup.exe",
+           "url": "https://github.com/…/releases/download/windows-v0.1.0/Zizai-0.1.0-Setup.exe", "size": 123456, "sha256": "…"}
         ]
       }
     ]
@@ -47,7 +47,8 @@ CHANNELS = ("alpha", "beta", "rc", "stable")
 
 # 安装包文件名 → 平台与架构说明；不匹配的附件不进列表
 ASSET_KINDS = [
-    (re.compile(r"^Qingjian-.+-Setup\.exe$"), "windows", "x64"),
+    # 旧 Release 仍是 Qingjian，新品牌从 Zizai 起；生成索引时两者都要保留。
+    (re.compile(r"^(?:Qingjian|Zizai)-.+-Setup\.exe$"), "windows", "x64"),
 ]
 
 

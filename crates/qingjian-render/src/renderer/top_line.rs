@@ -79,7 +79,7 @@ impl Renderer {
                 PreeditStyle::Typed => m.annotation_style(m.theme.colors.gloss),
                 // 辅码段与光标后的剩余拼音同样画淡，都是「不是当前在打的拼音」
                 PreeditStyle::Rest | PreeditStyle::Fuma => m.annotation_style(m.theme.colors.pos),
-                PreeditStyle::Struck => m.annotation_style(m.theme.colors.pos).struck(),
+                PreeditStyle::Struck => m.annotation_style(m.theme.colors.correction).struck(),
             };
             cursor_x += self.draw_text(canvas, &segment.text, &style, cursor_x, top);
         }
@@ -90,7 +90,7 @@ impl Renderer {
             top,
             m.px(CARET_WIDTH),
             line_height,
-            m.theme.colors.text,
+            m.theme.colors.caret,
         );
         cursor_x - x + m.px(CARET_WIDTH)
     }

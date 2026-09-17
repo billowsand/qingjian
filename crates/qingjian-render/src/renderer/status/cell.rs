@@ -2,6 +2,9 @@
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum StatusCell {
+    /// 拖动状态条的点阵握柄；单击没有动作。
+    Grip,
+
     /// 一段文字；`emphasized` 用品牌色（当前模式、生效中的全角标点），否则用译文的灰。
     Text { text: String, emphasized: bool },
 

@@ -6,44 +6,51 @@ use super::rgb;
 
 /// 浅色 / 深色各一套。
 pub(super) struct Palette {
+    pub(super) accent_color: COLORREF,
     pub(super) text_color: COLORREF,
     pub(super) gloss_color: COLORREF,
     pub(super) pos_color: COLORREF,
     pub(super) fresh_color: COLORREF,
     pub(super) index_color: COLORREF,
     pub(super) cloud_color: COLORREF,
+    pub(super) caret_color: COLORREF,
+    pub(super) correction_color: COLORREF,
     pub(super) background: COLORREF,
     pub(super) highlight: COLORREF,
 }
 
 impl Palette {
-    /// 贴近 mac light：label / secondary / tertiary label、systemOrange、systemTeal。
+    /// 字在浅色：暖白底、钴蓝强调、薄荷色光标。
     pub(super) fn light() -> Self {
         Self {
-            text_color: rgb(0x1d, 0x1d, 0x1f),
-            gloss_color: rgb(0x6b, 0x6b, 0x70),
-            pos_color: rgb(0xa0, 0xa0, 0xa6),
-            fresh_color: rgb(0xff, 0x95, 0x00),
-            index_color: rgb(0xa0, 0xa0, 0xa6),
-            cloud_color: rgb(0x30, 0xb0, 0xc7),
-            background: rgb(0xf8, 0xf8, 0xf8),
-            // sRGB(0,0.48,1.0) @16% 叠在浅背景上。
-            highlight: rgb(0xcf, 0xe4, 0xf9),
+            accent_color: rgb(0x31, 0x57, 0xd8),
+            text_color: rgb(0x17, 0x20, 0x33),
+            gloss_color: rgb(0x66, 0x70, 0x85),
+            pos_color: rgb(0x98, 0xa2, 0xb3),
+            fresh_color: rgb(0xf5, 0x9e, 0x0b),
+            index_color: rgb(0x98, 0xa2, 0xb3),
+            cloud_color: rgb(0x32, 0xb5, 0xe9),
+            caret_color: rgb(0x55, 0xd6, 0xc2),
+            correction_color: rgb(0xe4, 0x6d, 0x6d),
+            background: rgb(0xf7, 0xf6, 0xf2),
+            highlight: rgb(0xe8, 0xee, 0xff),
         }
     }
 
-    /// 贴近 mac dark。
+    /// 字在深色：午夜蓝底，语义色与浅色一致。
     pub(super) fn dark() -> Self {
         Self {
-            text_color: rgb(0xf5, 0xf5, 0xf7),
-            gloss_color: rgb(0xae, 0xae, 0xb2),
-            pos_color: rgb(0x8e, 0x8e, 0x93),
-            fresh_color: rgb(0xff, 0x9f, 0x0a),
-            index_color: rgb(0x8e, 0x8e, 0x93),
-            cloud_color: rgb(0x40, 0xc8, 0xe0),
-            background: rgb(0x2a, 0x2a, 0x2c),
-            // 深背景上按约 28% 预混才够醒目。
-            highlight: rgb(0x2f, 0x4d, 0x72),
+            accent_color: rgb(0x6b, 0x8b, 0xff),
+            text_color: rgb(0xf7, 0xf6, 0xf2),
+            gloss_color: rgb(0xb8, 0xc0, 0xd0),
+            pos_color: rgb(0x7f, 0x8a, 0x9e),
+            fresh_color: rgb(0xfb, 0xbf, 0x24),
+            index_color: rgb(0x7f, 0x8a, 0x9e),
+            cloud_color: rgb(0x38, 0xbd, 0xf8),
+            caret_color: rgb(0x55, 0xd6, 0xc2),
+            correction_color: rgb(0xf3, 0x8b, 0x8b),
+            background: rgb(0x17, 0x20, 0x33),
+            highlight: rgb(0x25, 0x37, 0x5f),
         }
     }
 }

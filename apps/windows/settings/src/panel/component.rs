@@ -184,7 +184,7 @@ impl Component for Settings {
     }
 
     fn view(&self, _input: &(), context: &mut ViewContext<Self>) -> View {
-        context.window_title("青简设置");
+        context.window_title("字在设置");
         let item = |tag: &str, label: &str, symbol| {
             KeyedView::new(
                 tag,
@@ -204,16 +204,16 @@ impl Component for Settings {
             item("general", "通用", Symbol::Setting),
             item("candidates", "候选窗口", Symbol::View),
             item("shortcut", "快捷键", Symbol::Keyboard),
-            item("cloud", "云服务", Symbol::World),
             item("fuzzy", "模糊音", Symbol::Audio),
             item("dictionaries", "词库", Symbol::Library),
+            item("cloud", "云服务", Symbol::World),
             item("usage", "统计", Symbol::List),
             item("advanced", "高级", Symbol::Repair),
             item("about", "关于", Symbol::Help),
         ];
         NavigationView::new()
             .pane_display_mode(NavigationViewPaneDisplayMode::Left)
-            .pane_title("青简")
+            .pane_title("字在")
             .open_pane_length(220.0)
             .is_pane_open(true)
             .is_pane_toggle_button_visible(false)

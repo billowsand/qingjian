@@ -1,5 +1,5 @@
 //! 候选窗口：不抢焦点、置顶的分层窗口，跟随光标，画拼音行与候选列表，四周柔和阴影。
-//! 缺省交给青简渲染器出位图再贴（[`super::painter`]），配置 `renderer = "system"` 时走 GDI：绘制在 [`view`]，
+//! 缺省交给字在渲染器出位图再贴（[`super::painter`]），配置 `renderer = "system"` 时走 GDI：绘制在 [`view`]，
 //! 配色 / 字体在 [`theme`]。绘制内容在 [`RenderData`]，一行的展示形态在 [`row`]，
 //! 贴光标上方还是下方在 [`placement`]。设计语言对齐 macOS 端。
 
@@ -68,7 +68,7 @@ pub(crate) struct CandidateWindow {
     /// 上次贴在光标的哪一边；同一行里不因窗口高矮改边。
     placement: LastPlacement,
 
-    /// 青简渲染器；`None` 走 GDI。
+    /// 字在渲染器；`None` 走 GDI。
     painter: SharedPainter,
 }
 
@@ -90,7 +90,7 @@ impl CandidateWindow {
             CreateWindowExW(
                 WS_EX_LAYERED | WS_EX_TOOLWINDOW | WS_EX_TOPMOST | WS_EX_NOACTIVATE,
                 CLASS_NAME,
-                w!("青简候选"),
+                w!("字在候选"),
                 WS_POPUP,
                 0,
                 0,

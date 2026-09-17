@@ -148,7 +148,7 @@ pub(crate) fn view(settings: &Settings, context: &mut ViewContext<Settings>) -> 
                 Button::new()
                     .on_click(context.message(Message::ImportDictionary))
                     .content("导入词库…"),
-                note("接受青简 TSV、Rime .dict.yaml、.qj；导入即复制进上面的目录。"),
+                note("接受字在 TSV、Rime .dict.yaml、.qj；导入即复制进上面的目录。"),
             )),
     ]);
     page("词库", body)

@@ -16,6 +16,9 @@ use crate::theme::Theme;
 /// 齿轮图标边长（点）。
 const GEAR_SIZE: f32 = 15.0;
 
+/// 点阵拖拽握柄占的宽度（点）。
+const GRIP_WIDTH: f32 = 9.0;
+
 /// 格间细线的宽度（点）。
 const SEPARATOR_WIDTH: f32 = 1.0;
 
@@ -95,6 +98,7 @@ impl Renderer {
     /// 一格内容的宽度（像素，不含内边距）。
     fn status_cell_width(&mut self, cell: &StatusCell, m: &Metrics) -> f32 {
         match cell {
+            StatusCell::Grip => m.px(GRIP_WIDTH),
             StatusCell::Text { text, .. } => self.measure(text, &m.text_style()).width,
             StatusCell::Gear => m.px(GEAR_SIZE),
         }
@@ -110,9 +114,29 @@ impl Renderer {
     ) {
         let (x, y, width, height) = slot;
         match cell {
+            StatusCell::Grip => {
+                let dot = m.px(1.8);
+                let gap = m.px(1.6);
+                let group_width = dot * 2.0 + gap;
+                let group_height = dot * 3.0 + gap * 2.0;
+                let left = x + (width - group_width) / 2.0;
+                let top = y + (height - group_height) / 2.0;
+                for row in 0..3 {
+                    for column in 0..2 {
+                        canvas.fill_round_rect(
+                            left + column as f32 * (dot + gap),
+                            top + row as f32 * (dot + gap),
+                            dot,
+                            dot,
+                            dot / 2.0,
+                            m.theme.colors.pos,
+                        );
+                    }
+                }
+            }
             StatusCell::Text { text, emphasized } => {
                 let color = if *emphasized {
-                    m.theme.colors.cloud
+                    m.theme.colors.accent
                 } else {
                     m.theme.colors.gloss
                 };
@@ -152,6 +176,7 @@ mod tests {
         };
         let mut renderer = Renderer::new(library);
         let cells = [
+            StatusCell::Grip,
             StatusCell::text("中 · 小鹤", true),
             StatusCell::text(",.", false),
             StatusCell::Gear,
@@ -159,7 +184,7 @@ mod tests {
         let out = renderer
             .render_status(&cells, &Theme::light(), 2.0, Some(&Shadow::mac_panel()))
             .unwrap();
-        assert_eq!(out.cell_edges.len(), 3);
+        assert_eq!(out.cell_edges.len(), 4);
         assert!(out.cell_edges.windows(2).all(|pair| pair[0] < pair[1]));
         assert_eq!(
             out.cell_edges.last().map(|edge| edge.round() as u32),

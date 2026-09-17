@@ -1,4 +1,4 @@
-//! 候选窗口主题：字体、颜色、间距。视觉层级对齐 macOS 端；GDI 没有随外观切换的语义色，浅 / 深各写一套（[`Palette`]）。
+//! 候选窗口主题：字体、颜色、间距。GDI 没有随外观切换的语义色，按「字在」主题的角色写浅 / 深两套（[`Palette`]）。
 
 mod palette;
 
@@ -32,6 +32,9 @@ pub(crate) struct Theme {
 
     pub text_color: COLORREF,
 
+    /// 品牌强调色：当前模式、主要选中态。
+    pub accent_color: COLORREF,
+
     pub gloss_color: COLORREF,
 
     pub pos_color: COLORREF,
@@ -44,9 +47,15 @@ pub(crate) struct Theme {
     /// 云联想的云朵与文字。
     pub cloud_color: COLORREF,
 
+    /// preedit 输入光标。
+    pub caret_color: COLORREF,
+
+    /// 拼写纠正里被替换的原输入。
+    pub correction_color: COLORREF,
+
     pub background: COLORREF,
 
-    /// 当前候选的高亮底色（mac 的半透明蓝预混成不透明值，GDI 无 alpha）。
+    /// 当前候选的高亮底色。
     pub highlight: COLORREF,
 
     /// 窗口内边距（已按 DPI 缩放）。
@@ -78,12 +87,15 @@ impl Theme {
             annotation_font: font(12),
             index_font: font(11),
             symbol_font: create_font(-scale(15), w!("Segoe UI Symbol")),
+            accent_color: palette.accent_color,
             text_color: palette.text_color,
             gloss_color: palette.gloss_color,
             pos_color: palette.pos_color,
             fresh_color: palette.fresh_color,
             index_color: palette.index_color,
             cloud_color: palette.cloud_color,
+            caret_color: palette.caret_color,
+            correction_color: palette.correction_color,
             background: palette.background,
             highlight: palette.highlight,
             padding: scale(8),

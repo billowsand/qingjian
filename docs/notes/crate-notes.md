@@ -115,6 +115,7 @@ Engine 侧在 `engine/rescoring/`：接了打分器就取 Viterbi 前 `RESCORE_P
 自己解析 `trak` 字距表、按主题 gamma 加深笔画；cosmic-text 打了 `opsz` 光学字号补丁（qingjian-team/cosmic-text 分支 `qingjian-opsz`，workspace `[patch.crates-io]` 钉 rev）。
 `examples/preview.rs` 出 PNG 与真机截图并排比、`--measure` 量宽度。Windows 壳 `server/src/ui/painter/` 贴位图，`[general] renderer = "system"` 切回 GDI 绘制
 （过渡期退路，「设置 → 候选窗口」页可选）；`[general] font` 是候选窗字族名（空为系统字体，壳按字族名找出字体文件交给渲染器只加载那几个，没装就回系统字体）。
+主题颜色按角色拆开：品牌强调 / 输入光标 / 云服务 / 生词 / 纠错各有独立字段，Windows 的自绘与 GDI 退路必须使用相同语义；值见 `docs/design/brand.md`。
 设计与验收见 `docs/design/rendering.md`。
 
 ## apps/cli
@@ -136,6 +137,9 @@ Engine 侧在 `engine/rescoring/`：接了打分器就取 Viterbi 前 `RESCORE_P
 一个产品两个 package：`server`（Server 进程：IPC 分派 + Engine + 命名管道 + 自绘候选窗与悬浮状态条）与 `tsf`（TSF 文本服务 DLL，lib 名固定 `qingjian_tsf`），
 外加 `settings`（WinUI 3 设置程序）与 `installer`（Inno Setup）。不合成一个 crate，因为 DLL 不能带 Engine 的依赖树，见 `apps/windows/README.md`；
 协议类型在 `qingjian-platform::protocol`，设计见 `docs/design/architecture.md`「Windows：TSF」。
+
+用户可见品牌是「字在」，内部 crate、可执行文件、`Qingjian` 数据与安装目录、`.qj` 格式名暂不迁移。图标矢量源在 `assets/icon/logo.svg`，
+`assets/icon/generate.py` 生成主 PNG 与 TSF / 设置 / Server / 安装器共用的多尺寸 `qingjian.ico`。
 
 TSF 原有数字 / OEM 标点 / 空格键码按当前布局用 `ToUnicodeEx` 解析（bit 2 避免改变键盘状态），
 仅接受单个非代理项 UTF-16 单元。字母、小键盘和 AltGr 处理不变，不保证组合音符输入。

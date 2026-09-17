@@ -15,7 +15,7 @@
 3. 提交，打注释标签并推：`git tag -a windows-v0.1.3 -m "青简 Windows 0.1.3" && git push origin main windows-v0.1.3`
    （标签带平台前缀 `windows-v*`，与上游的 `macos-v*` 区分；旧的 `v*` 标签仍能被官网识别，向后兼容）。
 4. 标签推出去之后紧接一个普通提交把版本号改成下一个开发版（只是改 Cargo.toml，不打标签、不建 Release；-dev 版本永远没有标签与 Release）。
-5. `release.yml` 跑完后 GitHub Release 上有 `Qingjian-<版本>-Setup.exe`、`SHA256SUMS`、`build-info.json`（提交、构建时间、工具链）、`releases.json`。
+5. `release.yml` 跑完后 GitHub Release 上有 `Zizai-<版本>-Setup.exe`、`SHA256SUMS`、`build-info.json`（提交、构建时间、工具链）、`releases.json`。
 
 workflow 会核对 `apps/windows/server/Cargo.toml` 版本号与标签（去掉 `windows-v` 前缀后）一致，不一致直接失败，避免打出版本号错的包。
 
@@ -25,7 +25,7 @@ Rust 工具链由 `rust-toolchain.toml` 钉版本（现在 1.96.0），workflow 
 
 `release.yml` 的 `windows` job 在 `windows-latest` 上：核对版本 → 下载 `data` Release 的产品数据并按 `SHA256SUMS` 校验
 → 装 Inno Setup 7.1.0（与开发机同版本，钉死 GitHub Release 上的安装程序并核对 SHA-256）→ `build.ps1` 打安装包
-→ 建 Release（`Qingjian-<版本>-Setup.exe` + `SHA256SUMS` + `build-info.json`）→ `publish-releases-json.sh` 生成 `releases.json`，
+→ 建 Release（`Zizai-<版本>-Setup.exe` + `SHA256SUMS` + `build-info.json`）→ `publish-releases-json.sh` 生成 `releases.json`，
 挂到本次发布并覆盖到 GitHub latest 那版上（官网只读 latest 的）。
 
 **没有代码签名证书时** workflow 设 `QINGJIAN_UIACCESS=0`：没签名的 exe 带 uiAccess=true 起不来。
@@ -88,8 +88,8 @@ cargo 命令全 `--locked`（含 `build.ps1`）。普通 CI 只有 `contents: re
       "built_at": "2026-09-07T08:38:12Z",
       "toolchain": "rustc 1.96.0 (ac68faa20 2026-05-25)",
       "assets": [
-        { "platform": "windows", "arch": "x64", "file": "Qingjian-0.1.3-Setup.exe",
-          "url": "https://github.com/owner/qingjian/releases/download/windows-v0.1.3/Qingjian-0.1.3-Setup.exe",
+        { "platform": "windows", "arch": "x64", "file": "Zizai-0.1.3-Setup.exe",
+          "url": "https://github.com/owner/qingjian/releases/download/windows-v0.1.3/Zizai-0.1.3-Setup.exe",
           "size": 79872000, "sha256": "…" }
       ]
     }
@@ -105,4 +105,4 @@ cargo 命令全 `--locked`（含 `build.ps1`）。普通 CI 只有 `contents: re
 ## 本机打包
 
 `powershell -File apps/windows/installer/build.ps1`：release 构建三个产物 + 32 位 DLL，再用 Inno Setup 编安装包，
-成品在 `target\installer\Qingjian-<版本>-Setup.exe`。数据或脚本改了、二进制没变时加 `-SkipBuild`；`-Sign` 用自签证书签产物（本机真机测用）。
+成品在 `target\installer\Zizai-<版本>-Setup.exe`。数据或脚本改了、二进制没变时加 `-SkipBuild`；`-Sign` 用自签证书签产物（本机真机测用）。

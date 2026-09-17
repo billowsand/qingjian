@@ -54,14 +54,9 @@ impl Placement {
 
     /// 单击：`client_x` 是客户区横坐标。
     pub(super) fn on_click(&self, client_x: i32) {
-        let x = client_x - self.margin.get();
-        let action = self
-            .cells
-            .borrow()
-            .iter()
-            .find(|(right, _)| x < *right)
-            .map(|(_, action)| *action);
+        let action = self.action_at(client_x);
         match action {
+            Some(StatusAction::Drag) => {}
             Some(StatusAction::ToggleMode) => (self.events)(StatusEvent::ToggleMode),
             Some(StatusAction::TogglePunctuation) => {
                 (self.events)(StatusEvent::TogglePunctuation);
@@ -69,6 +64,16 @@ impl Placement {
             Some(StatusAction::OpenSettings) => open_settings(),
             None => {}
         }
+    }
+
+    /// `client_x` 落在哪一格；窗口过程用它把拖动限定到点阵握柄。
+    pub(super) fn action_at(&self, client_x: i32) -> Option<StatusAction> {
+        let x = client_x - self.margin.get();
+        self.cells
+            .borrow()
+            .iter()
+            .find(|(right, _)| x < *right)
+            .map(|(_, action)| *action)
     }
 }
 

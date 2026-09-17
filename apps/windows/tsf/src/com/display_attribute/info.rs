@@ -17,7 +17,7 @@ impl ITfDisplayAttributeInfo_Impl for AttributeInfo_Impl {
     }
 
     fn GetDescription(&self) -> Result<BSTR> {
-        Ok(BSTR::from("青简拼音"))
+        Ok(BSTR::from("字在拼音"))
     }
 
     fn GetAttributeInfo(&self, pda: *mut TF_DISPLAYATTRIBUTE) -> Result<()> {

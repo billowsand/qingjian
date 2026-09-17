@@ -86,7 +86,7 @@ delete_candidate = "shift"
 /// 首次运行写出的模板：默认值全部列出并注释，用户改一处即可。
 /// 见 [`template_shortcut_keys!`]。
 pub const TEMPLATE: &str = concat!(
-    r#"# 青简输入法配置。保存后自动生效。
+    r#"# 字在输入法配置。保存后自动生效。
 
 [general]
 "#,
@@ -98,9 +98,9 @@ page_keys = "[]"
 theme = "system"
 # 候选窗口排布：vertical 竖排 / horizontal 横排
 layout = "vertical"
-# 候选窗口由谁绘制：qingjian 青简渲染器（各平台一致，主题走它）/ system 系统原生绘制（渲染器有问题时的退路）
+# 候选窗口由谁绘制：qingjian 字在渲染器（各平台一致，主题走它）/ system 系统原生绘制（渲染器有问题时的退路）
 renderer = "qingjian"
-# 候选窗口字体（字族名，如 "LXGW WenKai"）；空为系统字体。只对青简渲染器生效，没装这个字体时自动回到系统字体
+# 候选窗口字体（字族名，如 "LXGW WenKai"）；空为系统字体。只对字在渲染器生效，没装这个字体时自动回到系统字体
 font = ""
 # 组句中的拼音显示在哪：both 行内和候选窗口 / inline 只在行内 / window 只在候选窗口（应用里不放 marked text）
 preedit = "both"
@@ -193,7 +193,7 @@ sentence = true
 
 [status_bar]
 # 桌面上常驻、可拖动的悬浮状态条（Windows）：「中 / 英」格点一下切换模式（开着双拼时还显示方案名）、「，。」格切全角 / 半角标点、齿轮打开设置。
-# 只在当前输入法是青简时显示；与任务栏的中 / 英指示器并存
+# 只在当前输入法是字在时显示；与任务栏的中 / 英指示器并存
 # 默认关；开着时可以拖到任意位置，拖到哪下次还在哪（拖动结束时把位置写进下面的 x / y，不用手填）
 enabled = false
 # 记住的屏幕位置（物理像素，拖动后自动写入）；留空则首次出现在屏幕右下角
@@ -487,7 +487,7 @@ mod tests {
         let _ = std::fs::remove_file(&path);
         Config::set_bool(&path, "predict", "enabled", true).unwrap();
         let text = std::fs::read_to_string(&path).unwrap();
-        assert!(text.contains("# 青简输入法配置"));
+        assert!(text.contains("# 字在输入法配置"));
         assert!(Config::load(&path).unwrap().predict.enabled);
         let _ = std::fs::remove_file(&path);
     }

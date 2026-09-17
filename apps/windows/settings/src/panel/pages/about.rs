@@ -29,7 +29,7 @@ const ATTRIBUTIONS: &[(&str, &str)] = &[
     ),
 ];
 
-const PRIVACY_NOTE: &str = "青简不上传任何数据。开着云联想时，光标附近的文字与拼音会发给你在「云服务」页填的 AI 服务商（缺省 DeepSeek）的服务器，不经过作者。「高级」页的输入日志只写在本机，可以关掉或清空。";
+const PRIVACY_NOTE: &str = "字在不上传任何数据。开着云联想时，光标附近的文字与拼音会发给你在「云服务」页填的 AI 服务商（缺省 DeepSeek）的服务器，不经过作者。「高级」页的输入日志只写在本机，可以关掉或清空。";
 
 const FEEDBACK_NOTE: &str = "遇到问题点「打包日志到桌面」，把生成的 zip 发给作者即可（含三个进程的日志与配置文件，不含密钥）。缺省日志不含你敲的内容；排查排序问题时作者可能请你在「高级」页临时打开详细日志。";
 
@@ -40,8 +40,14 @@ pub(crate) fn view(_settings: &Settings, context: &mut ViewContext<Settings>) ->
     }
     let body = StackPanel::new().spacing(12.0).children([
         TextBlock::new()
+            .text("字在")
+            .font_size(28.0)
+            .font_weight(FontWeight::SEMI_BOLD)
+            .into(),
+        note("字在本机，表达自在。"),
+        TextBlock::new()
             // QINGJIAN_VERSION 由 build.rs 给：-dev 版接 git 短哈希
-            .text(concat!("青简 Windows ", env!("QINGJIAN_VERSION")))
+            .text(concat!("字在 Windows ", env!("QINGJIAN_VERSION")))
             .font_size(16.0)
             .font_weight(FontWeight::SEMI_BOLD)
             .into(),

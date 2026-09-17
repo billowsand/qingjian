@@ -46,7 +46,7 @@ pub(crate) const GUID_PROFILE: GUID = GUID::from_u128(0x8119f8e0_cf81_423b_9189_
 pub(crate) const LANGID_ZH_CN: u16 = 0x0804;
 
 /// 输入法在系统里显示的名字。
-pub(crate) const SERVICE_DESCRIPTION: &str = "青简";
+pub(crate) const SERVICE_DESCRIPTION: &str = "字在";
 
 /// 存活的 COM 对象 + LockServer 计数，[`DllCanUnloadNow`] 据它判断能否卸载。
 static DLL_REFERENCES: AtomicIsize = AtomicIsize::new(0);

@@ -1,6 +1,6 @@
 //! 主题：字体、颜色、间距。所有可视参数都在这里，单位是点；将来从 TOML 读。
 //!
-//! 视觉层级（产品决定）：候选词最深，译文稍浅，词性最浅，序号弱化。数值对齐 macOS 壳的 AppKit 实现。
+//! 视觉层级（产品决定）：候选词最深，译文稍浅，词性最浅，序号弱化；品牌、输入、云端与纠错各用独立语义色。
 
 mod font_spec;
 mod palette;
@@ -43,12 +43,12 @@ pub struct Theme {
 }
 
 impl Theme {
-    /// 浅色，对齐 macOS 系统外观。
+    /// 「字在」浅色。
     pub fn light() -> Self {
         Self::with_palette(Palette::light(), 0.85)
     }
 
-    /// 深色，对齐 macOS 系统外观。
+    /// 「字在」深色。
     pub fn dark() -> Self {
         Self::with_palette(Palette::dark(), 0.75)
     }

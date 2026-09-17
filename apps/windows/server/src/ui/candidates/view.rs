@@ -126,7 +126,7 @@ fn draw_top_line(hdc: HDC, data: &RenderData, y: i32) -> i32 {
             PreeditKind::Typed => (theme.gloss_color, false),
             // 辅码段与光标后的剩余拼音同样画淡，都是「不是当前在打的拼音」
             PreeditKind::Rest | PreeditKind::Fuma => (theme.pos_color, false),
-            PreeditKind::Corrected => (theme.pos_color, true),
+            PreeditKind::Corrected => (theme.correction_color, true),
         };
         let width = draw_text(hdc, theme.annotation_font, color, x, top, text);
         if strike {
@@ -136,7 +136,7 @@ fn draw_top_line(hdc: HDC, data: &RenderData, y: i32) -> i32 {
                 right: x + width,
                 bottom: top + height / 2 + scale_line(theme),
             };
-            fill_rect(hdc, line, theme.pos_color);
+            fill_rect(hdc, line, theme.correction_color);
         }
         x += width;
     }
@@ -148,7 +148,7 @@ fn draw_top_line(hdc: HDC, data: &RenderData, y: i32) -> i32 {
         right: caret_x + scale_line(theme),
         bottom: top + height,
     };
-    fill_rect(hdc, caret, theme.text_color);
+    fill_rect(hdc, caret, theme.caret_color);
     if let Some(sentence) = &data.sentence {
         let sentence_x = x + theme.column_gap;
         let cloud = cloud_glyph_width(hdc, theme);
@@ -214,7 +214,7 @@ fn draw_rows(hdc: HDC, data: &RenderData, mut y: i32, width: i32) {
                 right: width - theme.padding / 2,
                 bottom: y + columns.row_height,
             };
-            fill_round_rect(hdc, rect, theme.highlight, theme.corner_radius / 2);
+            draw_highlight(hdc, theme, rect);
         }
         let baseline = y + theme.row_padding;
         let text_size = measure(hdc, theme.text_font, &row.text);
@@ -281,7 +281,7 @@ fn draw_horizontal(hdc: HDC, data: &RenderData, y: i32, width: i32) {
                 right: x + item_width + highlight_inset,
                 bottom: y + row_height,
             };
-            fill_round_rect(hdc, rect, theme.highlight, theme.corner_radius / 2);
+            draw_highlight(hdc, theme, rect);
         }
         let small_offset = small_offset(hdc, theme, text_size.cy);
         draw_text(
@@ -463,6 +463,23 @@ pub(crate) fn fill_rect(hdc: HDC, rect: RECT, color: COLORREF) {
         FillRect(hdc, &rect, brush);
         let _ = DeleteObject(brush.into());
     }
+}
+
+fn draw_highlight(hdc: HDC, theme: &Theme, rect: RECT) {
+    fill_round_rect(hdc, rect, theme.highlight, theme.corner_radius / 2);
+    let line = scale_line(theme) * 2;
+    let inset = scale_line(theme) * 2;
+    fill_round_rect(
+        hdc,
+        RECT {
+            left: rect.left,
+            top: rect.top + inset,
+            right: rect.left + line,
+            bottom: (rect.bottom - inset).max(rect.top + inset + line),
+        },
+        theme.accent_color,
+        line / 2,
+    );
 }
 
 fn fill_round_rect(hdc: HDC, rect: RECT, color: COLORREF, radius: i32) {

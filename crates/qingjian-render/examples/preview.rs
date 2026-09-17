@@ -115,6 +115,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Windows 的悬浮状态条：三格
     let cells = [
+        StatusCell::Grip,
         StatusCell::text("中 · 小鹤", true),
         StatusCell::text("，。", true),
         StatusCell::Gear,
@@ -135,7 +136,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     for probe in [
-        "青简 hello 🙂 日本語 骨直曜",
+        "字在 hello 🙂 日本語 骨直曜",
         "開発(かいはつ)する",
         "int. hello · int. hi",
     ] {
@@ -277,7 +278,7 @@ fn corrected_japanese() -> Frame {
 fn probe() -> Frame {
     Frame {
         preedit: None,
-        rows: vec![Row::plain(0, "青简 hello 🙂 日本語 骨直曜")],
+        rows: vec![Row::plain(0, "字在 hello 🙂 日本語 骨直曜")],
         highlighted: None,
         footer: None,
         sentence: None,

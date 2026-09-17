@@ -42,7 +42,7 @@ impl ITfLangBarItem_Impl for ModeButton_Impl {
         info.guidItem = GUID_LBI_INPUTMODE;
         info.dwStyle = TF_LBI_STYLE_BTN_BUTTON;
         info.ulSort = 0;
-        let desc: Vec<u16> = "青简中英模式".encode_utf16().collect();
+        let desc: Vec<u16> = "字在中英模式".encode_utf16().collect();
         let n = desc.len().min(info.szDescription.len());
         info.szDescription[..n].copy_from_slice(&desc[..n]);
         Ok(())
@@ -57,7 +57,7 @@ impl ITfLangBarItem_Impl for ModeButton_Impl {
     }
 
     fn GetTooltipString(&self) -> Result<BSTR> {
-        Ok(BSTR::from("中 / 英（单击 Shift 切换）"))
+        Ok(BSTR::from("中 / A（单击 Shift 切换）"))
     }
 }
 
@@ -76,11 +76,11 @@ impl ITfLangBarItemButton_Impl for ModeButton_Impl {
     }
 
     fn GetIcon(&self) -> Result<HICON> {
-        make_mode_icon(if self.state.english() { '英' } else { '中' })
+        make_mode_icon(if self.state.english() { 'A' } else { '中' })
     }
 
     fn GetText(&self) -> Result<BSTR> {
-        Ok(BSTR::from(if self.state.english() { "英" } else { "中" }))
+        Ok(BSTR::from(if self.state.english() { "A" } else { "中" }))
     }
 }
 

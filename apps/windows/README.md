@@ -1,4 +1,4 @@
-# 青简 Windows 输入法
+# 字在 Windows 输入法
 
 Windows 端是**一个产品、两个产物**，各自一个 package，同放本目录：
 
@@ -17,7 +17,7 @@ Windows 端是**一个产品、两个产物**，各自一个 package，同放本
 
 Windows 的文本服务（TSF，Text Services Framework）是一个 COM DLL（`ITfTextInputProcessor`），
 系统会把它加载进**每一个**接受文本输入的应用进程。因此输入内核不能待在 DLL 里（会被复制进几十个进程、
-状态无法共享、崩溃会连累宿主应用）。青简照 Weasel（WeaselServer + WeaselTSF）、水杉（Server 进程）的做法：
+状态无法共享、崩溃会连累宿主应用）。字在照 Weasel（WeaselServer + WeaselTSF）、水杉（Server 进程）的做法：
 Engine 只此一份，跑在独立的 Server 进程；每个应用进程里的 TSF DLL 只做两件事——把系统按键翻成协议消息发来、
 把 Server 回的候选画到候选窗口。
 
@@ -64,7 +64,7 @@ regsvr32 target\debug\qingjian_tsf.dll
 :: 3) 起 Server（引擎在这里；没起时 DLL 吃掉字母键但没有候选，起来后下一键 / 下次聚焦自动重连）
 cargo run -p qingjian-windows-server
 
-:: 4) 在系统「语言 / 输入法」里应能看到「青简」，切到它，在任意输入框敲字
+:: 4) 在系统「语言 / 输入法」里应能看到「字在」，切到它，在任意输入框敲字
 ::    日志都在 %LOCALAPPDATA%\Qingjian\logs\：server.<日期>.log / tsf.<日期>.log / settings.<日期>.log（按天，留 7 天）
 
 :: 反注册

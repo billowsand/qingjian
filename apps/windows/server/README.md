@@ -1,6 +1,6 @@
 # qingjian-windows-server
 
-青简 Windows 输入法的 **Server 进程**（bin `qingjian-server`）：持有唯一的输入内核
+字在 Windows 输入法的 **Server 进程**（bin `qingjian-server`）：持有唯一的输入内核
 `qingjian-core::Engine`，跑在所有应用进程之外，通过命名管道给 TSF DLL（`../tsf`）提供候选。
 Windows 端的整体结构、为什么内核要在进程外、构建与注册步骤，见 `../README.md`。
 

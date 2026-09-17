@@ -276,5 +276,15 @@ impl Renderer {
             m.corner_radius() / 2.0,
             m.theme.colors.highlight,
         );
+        let inset = m.px(2.0);
+        let bar_width = m.px(2.0);
+        canvas.fill_round_rect(
+            x,
+            y + inset,
+            bar_width,
+            (height - inset * 2.0).max(bar_width),
+            bar_width / 2.0,
+            m.theme.colors.accent,
+        );
     }
 }

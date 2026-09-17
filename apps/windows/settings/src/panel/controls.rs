@@ -123,6 +123,11 @@ pub(super) fn page(title: &str, body: impl Into<View>) -> View {
                 .font_weight(FontWeight::SEMI_BOLD)
                 .into(),
             body.into(),
+            TextBlock::new()
+                .text("●  本地处理，云服务由你决定")
+                .font_size(12.0)
+                .opacity(0.6)
+                .into(),
         ]),
     )
 }

@@ -69,7 +69,7 @@ pub(crate) fn view(settings: &Settings, context: &mut ViewContext<Settings>) -> 
         ),
         field(
             "渲染引擎",
-            "青简渲染器让候选窗口在各平台一致。",
+            "字在渲染器使用统一的品牌主题，并让候选窗口在各平台保持一致。",
             mode_combo(
                 &CandidateRenderer::ALL,
                 g.renderer,
@@ -79,7 +79,7 @@ pub(crate) fn view(settings: &Settings, context: &mut ViewContext<Settings>) -> 
         ),
         field(
             "字体",
-            "只对青简渲染器生效；下拉列表是系统里装的字体，选「系统字体」用默认；配置里的字体没装时自动回到系统字体。",
+            "只对字在渲染器生效；下拉列表是系统里装的字体，选「系统字体」用默认；配置里的字体没装时自动回到系统字体。",
             ComboBox::new()
                 .width(260.0)
                 .items_source(font_options)
@@ -98,7 +98,7 @@ pub(crate) fn view(settings: &Settings, context: &mut ViewContext<Settings>) -> 
         ),
         field(
             "悬浮状态条",
-            "桌面上常驻、可拖动的小条：点「中 / 英」切换模式（开着双拼时还显示方案名），点「，。」切全角 / 半角标点，点齿轮打开设置。只在当前输入法是青简时显示，拖到哪下次还在哪。",
+            "桌面上常驻、可拖动的小条：从左侧点阵处拖动，点「中 / A」切换模式（开着双拼时还显示方案名），点「，。」切全角 / 半角标点，点齿轮打开设置。只在当前输入法是字在时显示，拖到哪下次还在哪。",
             ToggleSwitch::new()
                 .is_on(settings.config.status_bar.enabled)
                 .on_toggled(context.callback(Message::StatusBar)),

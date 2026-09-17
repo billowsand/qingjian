@@ -3,6 +3,9 @@
 /// 状态条上一格点下去做什么。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum StatusAction {
+    /// 点阵握柄：只用于拖动，单击没有动作。
+    Drag,
+
     /// 「中 / 英」：切模式。
     ToggleMode,
 

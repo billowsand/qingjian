@@ -21,9 +21,9 @@
 #ifndef AppVersionNumeric
   #define AppVersionNumeric AppVersion
 #endif
-#define AppName "青简"
-#define Publisher "青简"
-#define WebsiteUrl "https://qingjian.im"
+#define AppName "字在"
+#define Publisher "字在"
+#define WebsiteUrl "https://qingjian.app"
 ; 脚本相对仓库根（ime/）：installer → windows → apps → ime
 #define Repo "..\..\.."
 ; 按版本起名的 TSF DLL（见文件头「升级」）。
@@ -48,7 +48,7 @@ PrivilegesRequired=admin
 ; 别让 Restart Manager 去关所有加载了 DLL 的应用（那是每一个有文本框的应用）。
 CloseApplications=no
 OutputDir={#Repo}\target\installer
-OutputBaseFilename=Qingjian-{#AppVersion}-Setup
+OutputBaseFilename=Zizai-{#AppVersion}-Setup
 SetupIconFile={#Repo}\apps\windows\tsf\resources\qingjian.ico
 UninstallDisplayIcon={app}\qingjian.ico
 Compression=lzma2
@@ -83,14 +83,14 @@ Source: "{#Repo}\assets\fuma\xiaohe.txt";        DestDir: "{app}\assets\fuma";  
 Source: "{#Repo}\assets\sample\dict.tsv";        DestDir: "{app}\assets\sample"; Flags: ignoreversion
 
 [Icons]
-Name: "{group}\青简设置"; Filename: "{app}\qingjian-settings.exe"; IconFilename: "{app}\qingjian.ico"
-Name: "{group}\卸载青简"; Filename: "{uninstallexe}"
+Name: "{group}\字在设置"; Filename: "{app}\qingjian-settings.exe"; IconFilename: "{app}\qingjian.ico"
+Name: "{group}\卸载字在"; Filename: "{uninstallexe}"
 ; 登录自启：登录时 Explorer 走 ShellExecute 拉起本快捷方式 → AppInfo 授予 uiAccess，候选窗才能盖过商店 / 任务栏搜索。
 ; 用 {commonstartup}（所有用户「启动」文件夹）而非 {userstartup}：本安装器是 admin 机器级安装，
 ; admin 模式下写每用户区会落到「谁提权就写谁」的 profile（Inno 会告警且可能不是目标用户）；
 ; 机器级「启动」项对每个登录用户都在其会话里由该用户的 Explorer 拉起，仍是 per-user 运行、仍授予 uiAccess。
 ; （计划任务直接拉起拿不到 uiAccess，故不用 schtasks。）
-Name: "{commonstartup}\青简 Server"; Filename: "{app}\qingjian-server.exe"; WorkingDir: "{app}"; IconFilename: "{app}\qingjian.ico"
+Name: "{commonstartup}\字在 Server"; Filename: "{app}\qingjian-server.exe"; WorkingDir: "{app}"; IconFilename: "{app}\qingjian.ico"
 
 [Run]
 ; ① UWP/AppContainer 应用要能读安装目录才能加载 DLL（*S-1-15-2-1 = ALL APPLICATION PACKAGES，按 SID 与语言无关）。
@@ -120,6 +120,11 @@ Filename: "{syswow64}\regsvr32.exe"; Parameters: "/u /s ""{app}\{#TsfDll32}"""; 
   Flags: runhidden; RunOnceId: "UnregDll32"
 
 [InstallDelete]
+; 品牌切换前的开始菜单与机器级启动快捷方式。安装目录、AppId 与二进制名不变，升级仍是原地升级。
+Type: files; Name: "{commonprograms}\青简\青简设置.lnk"
+Type: files; Name: "{commonprograms}\青简\卸载青简.lnk"
+Type: dirifempty; Name: "{commonprograms}\青简"
+Type: files; Name: "{commonstartup}\青简 Server.lnk"
 ; 更早版本装在当前用户「启动」文件夹里的自启快捷方式：与机器级那份并存会起两个 Server（两条状态条）。
 Type: files; Name: "{userstartup}\Qingjian Server.lnk"
 ; 更早版本装的模型三件套（现在只带 model.qjm）：留着白占 56 MB。

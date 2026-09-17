@@ -1,4 +1,4 @@
-//! 悬浮状态条：桌面上常驻、可拖动的三格浮窗 `[中 / 英][，。/ ,.][⚙]`。缺省由青简渲染器画（[`super::painter`]），
+//! 悬浮状态条：桌面上常驻、可拖动的四格浮窗 `[握柄][中 / A][，。/ ,.][⚙]`。缺省由字在渲染器画（[`super::painter`]），
 //! `renderer = "system"` 时复用分层窗口合成器与候选窗口的 GDI 主题。
 //!
 //! 按下鼠标先 `DragDetect`：挪出拖动阈值就交给系统的移动循环（`WM_NCLBUTTONDOWN` + `HTCAPTION`），
@@ -71,12 +71,13 @@ pub(super) struct StatusBar {
     /// 摆放状态，与窗口过程共享。
     placement: Rc<Placement>,
 
-    /// 青简渲染器；`None` 走 GDI。
+    /// 字在渲染器；`None` 走 GDI。
     painter: SharedPainter,
 }
 
-/// 三格从左到右的动作。
-const ACTIONS: [StatusAction; 3] = [
+/// 四格从左到右的动作。
+const ACTIONS: [StatusAction; 4] = [
+    StatusAction::Drag,
     StatusAction::ToggleMode,
     StatusAction::TogglePunctuation,
     StatusAction::OpenSettings,
@@ -99,7 +100,7 @@ impl StatusBar {
             CreateWindowExW(
                 WS_EX_LAYERED | WS_EX_TOOLWINDOW | WS_EX_TOPMOST | WS_EX_NOACTIVATE,
                 CLASS_NAME,
-                w!("青简状态条"),
+                w!("字在状态条"),
                 WS_POPUP,
                 0,
                 0,
@@ -158,10 +159,10 @@ impl StatusBar {
         }
     }
 
-    /// 模式格的文字：中 / 英 / 注，开着双拼时跟方案名。
+    /// 模式格的文字：中 / A / 注，开着双拼时跟方案名。
     fn mode_text(view: &StatusView) -> String {
         if view.english {
-            "英".to_owned()
+            "A".to_owned()
         } else if view.zhuyin {
             "注".to_owned()
         } else {
@@ -172,16 +173,17 @@ impl StatusBar {
         }
     }
 
-    /// 渲染器要的三格：模式（品牌色）、标点（生效时品牌色，否则灰）、齿轮。
+    /// 渲染器要的四格：握柄、模式（品牌色）、标点（生效时品牌色，否则灰）、齿轮。
     fn status_cells(view: &StatusView) -> Vec<StatusCell> {
         vec![
+            StatusCell::Grip,
             StatusCell::text(Self::mode_text(view), true),
             StatusCell::text(if view.full_width { "，。" } else { ",." }, view.full_width),
             StatusCell::Gear,
         ]
     }
 
-    /// GDI 画法的三格，顺序同 [`ACTIONS`]。
+    /// GDI 画法的四格，顺序同 [`ACTIONS`]。
     fn cells(&self, theme: &Theme) -> Vec<CellSpec> {
         let data = self.data.borrow();
         let Some(view) = data.as_ref() else {
@@ -190,16 +192,22 @@ impl StatusBar {
         let punctuation_active = view.full_width;
         vec![
             CellSpec {
+                text: "⠿".to_owned(),
+                font: theme.symbol_font,
+                color: theme.pos_color,
+                action: StatusAction::Drag,
+            },
+            CellSpec {
                 text: Self::mode_text(view),
                 font: theme.text_font,
-                color: theme.cloud_color,
+                color: theme.accent_color,
                 action: StatusAction::ToggleMode,
             },
             CellSpec {
                 text: if punctuation_active { "，。" } else { ",." }.to_owned(),
                 font: theme.text_font,
                 color: if punctuation_active {
-                    theme.cloud_color
+                    theme.accent_color
                 } else {
                     theme.gloss_color
                 },
@@ -403,21 +411,26 @@ unsafe extern "system" fn wndproc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: 
         WM_NCHITTEST => LRESULT(HTCLIENT as isize),
         WM_MOUSEACTIVATE => LRESULT(MA_NOACTIVATE as isize),
         WM_LBUTTONDOWN => {
-            let mut point = POINT::default();
-            let _ = unsafe { GetCursorPos(&mut point) };
-            if unsafe { DragDetect(hwnd, point) }.as_bool() {
-                let _ = unsafe { ReleaseCapture() };
-                unsafe {
-                    SendMessageW(
-                        hwnd,
-                        WM_NCLBUTTONDOWN,
-                        Some(WPARAM(HTCAPTION as usize)),
-                        Some(LPARAM(0)),
-                    )
-                };
-            } else if let Some(placement) = placement_of(hwnd) {
-                // lparam 低 16 位是客户区 x（有符号）。
-                placement.on_click((lparam.0 & 0xFFFF) as i16 as i32);
+            if let Some(placement) = placement_of(hwnd) {
+                // lparam 低 16 位是客户区 x（有符号）。只有点阵握柄能拖，其他格直接执行点击。
+                let client_x = (lparam.0 & 0xFFFF) as i16 as i32;
+                if placement.action_at(client_x) == Some(StatusAction::Drag) {
+                    let mut point = POINT::default();
+                    let _ = unsafe { GetCursorPos(&mut point) };
+                    if unsafe { DragDetect(hwnd, point) }.as_bool() {
+                        let _ = unsafe { ReleaseCapture() };
+                        unsafe {
+                            SendMessageW(
+                                hwnd,
+                                WM_NCLBUTTONDOWN,
+                                Some(WPARAM(HTCAPTION as usize)),
+                                Some(LPARAM(0)),
+                            )
+                        };
+                    }
+                } else {
+                    placement.on_click(client_x);
+                }
             }
             LRESULT(0)
         }
