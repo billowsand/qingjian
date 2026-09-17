@@ -7,10 +7,8 @@ use qingjian_render::{Row, Tone};
 /// `position` 是页内下标（从 0 起）。
 pub(crate) fn from_candidate(position: usize, candidate: &Candidate) -> Row {
     let mut annotation = Vec::new();
-    // 敲了辅码时 Core 给每条候选标上它自己的辅码（栏 ms）：排在最前，让人一眼看到该敲哪个码
-    if let Some(fuma) = &candidate.fuma {
-        annotation.push((fuma.clone(), Tone::Faint));
-    }
+    // 辅码不标在候选旁：标注行一出现候选框高度就变。只敲首码时剩下的那一码由拼音行的
+    // 幽灵提示给（RenderData::fuma_hint），两码敲完时辅码段本来就在拼音行里。
     if let Some(reading) = &candidate.reading {
         if !annotation.is_empty() {
             annotation.push((" · ".to_owned(), Tone::Faint));

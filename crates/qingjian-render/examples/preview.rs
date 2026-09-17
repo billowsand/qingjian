@@ -201,6 +201,7 @@ fn nihao() -> Frame {
         footer: Some("1/6".to_owned()),
         sentence: None,
         status: None,
+        fuma_hint: None,
     }
 }
 
@@ -271,6 +272,7 @@ fn corrected_japanese() -> Frame {
         footer: None,
         sentence: None,
         status: Some("已删除「开放」".to_owned()),
+        fuma_hint: None,
     }
 }
 
@@ -283,6 +285,7 @@ fn probe() -> Frame {
         footer: None,
         sentence: None,
         status: None,
+        fuma_hint: None,
     }
 }
 

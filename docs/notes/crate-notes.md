@@ -28,7 +28,8 @@ TSV 解析、查询与生成工具把 `lue` / `nue` 统一成 `lve` / `nve`。
   上屏消耗：两码那档盖满拼音就连 2 键一起吃，盖不满的由 `commit::consume_scope` 丢掉；
   首码那档由 `commit::consumed_first_code` 判断——盖满辅码键之前那段拼音、首码又对得上的才多吃那一键，
   普通前缀候选（蓝）不吃，那一键留着当下一个字的声母。`take_raw` 剥两码那档；`delete_syllable_backward` / 音节光标跳认辅码键为字母。
-  显示：`Candidate::fuma` 是这条候选自己的两码（敲了辅码才填，候选窗标在 annotation 最前）；
+  显示：`Candidate::fuma` 是这条候选自己的两码（敲了辅码才填）；只敲首码时 Server 取高亮候选的第二码
+  淡画在拼音行末尾当「下一键」幽灵提示（`fuma_hint`，标在候选旁会让候选框高度跟着变）；
   `Query::fuma` 是要补画进拼音行的辅码段（只有两码那档，首码那档的键还在拼音里），
   经 `MarkedKind::Fuma` → `PreeditKind::Fuma` → `PreeditStyle::Fuma` 一路镜像，两条绘制路径都画淡。
   配置 `[general] fuma`，`Engine::set_fuma` 收 `Arc<FumaTable>`（表几千条，Server 与 Engine 共用一份，热加载只克隆指针）/ `fuma_enabled`）/

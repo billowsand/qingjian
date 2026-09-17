@@ -153,6 +153,10 @@ fn draw_top_line(hdc: HDC, data: &RenderData, y: i32) -> i32 {
         };
         fill_rect(hdc, caret, theme.caret_color);
     }
+    // 只敲了辅码首码：高亮候选的第二码画成淡色幽灵字，告诉用户下一键敲什么
+    if let Some(hint) = &data.fuma_hint {
+        x += draw_text(hdc, theme.annotation_font, theme.pos_color, x, top, hint);
+    }
     if let Some(sentence) = &data.sentence {
         let sentence_x = if data.preedit.is_empty() {
             x
@@ -349,6 +353,9 @@ fn top_line_size(hdc: HDC, data: &RenderData) -> (i32, i32) {
     let mut width = measure(hdc, theme.annotation_font, &full).cx;
     if !data.preedit.is_empty() {
         width += scale_line(theme);
+        if let Some(hint) = &data.fuma_hint {
+            width += measure(hdc, theme.annotation_font, hint).cx;
+        }
     }
     if let Some(sentence) = &data.sentence {
         if !data.preedit.is_empty() {
