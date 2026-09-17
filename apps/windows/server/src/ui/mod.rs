@@ -17,14 +17,15 @@ use std::rc::Rc;
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::thread;
 
-use windows::Win32::Foundation::{E_FAIL, HINSTANCE, LPARAM, RECT, WPARAM};
+use windows::Win32::Foundation::{E_FAIL, HINSTANCE, HWND, LPARAM, RECT, WPARAM};
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows::Win32::System::Threading::GetCurrentThreadId;
 use windows::Win32::UI::HiDpi::{
     DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2, SetProcessDpiAwarenessContext,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
-    DispatchMessageW, GetMessageW, MSG, PostThreadMessageW, TranslateMessage, WM_APP,
+    DispatchMessageW, GetMessageW, HWND_TOPMOST, MSG, PostThreadMessageW, SWP_NOACTIVATE,
+    SWP_NOMOVE, SWP_NOSIZE, SetWindowPos, TranslateMessage, WM_APP,
 };
 use windows::core::{Error, Result};
 
@@ -101,6 +102,23 @@ impl StatusSink for UiHandle {
     fn hide_status(&self) {
         self.post(UiCommand::StatusHide);
     }
+}
+
+/// 抬到置顶带的最前。建窗口时的 `WS_EX_TOPMOST` 只保证进普通置顶带，**升进 UIAccess 高带（盖过
+/// 开始菜单 / 任务栏搜索这些 banded 宿主）要的是这次 `SetWindowPos(HWND_TOPMOST)`**，每次显示前调一次。
+/// 本进程没拿到 uiAccess（未签名 / 没装 Program Files）时它只是普通置顶，不会失败。
+pub(super) fn raise_topmost(hwnd: HWND) {
+    let _ = unsafe {
+        SetWindowPos(
+            hwnd,
+            Some(HWND_TOPMOST),
+            0,
+            0,
+            0,
+            0,
+            SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE,
+        )
+    };
 }
 
 /// 本进程 exe 的模块句柄（注册窗口类 / 建窗口用）。

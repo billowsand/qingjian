@@ -254,6 +254,7 @@ impl StatusBar {
             None => self.render_gdi(),
         };
         if updated.is_ok() {
+            super::raise_topmost(self.hwnd);
             let _ = unsafe { ShowWindow(self.hwnd, SW_SHOWNA) };
         } else {
             self.hide();
