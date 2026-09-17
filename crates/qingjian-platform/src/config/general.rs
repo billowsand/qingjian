@@ -45,9 +45,6 @@ pub struct GeneralConfig {
     /// 组句中的拼音显示在行内、候选窗口还是两处都显示。
     pub preedit: PreeditMode,
 
-    /// 英文模式（Caps Lock 亮着）是否给英文候选（补全与拼错纠正）。关掉就是纯直通。
-    pub english_candidates: bool,
-
     /// 中文模式下中英混输时中文候选总排在英文词前面。缺省关：拼音不像话的输入（`hello`）英文词排第一，
     /// 常在中文模式里打英文词的人不受影响；想要中文永远在前的自己打开。
     pub chinese_first: bool,
@@ -91,7 +88,6 @@ impl Default for GeneralConfig {
             renderer: CandidateRenderer::default(),
             font: String::new(),
             preedit: PreeditMode::default(),
-            english_candidates: true,
             chinese_first: false,
             full_width_punctuation: true,
             english_full_width_punctuation: false,

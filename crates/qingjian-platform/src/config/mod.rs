@@ -1,4 +1,3 @@
-mod apps;
 mod candidate_renderer;
 mod dictionaries;
 mod general;
@@ -20,9 +19,6 @@ use toml_edit::DocumentMut;
 
 use crate::error::ConfigError;
 
-pub use apps::{
-    AppsConfig, DEFAULT_ENGLISH_CANDIDATES_OFF, DEFAULT_ENGLISH_CANDIDATES_OFF_WINDOWS,
-};
 pub use candidate_renderer::CandidateRenderer;
 pub use dictionaries::{DEFAULT_DOMAINS, DictionariesConfig};
 pub use general::{
@@ -59,9 +55,6 @@ pub struct Config {
     /// 附加词库开关。
     pub dictionaries: DictionariesConfig,
 
-    /// 按应用改行为（哪些应用里英文模式不给候选）。
-    pub apps: AppsConfig,
-
     /// 云联想。
     pub predict: PredictConfig,
 
@@ -80,24 +73,6 @@ fn deserialize_phrases<'de, D: serde::Deserializer<'de>>(
     Ok(phrases)
 }
 
-/// 模板的 `[apps]` 一节：应用按宿主进程的 exe 文件名认。名单要与 [`DEFAULT_ENGLISH_CANDIDATES_OFF`] 一致，
-/// 测试 `template_parses_to_defaults` 会核对。用宏而不是常量，是因为 `concat!` 只收字面量。
-macro_rules! template_apps {
-    () => {
-        r#"[apps]
-# 按应用改行为，条目是应用进程的 exe 文件名（`*` 结尾按前缀匹配）。Server 开着 debug 日志时每开一个会话会把 exe 名记进日志
-# 英文模式（Caps Lock）下不给候选的应用：终端与代码编辑器里候选窗口会挡住应用自己的补全，vim 里 Tab 和方向键也另有含义。设成 [] 就处处都给
-# 经典控制台（cmd / PowerShell）的窗口属于 conhost.exe，Windows Terminal 是 WindowsTerminal.exe
-english_candidates_off = [
-  "conhost.exe", "WindowsTerminal.exe", "alacritty.exe", "wezterm-gui.exe", "mintty.exe",
-  "Code.exe", "Code - Insiders.exe", "Cursor.exe", "zed.exe",
-  "idea64.exe", "pycharm64.exe", "clion64.exe", "rustrover64.exe", "goland64.exe", "rider64.exe", "webstorm64.exe", "phpstorm64.exe", "datagrip64.exe",
-  "devenv.exe", "sublime_text.exe", "notepad++.exe", "gvim.exe", "neovide.exe",
-]
-"#
-    };
-}
-
 /// 模板 `[shortcut]` 一节里的修饰键组合（键名：alt / shift / ctrl / win）。
 macro_rules! template_shortcut_keys {
     () => {
@@ -109,7 +84,7 @@ delete_candidate = "shift"
 }
 
 /// 首次运行写出的模板：默认值全部列出并注释，用户改一处即可。
-/// 见 [`template_shortcut_keys!`] / [`template_apps!`]。
+/// 见 [`template_shortcut_keys!`]。
 pub const TEMPLATE: &str = concat!(
     r#"# 青简输入法配置。保存后自动生效。
 
@@ -129,8 +104,6 @@ renderer = "qingjian"
 font = ""
 # 组句中的拼音显示在哪：both 行内和候选窗口 / inline 只在行内 / window 只在候选窗口（应用里不放 marked text）
 preedit = "both"
-# 英文模式（Caps Lock 亮着）是否给英文候选：Tab 或方向键选词，空格、回车、标点仍原样上屏敲的字母；false 就是纯直通
-english_candidates = true
 # 中文模式下整段输入是英文词时（hello / key）是否让中文候选排第一、英文词第二；缺省 false：拼音不像话的输入英文词排第一
 chinese_first = false
 # 中文模式下（没在组句时）敲的标点转全角：, . ? ! : ; ( ) 等，数字后面的 . 保持半角；悬浮状态条的「，。」格可以点着切
@@ -182,9 +155,6 @@ an_ang = false
 en_eng = false
 in_ing = false
 
-"#,
-    template_apps!(),
-    r#"
 [dictionaries]
 # 随包的领域词库（法律 / 医学 / 地名 / 成语 / 诗词 / IT / 财经 / 饮食 / 动物 / 汽车 / 历史人物），列在这里的才加载；
 # 名字是文件名：animals automotive finance food historical_figures idioms it_computing law medicine places poetry_lines。
@@ -432,6 +402,16 @@ mod tests {
         assert_eq!(config, Config::default());
     }
 
+    /// 0.1.3 及以前的配置文件里还写着英文候选那两项，读到当没有（英文模式已恒为直通）。
+    #[test]
+    fn retired_english_candidate_keys_are_ignored() {
+        let config: Config = toml::from_str(
+            "[general]\nenglish_candidates = true\n[apps]\nenglish_candidates_off = [\"Code.exe\"]\n",
+        )
+        .unwrap();
+        assert_eq!(config, Config::default());
+    }
+
     #[test]
     fn partial_file_keeps_other_defaults() {
         let config: Config = toml::from_str("[predict]\nenabled = true\nlookback = 10\n").unwrap();
@@ -461,7 +441,6 @@ mod tests {
         assert_eq!(config.general.layout, LayoutMode::Horizontal);
         assert_eq!(config.general.preedit, PreeditMode::Window);
         assert_eq!(config.general.learning_language, "en");
-        assert!(config.general.english_candidates);
         assert_eq!(config.general.shuangpin(), None);
         assert_eq!(config.general.log_level, LogLevel::Info);
         assert_eq!(config.shortcut.mode.expression, 'i');

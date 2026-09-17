@@ -27,8 +27,8 @@
   还差：Apple Developer 账号的 Developer ID 证书（配齐 `release.yml` 头部的七个 Secrets 就自动签名公证）、仓库推上 GitHub 后第一次真跑验证（本机没跑过 workflow）、
   官网改成读 `releases.json`（含 sha256 / 提交 / 构建时间的展示）并配 `QINGJIAN_WEB_TOKEN` 让发版与文档改动自动触发官网构建、更新检查
 - [ ] ★ 特殊应用逐个验证（2026-09-07 用户已验：Zed、Terminal 正常；JetBrains 系没装没验）：Secure Input（已有检测，验证密码框不组句、不发云端）、iTerm / Warp、VS Code / Electron、
-  浏览器地址栏、沙盒应用（App Store 版备忘录 / 微信）、全屏游戏；每个记录 preedit 模式建议（按应用的开关已有 `[apps]` 分节，
-  英文候选按应用关已做，preedit 模式按应用定可以接在同一分节）
+  浏览器地址栏、沙盒应用（App Store 版备忘录 / 微信）、全屏游戏；每个记录 preedit 模式建议（`[apps]` 分节随英文候选一起删了，
+  真要按应用定 preedit 模式时再开一次；应用名 Server 每会话已经记着）
 - [ ] 登录后不恢复成青简：2026-09-06 两次开机日志都显示登录后当前输入源是系统拼音 / ABC，要手动切回（进程没崩过，panic 与崩溃报告都是零；
   Caps Lock 切 ABC 的系统开关已排除）。怀疑装在 `~/Library/Input Methods` 的 ad-hoc 包每次重装签名变、登录早期枚举没认上；等签名后装 `/Library` 再看，
   或在 `--register` 之外登录时补一次 `TISSelectInputSource`

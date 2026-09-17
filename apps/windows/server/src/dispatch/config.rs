@@ -1,6 +1,6 @@
 use qingjian_core::ShuangpinScheme;
 use qingjian_platform::protocol::KeyModifiers;
-use qingjian_platform::{AppsConfig, CandidateRenderer, Config, LayoutMode, ThemeMode};
+use qingjian_platform::{CandidateRenderer, Config, LayoutMode, ThemeMode};
 
 use super::RenderSettings;
 
@@ -28,9 +28,6 @@ pub struct RouterConfig {
     /// 翻页键对（`[general] page_keys`，上一页 / 下一页）。
     pub page_keys: (char, char),
 
-    /// 英文模式给不给英文候选（`[general] english_candidates`）。
-    pub english_candidates: bool,
-
     /// 中文模式下不在组句时的标点转全角（`[general] full_width_punctuation`）；状态条可切。
     pub full_width: bool,
 
@@ -39,9 +36,6 @@ pub struct RouterConfig {
 
     /// 大千注音（[general] zhuyin）。
     pub zhuyin: bool,
-
-    /// 按应用的设置（`[apps]`），按宿主 exe 名认。
-    pub apps: AppsConfig,
 
     /// 删候选的修饰键（`[shortcut] delete_candidate`）。
     pub delete_keys: KeyModifiers,
@@ -57,11 +51,6 @@ pub struct RouterConfig {
 }
 
 impl RouterConfig {
-    /// 全局开关开着，且应用不在 `[apps] english_candidates_off` 里；没报 exe 名按不关。
-    pub fn english_candidates_in(&self, app: Option<&str>) -> bool {
-        self.english_candidates && !app.is_some_and(|app| self.apps.english_candidates_off(app))
-    }
-
     /// 交给 UI 线程的画法。
     pub fn render_settings(&self) -> RenderSettings {
         RenderSettings {
@@ -81,11 +70,9 @@ impl From<&Config> for RouterConfig {
             renderer: config.general.renderer,
             font: config.general.font.trim().to_owned(),
             page_keys: config.general.page_keys(),
-            english_candidates: config.general.english_candidates,
             full_width: config.general.full_width_punctuation,
             english_full_width: config.general.english_full_width_punctuation,
             zhuyin: config.general.zhuyin,
-            apps: config.apps.clone(),
             delete_keys: config.shortcut.delete_keys().into(),
             status_enabled: config.status_bar.enabled,
             status_pos: config.status_bar.x.zip(config.status_bar.y),

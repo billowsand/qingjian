@@ -67,11 +67,11 @@
 - [x] 候选框顶部自绘 preedit 行与光标（不依赖应用画插入点）
 - [x] bundle id 改为 `app.qingjian.inputmethod`（2026-09-06，域名 qingjian.app 注册后；`TISInputSourceID` 与连接名同步，旧 id `com.yenharvey.qingjian` 的输入源要在系统设置里删掉重加）
 - [x] 中英切换：Caps Lock 亮着 = 英文模式（默认小写、Shift 大写、标点半角）；按住 Shift 的大写字母直接透传；切换输入源时强制收窗
-- [x] 英文模式候选（Core `english`，`Engine::set_english_mode`）：词表精确词 / 前缀补全 / 一处编辑纠正，Tab 与上下键选词（上下键动过之后空格也选），空格回车标点原样上屏；
-  `[general] english_candidates` 可关；CLI `--english-mode`
-- [x] 按应用关英文候选（2026-09-05）：`[apps] english_candidates_off`，按 `bundleIdentifier` 认，缺省终端 / 编辑器 / IDE 名单，`*` 前缀匹配；
-  偏好设置「通用」页勾选框；`[apps]` 分节留给以后的按应用 preedit 模式
-- [x] 个人英文词表（2026-09-05，`user-english.tsv`）：回车 / 英文模式直通原样上屏的英文词（切不成完整拼音的字母串）与选过的英文候选都记，
+- [~] 英文模式候选（Core `english`，`Engine::set_english_mode`）：词表精确词 / 前缀补全 / 一处编辑纠正，Tab 与上下键选词，空格回车标点原样上屏；
+  `[general] english_candidates` 可关，`[apps] english_candidates_off` 按应用关（2026-09-05）。
+  **0.1.4 整条路径与这两个开关一起删掉**：英文状态下弹候选框与「我现在要打英文」的意图相反，终端 / 编辑器里还得靠名单去躲；
+  要英文词表走中文模式的中英混输就够了。Core 的 `english::suggest` 与 CLI `--english-mode` 保留
+- [x] 个人英文词表（2026-09-05，`user-english.tsv`）：中文模式下原样上屏的英文词（切不成完整拼音的字母串）与选过的英文候选都记，
   与随包词表一起出英文候选且在前；修的是 `gist` 这类随包词表里没有的词永远出不了候选、回车多少次也学不会的问题
 - [x] 中英混输：整段输入在英文词表里即出英文候选，作为拼音「不像话」时排第一，否则排第二（词表 2026-09-05 起来自 `assets/lexicon/05_english`，ESDB / CSpell，MIT）
 - [x] 英文补全：拼音不像话且 ≥ 3 个字母时出该前缀下最常用的 3 个英文词（词频 wordfreq），第一个字母就切不动的输入也出

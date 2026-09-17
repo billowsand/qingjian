@@ -14,7 +14,8 @@ TSV 解析、查询与生成工具把 `lue` / `nue` 统一成 `lve` / `nve`。
 
 模块：`composition` / `parser` / `correction`（拼写纠错：整段一处编辑的候选纠正 + `typo` 音节级敲错变体表，后者进整句词图当带代价的边）/
 `candidate` / `ranking` / `shortcut` / `sentence` / `fuzzy` / `shuangpin`（双拼：四套方案键位表、键 → 全拼解码与消耗换算）/ `zhuyin`（大千注音：键 → 注音符号 → 拼音，`[general] zhuyin` 开关，声调只判音节完整不进查询）/ `emoji` /
-`english`（英文模式候选）/ `fuma`（辅码：字级形码表 `FumaTable`，每行 `字=两码`，表在 `assets/fuma/xiaohe.txt`；
+`english`（英文词候选：精确词 / 前缀补全 / 一处编辑纠正，给中文模式下的中英混输用；英文模式本身是纯直通，不出候选）/
+`fuma`（辅码：字级形码表 `FumaTable`，每行 `字=两码`，表在 `assets/fuma/xiaohe.txt`；
   词组辅码不存表，`expected_codes` 运行时按「单字两码、多字首字第 1 码 + 末字第 1 码」现算，`matches` 严格过滤，首末字不在表里即不匹配；
   同字重复后一条覆盖前一条，与水杉引擎 `HelpcodeUtils` 的语义一致。表权利归方案作者，随包分发前要先拿授权，否则改为运行时用户导入）/
   `engine/fuma.rs`（辅码键判定 `fuma_input`，两档：**一个小写键**（`ljm`）与「下一个字的声母」有歧义，
@@ -48,7 +49,7 @@ TSV 解析、查询与生成工具把 `lue` / `nue` 统一成 `lve` / `nve`。
 ## crates/qingjian-learning
 
 - `FrequencyLearner`：用户选择次数（`user.tsv`）、按输入串记的选择（`user-choices.tsv`，词级排序里同输入串选过的优先）、用户词（`user-words.tsv`，主词库同格式，
-  Engine 与主词库一起查）、个人英文词（`user-english.tsv`，回车原样上屏的英文词与选过的英文候选，与随包英文词表一起出候选且在前）、
+  Engine 与主词库一起查）、个人英文词（`user-english.tsv`，中文模式下回车原样上屏的英文词与选过的英文候选，与随包英文词表一起出候选且在前）、
   个人敲错表（`user-typos.tsv`，接受过的 (敲的, 要的) 音节对，词图敲错边与整段纠错的代价按它打折）与个人 n-gram（`user-ngram.tsv`，Core `sentence::UserNgram`，
   二元 + 三元在线计数，整句转换与词级排序里与静态模型插值；Tab 接受的云端整句按 `sentence::segment_text` 切词后也记；
   连着选出的两个词记够次数自动造词进用户词，一段拼音分几次选完的合成词记两次也造）。
@@ -103,7 +104,7 @@ Engine 侧在 `engine/rescoring/`：接了打分器就取 Viterbi 前 `RESCORE_P
 
 ## crates/qingjian-platform
 
-`Config`（TOML 配置文件，`[general]` / `[shortcut]` / `[fuzzy]` / `[dictionaries]` / `[apps]` / `[predict]` 分节，首次运行写模板，
+`Config`（TOML 配置文件，`[general]` / `[shortcut]` / `[fuzzy]` / `[dictionaries]` / `[predict]` 分节，首次运行写模板，
 `set_value` 用 toml_edit 原地改键保留注释；`[model] enabled` 本地整句模型开关，`LocalModelConfig`）；`extra_dictionaries` 列出 / 加载随包领域词库与用户 `dicts/`
 （Windows Server 与设置程序共用，同名 `.qj` 优先于 `.tsv`）；`protocol` 模块是 Windows Server ↔ TSF DLL 的 IPC 协议类型
 （`ClientMessage` / `ServerMessage` / `Frame` / `PreeditSegment`，全 serde，两端共用，见 `docs/design/architecture.md`「Windows：TSF」）。

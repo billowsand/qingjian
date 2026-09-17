@@ -23,16 +23,11 @@ impl Router {
         let Some(c) = event.character.filter(|c| !c.is_control()) else {
             return self.apply_function_key(event);
         };
-        // Caps 亮着无论中英模式都直接出大写英文；英文候选只在持久英文模式、Caps 灭、应用允许时给。
-        let caps = event.modifiers.caps;
-        let english = caps || event.modifiers.english_mode;
-        let english_candidates = event.modifiers.english_mode
-            && !caps
-            && self.config.english_candidates_in(self.focused_app());
+        // 英文状态（Caps Lock 亮着或持久英文模式）：敲的字母直接进输入框，不组句也不出候选窗。
+        let english = event.modifiers.caps || event.modifiers.english_mode;
         // 缓冲区为空时敲 `?` 先进问字模式（配置 `[shortcut] question_mark`，缺省关），中英文模式都行：
         // 后面跟字母就是在问字，跟别的键就还原成问号。
         if !self.composing() && c == QUESTION_PREFIX && self.engine.takes_question_mark() {
-            self.engine.set_english_mode(false);
             self.engine.push(c);
             return Effect::Changed(None);
         }
@@ -51,17 +46,11 @@ impl Router {
             }
             return with_prefix(Some(mark), self.apply_key(event), c);
         }
-        // 英文组词中候选被关掉（Caps 亮 / 切应用）：敲过的字母先原样上屏。
-        let flushed = (self.composing() && !english_candidates && self.engine.english_mode())
-            .then(|| self.engine.take_raw());
-        self.engine
-            .set_english_mode(english_candidates && !question);
-        let effect = if english && !question {
-            self.apply_english(c, english_candidates, event)
+        if english && !question {
+            self.apply_english(c, event)
         } else {
             self.apply_chinese(c, event)
-        };
-        with_prefix(flushed, effect, c)
+        }
     }
 
     /// 缓冲区里只有一个 `?`：清掉，还原成问号（按当前模式的全角设置转）。
@@ -103,10 +92,7 @@ impl Router {
                 Effect::Changed(None)
             }
             codes::RETURN => Effect::Changed(Some(self.engine.take_raw())),
-            codes::TAB if self.engine.english_mode() => {
-                Effect::Changed(Some(self.commit_highlighted()))
-            }
-            // 中文模式 Tab：有整句补全就接受，否则交还应用（缩进 / 跳焦点）。
+            // Tab：有整句补全就接受，否则交还应用（缩进 / 跳焦点）。
             codes::TAB => match self.sentence.take() {
                 Some(sentence) => Effect::Changed(Some(self.engine.accept_prediction(&sentence))),
                 None => Effect::Passthrough,
@@ -187,35 +173,17 @@ impl Router {
         Effect::Passthrough
     }
 
-    /// 英文模式。开着候选：字母进缓冲区，空格 / 标点先把字母原样上屏（动过高亮的空格才选词）；
-    /// 关着候选：字母由我们插入（大小写按 Shift）。其他键按英文模式那份全角设置转，转不了的交给应用。
-    fn apply_english(&mut self, c: char, candidates: bool, event: &KeyEvent) -> Effect {
-        let composing = self.composing();
-        if !candidates {
-            let raw = composing.then(|| self.engine.take_raw());
-            let effect = if c.is_ascii_alphabetic() {
-                self.engine.note_passthrough(c);
-                Effect::Changed(Some(c.to_string()))
-            } else {
-                self.apply_punctuation(c, event)
-            };
-            return with_prefix(raw, effect, c);
-        }
-        if c.is_ascii_alphabetic()
-            || (composing && (c.is_ascii_digit() || matches!(c, '_' | '\'' | '-')))
-        {
-            self.engine.push(c);
-            return Effect::Changed(None);
-        }
-        let committed = composing.then(|| {
-            if c == ' ' && self.navigated {
-                self.commit_highlighted()
-            } else {
-                self.engine.take_raw()
-            }
-        });
-        let effect = self.apply_punctuation(c, event);
-        with_prefix(committed, effect, c)
+    /// 英文状态：字母由我们直接插进输入框（大小写按 Shift），不进缓冲区，所以没有候选窗口。
+    /// 中文模式敲了一半切过来的，先把拼音原样上屏。其他键按英文模式那份全角设置转，转不了的交给应用。
+    fn apply_english(&mut self, c: char, event: &KeyEvent) -> Effect {
+        let raw = self.composing().then(|| self.engine.take_raw());
+        let effect = if c.is_ascii_alphabetic() {
+            self.engine.note_passthrough(c);
+            Effect::Changed(Some(c.to_string()))
+        } else {
+            self.apply_punctuation(c, event)
+        };
+        with_prefix(raw, effect, c)
     }
 
     /// 组句中的可打印键：数字选当前页第 N 个，翻页键翻页，空格上屏高亮，其余进英文直输段。

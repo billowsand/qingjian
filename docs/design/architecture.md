@@ -343,12 +343,11 @@ CC-CEDICT 表（`dict-convert cedict`）保留为备用来源，覆盖面广但�
   `ITfCompartmentEventSink`（`com/mode/conversion.rs`），用户点任务栏中 / 英（或别的输入指示器途径）改了转换模式时 `OnChange` 读回 `NATIVE` 位、与当前
   `english_mode` 不同才翻转（相同即我们自己写的那次，忽略以防回环），翻转顺带走 `update_mode_indicator` → 悬浮状态条也一起同步；Caps Lock 只管大小写，
   亮着无论中英模式都直接出大写英文（微软拼音式）。`KeyModifiers` 因此带 `caps`（大小写）与 `english_mode`（持久模式）两个非物理位，
-  字母大小写按 `shift XOR caps`。Router（`dispatch/key/input.rs`）里 `english = caps || english_mode`、候选只在 `english_mode && !caps && 应用允许` 时给，
-  `[general] english_candidates` 关着就是纯直通。「先上屏、再把这个键交给应用」在 Windows 上会乱序
-  （放行是同步的、上屏走异步编辑会话），所以组句中的空格 / 标点 / Shift 大写字母改成吃掉，连同上屏文本一起插入；
-  `[apps] english_candidates_off` 按应用关闭：应用标识在 Windows 上是宿主进程的 exe 文件名（DLL 加载在应用进程里，`GetModuleFileNameW(NULL)`
-  取到就随 `OpenSession { app }` 报一次，Server 每会话记下，收键时按当前会话查），缺省名单分平台（`AppsConfig` 的两份常量与配置模板的 `[apps]` 一节都按 `cfg(windows)` 选），
-  经典控制台的窗口属于 `conhost.exe`、Windows Terminal 是 `WindowsTerminal.exe`；
+  字母大小写按 `shift XOR caps`。Router（`dispatch/key/input.rs`）里 `english = caps || english_mode`，**英文状态一律纯直通**：
+  字母不进缓冲区、由壳直接插进输入框，没有候选窗（0.1.4 删掉了英文候选那条路径与 `[general] english_candidates` / `[apps] english_candidates_off` 两个开关，
+  理由见 candidate-ui.md）。「先上屏、再把这个键交给应用」在 Windows 上会乱序
+  （放行是同步的、上屏走异步编辑会话），所以组句中的空格 / 标点 / Shift 大写字母改成吃掉，连同上屏文本一起插入。
+  应用标识（宿主进程的 exe 文件名，DLL 里 `GetModuleFileNameW(NULL)` 取到就随 `OpenSession { app }` 报一次）仍逐会话记着，交给 Engine 做统计；
   `[shortcut]` 的修饰键 + 数字（译词上屏 / 删候选，`dispatch/key/shortcut.rs`）：配置里的 `Modifiers` 按 option→Alt、control→Ctrl、command→Win
   落到 `KeyModifiers`，Router 按键码认数字、去掉 Caps 位后与配置比；DLL 见 Ctrl / Alt / Win 仍一律放行，只有组句中的修饰键 + 数字送 Server 判，
   没配到的 Router 回 Passthrough。删候选的那句反馈（「已删除…」/「没什么可删」）随下一帧的 `Frame::notice` 下发，自绘候选窗画在拼音行下方、

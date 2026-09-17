@@ -12,12 +12,9 @@ pub(crate) enum Message {
     /// 辅码方案下拉（关 / 小鹤辅码）。
     Fuma(Option<usize>),
     Zhuyin(bool),
-    EnglishCandidates(bool),
     ChineseFirst(bool),
     FullWidthPunctuation(bool),
     EnglishFullWidthPunctuation(bool),
-    /// 开=写入平台默认名单，关=清空。
-    EnglishOffInApps(bool),
 
     // 候选窗口页
     Theme(Option<usize>),

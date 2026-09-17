@@ -64,7 +64,7 @@ pub struct Args {
     #[arg(long, value_delimiter = ',')]
     pub fuzzy: Vec<String>,
 
-    /// 英文模式（输入法里是 Caps Lock 亮着）：字母不当拼音，候选来自英文词表的补全与拼错纠正
+    /// 英文模式：字母不当拼音，候选来自英文词表的补全与拼错纠正。Windows 壳的英文模式是纯直通，这只是 Core 能力的验证入口
     #[arg(long)]
     pub english_mode: bool,
 

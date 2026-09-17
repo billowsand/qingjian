@@ -1,9 +1,6 @@
 //! 根组件的 Reactor 生命周期：建状态、按消息落盘、画左侧导航 + 当前页。
 
-use qingjian_platform::{
-    CandidateRenderer, Config, DEFAULT_ENGLISH_CANDIDATES_OFF_WINDOWS, LayoutMode, LogLevel,
-    PreeditMode, ThemeMode,
-};
+use qingjian_platform::{CandidateRenderer, Config, LayoutMode, LogLevel, PreeditMode, ThemeMode};
 use windows_reactor::*;
 
 use super::cloud_status::CloudStatus;
@@ -44,24 +41,12 @@ impl Component for Settings {
                 self.save("general", "fuma", general::FUMA[i].1);
             }
             Message::Zhuyin(on) => self.save("general", "zhuyin", on),
-            Message::EnglishCandidates(on) => self.save("general", "english_candidates", on),
             Message::ChineseFirst(on) => self.save("general", "chinese_first", on),
             Message::FullWidthPunctuation(on) => {
                 self.save("general", "full_width_punctuation", on);
             }
             Message::EnglishFullWidthPunctuation(on) => {
                 self.save("general", "english_full_width_punctuation", on);
-            }
-            Message::EnglishOffInApps(on) => {
-                let list: Vec<String> = if on {
-                    DEFAULT_ENGLISH_CANDIDATES_OFF_WINDOWS
-                        .iter()
-                        .map(|s| (*s).to_owned())
-                        .collect()
-                } else {
-                    Vec::new()
-                };
-                self.save_array("apps", "english_candidates_off", &list);
             }
 
             // 候选窗口页
