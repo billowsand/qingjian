@@ -9,18 +9,39 @@
       4) iscc /DAppVersion=<版本> 编脚本，成品在 target\installer\Zizai-<版本>-Setup.exe。
     随包数据（.qj / .tsv）直接由 .iss 从仓库 data\generated 与 assets 里取，不另建暂存目录；
     确保打包前 data\generated 里的 .qj 是最新的（bundle 流程见仓库 CLAUDE.md）。
-    uiAccess 跟着 -Sign 走，不用手设 QINGJIAN_UIACCESS（见 -Sign）。
+    **缺省不签名、不开 uiAccess**，打出来的包任何机器都能起；uiAccess 跟着 -Sign 走，不用手设 QINGJIAN_UIACCESS。
 .PARAMETER SkipBuild
     跳过 cargo build（数据或 .iss 改了、二进制没变时重编安装包用）。
 .PARAMETER Sign
     自签产物（sign-local.ps1）并开 uiAccess（候选窗才能盖过商店 / 任务栏搜索）。uiAccess=true 的 exe 要本机受信任的签名
     才准启动，自签证书只有编译机信任——所以 -Sign 只用于本机真机测，对外分发的包不加此开关：不签名、关 uiAccess，
     候选窗在那几个系统界面里会被盖住，但任何机器都能起。
+    不加时还会剥掉上一次 -Sign 残留在 target\ 里的签名，两种包在同一台机器上交替打不会串。
 #>
 [CmdletBinding()]
 param([switch]$SkipBuild, [switch]$Sign)
 
 $ErrorActionPreference = 'Stop'
+
+# 剥掉产物上残留的签名（见调用处）。没签名的文件一个都不动，所以不签名的构建可以每次无脑调。
+function Remove-Signatures {
+    param([Parameter(Mandatory)][string[]]$Path)
+
+    $signed = @($Path | Where-Object { (Get-AuthenticodeSignature -LiteralPath $_).Status -ne 'NotSigned' })
+    if ($signed.Count -eq 0) { return }
+
+    # 只在真有残留时才要 signtool：没装 Windows SDK 也能打不签名的包，除非上次签过。
+    $signtool = Get-ChildItem 'C:\Program Files (x86)\Windows Kits\10\bin\*\x64\signtool.exe' -ErrorAction SilentlyContinue |
+        Sort-Object FullName -Descending | Select-Object -First 1
+    if (-not $signtool) {
+        throw "产物上有上次 -Sign 留下的签名（$($signed.Count) 个）但找不到 signtool.exe 剥不掉：装 Windows SDK，或删掉 target\release 重新构建"
+    }
+    foreach ($f in $signed) {
+        & $signtool.FullName remove /s $f | Out-Null
+        if ($LASTEXITCODE -ne 0) { throw "剥离签名失败：$f（退出码 $LASTEXITCODE）" }
+    }
+    Write-Host "剥掉 $($signed.Count) 个产物上残留的自签名" -ForegroundColor Yellow
+}
 
 # 仓库根：本脚本在 apps\windows\installer 下，往上三层是 ime\。
 $Repo = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..')).Path
@@ -81,10 +102,14 @@ if ($missing.Count -gt 0) { throw "自包含 Windows App Runtime 缺 $($missing.
 Write-Host "自包含运行时 $($wanted.Count) 项 → target\installer\settings-runtime" -ForegroundColor Cyan
 
 # 1.5) 签名（必须在 iscc 打包前：Inno 把已签的文件原样拷进安装包）。
+$binaries = $targets | ForEach-Object { Join-Path $Repo "target\$_" }
 if ($Sign) {
     Write-Host '自签产物（uiAccess 要求 Server 代码签名）…' -ForegroundColor Cyan
-    $binaries = $targets | ForEach-Object { Join-Path $Repo "target\$_" }
     & (Join-Path $PSScriptRoot 'sign-local.ps1') -Path $binaries
+} else {
+    # 上一次 -Sign 留下的自签名还粘在 target\ 里（代码没变就不重新链接，签名跟着留着），
+    # 会被原样打进包——到别人机器上是「证书链不受信任」，观感差也更容易触杀软。剥掉。
+    Remove-Signatures -Path $binaries
 }
 
 # 2) 从 server 的 Cargo.toml 读版本（apps\* 各自写死版本，不跟 workspace）。

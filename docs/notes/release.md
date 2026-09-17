@@ -28,9 +28,10 @@ Rust 工具链由 `rust-toolchain.toml` 钉版本（现在 1.96.0），workflow 
 → 建 Release（`Zizai-<版本>-Setup.exe` + `SHA256SUMS` + `build-info.json`）→ `publish-releases-json.sh` 生成 `releases.json`，
 挂到本次发布并覆盖到 GitHub latest 那版上（官网只读 latest 的）。
 
-**没有代码签名证书时** workflow 设 `QINGJIAN_UIACCESS=0`：没签名的 exe 带 uiAccess=true 起不来。
+**没有代码签名证书**是现在的常态，所以 uiAccess **缺省就不嵌**（`server\build.rs` 只认 `QINGJIAN_UIACCESS=1`）：
+没签名的 exe 带 uiAccess=true 起不来（os error 740）。workflow 里那句 `QINGJIAN_UIACCESS=0` 只是写明意图，去掉也一样。
 代价是候选窗在任务栏搜索 / 设置这类 UWP 宿主里可能被盖住，用户文档与 CHANGELOG 已列为已知问题。
-Certum 开源证书办下来后：在 `build.ps1` 加 signtool 一步（`sign-local.ps1` 是本机自签的参考），workflow 去掉那个环境变量。
+Certum 开源证书办下来后：在 `build.ps1` 加 signtool 一步（`sign-local.ps1` 是本机自签的参考）并设 `QINGJIAN_UIACCESS=1`。
 SmartScreen 对无签名安装包的拦截也一并消失。
 
 ## 提交前检查与 CI

@@ -84,5 +84,8 @@ powershell -ExecutionPolicy Bypass -File apps\windows\installer\build.ps1
 - **Inno 版本**：开发机与 CI 统一用 Inno Setup **7.1.0**（CI 从 jrsoftware/issrc 的 GitHub Release 钉死下载）。它自带简体中文翻译；
   6.x 的安装包不带 `Languages\ChineseSimplified.isl`，Chocolatey 也只有 6.x，别用。`ArchitecturesAllowed=x64compatible` 需 6.3+。
 - **签名**：发版证书就绪后在这里加 `SignTool`（对应 mac 的 Developer ID）；开发期用 `-Sign` 的自签证书。
-- **没证书的包**（CI 内测版）：先设 `$env:QINGJIAN_UIACCESS = '0'` 再打，Server 不嵌 uiAccess——没签名的 exe 带 uiAccess=true 会起不来。
-  代价是候选窗在 UWP 宿主里可能被盖住。`release.yml` 的 `windows` job 就是这么打的。
+- **不签名是缺省**：`build.ps1` 不加 `-Sign` 就不签名、不嵌 uiAccess（`server\build.rs` 只认 `QINGJIAN_UIACCESS=1`），
+  打出来的包任何机器都能起——没签名的 exe 带 uiAccess=true 会起不来（os error 740）。代价是候选窗在 UWP 宿主里可能被盖住。
+  `release.yml` 的 `windows` job 与手动 `cargo build` 都走这条路。
+- **两种包别串**：`-Sign` 会把签名留在 `target\` 里，代码没变时下次构建不重新链接、签名跟着留着。
+  所以不带 `-Sign` 时 `build.ps1` 会先剥掉残留签名（要 Windows SDK 的 `signtool`），免得把「证书链不受信任」的文件打进对外分发的包。

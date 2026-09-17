@@ -46,7 +46,8 @@ jobs:
   windows:
     runs-on: windows-latest
     env:
-      # Server 的 build.rs 嵌 uiAccess manifest，没签名的 exe（含测试二进制）起不来（os error 740）；与 release.yml 一样关掉
+      # Server 的 build.rs 只在这个变量为 1 时嵌 uiAccess manifest（没签名的 exe 带它起不来，os error 740）。
+      # 缺省就是关，这里写明是防有人误设成 1；与 release.yml 一致。
       QINGJIAN_UIACCESS: '0'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
