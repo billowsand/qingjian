@@ -1,15 +1,15 @@
-//! 「通用」页：输入方案（双拼 / 辅码）、按键（候选数 / 翻页 / 删候选）、标点、候选质量。
-//! 项与文案与 WinUI 版 `settings/src/panel/pages/general.rs` 一一对应，好并排比。
+//! 「通用」页：输入方案、按键、标点、候选质量，一张卡九行。
+//! 分节在左侧导航里，这里不再套「输入方案 / 按键 / 标点」的小节标题。
 
 use eframe::egui;
 use qingjian_platform::{MAX_PAGE_SIZE, Modifiers};
 
 use crate::app::Settings;
-use crate::widgets::{CONTROL_WIDTH, LABEL_SIZE, field, group, page, toggle};
+use crate::widgets::{CONTROL_WIDTH, LABEL_SIZE, list, page, toggle};
 
 /// 双拼方案：界面名 + 配置写法（空串为全拼）。
 const SHUANGPIN: [(&str, &str); 5] = [
-    ("全拼（不启用双拼）", ""),
+    ("全拼", ""),
     ("小鹤双拼", "xiaohe"),
     ("自然码", "ziranma"),
     ("微软双拼", "microsoft"),
@@ -17,7 +17,7 @@ const SHUANGPIN: [(&str, &str); 5] = [
 ];
 
 /// 辅码方案：界面名 + 配置写法（空串为关）。
-const FUMA: [(&str, &str); 2] = [("关（不启用辅码）", ""), ("小鹤辅码", "xiaohe")];
+const FUMA: [(&str, &str); 2] = [("关", ""), ("小鹤辅码", "xiaohe")];
 
 /// 翻页键对：界面名 + 配置写法。
 const PAGE_KEYS: [(&str, &str); 3] = [
@@ -37,156 +37,126 @@ const MODIFIERS: [(&str, &str); 6] = [
 ];
 
 pub(crate) fn view(settings: &mut Settings, ui: &mut egui::Ui) {
-    page(ui, "通用", "输入方案、按键与候选行为", |ui| {
-        scheme_group(settings, ui);
-        keys_group(settings, ui);
-        punctuation_group(settings, ui);
-        quality_group(settings, ui);
-    });
-}
-
-fn scheme_group(settings: &mut Settings, ui: &mut egui::Ui) {
-    group(ui, "\u{E8D2}", "输入方案", |ui| {
-        let shuangpin = settings.config.general.shuangpin.clone();
-        field(
-            ui,
-            "\u{E765}",
-            "双拼",
-            "开双拼后两键按方案表拆成声母 + 韵母；微软、搜狗方案的 ; 键是 ing 韵母键。",
-            |ui| {
-                let (response, picked) = combo(ui, "shuangpin", &SHUANGPIN, &shuangpin);
-                if let Some(value) = picked {
-                    settings.save("general", "shuangpin", value);
-                }
-                response
-            },
-        );
-        let fuma = settings.config.general.fuma.clone();
-        let enabled = !shuangpin.trim().is_empty();
-        field(
-            ui,
-            "\u{E8EC}",
-            "辅码",
-            "开双拼后可用：打完双拼再敲两个大写辅码键严格筛选候选（首字第 1 码 + 末字第 1 码，单字取两码），对不上就不出候选；第一码大写表示反转顺序。辅码键不是要打的内容。",
-            |ui| {
-                ui.add_enabled_ui(enabled, |ui| {
-                    let (response, picked) = combo(ui, "fuma", &FUMA, &fuma);
+    page(ui, "通用", |ui| {
+        list(ui, |list| {
+            let shuangpin = settings.config.general.shuangpin.clone();
+            list.row(
+                "\u{E765}",
+                "双拼方案",
+                "开双拼后两键按方案表拆成声母 + 韵母；微软、搜狗方案的 ; 键是 ing 韵母键。",
+                |ui| {
+                    let (response, picked) = combo(ui, "shuangpin", &SHUANGPIN, &shuangpin);
                     if let Some(value) = picked {
-                        settings.save("general", "fuma", value);
+                        settings.save("general", "shuangpin", value);
                     }
                     response
-                })
-                .inner
-            },
-        );
-    });
-}
-
-fn keys_group(settings: &mut Settings, ui: &mut egui::Ui) {
-    group(ui, "\u{E713}", "按键", |ui| {
-        let mut page_size = settings.config.general.page_size as i64;
-        field(ui, "\u{EA37}", "每页候选数", "", |ui| {
-            let response =
-                ui.add(egui::DragValue::new(&mut page_size).range(1..=MAX_PAGE_SIZE as i64));
-            if response.changed() {
-                settings.save("general", "page_size", page_size);
-            }
-            response
+                },
+            );
+            let fuma = settings.config.general.fuma.clone();
+            let enabled = !shuangpin.trim().is_empty();
+            list.row(
+                "\u{E8EC}",
+                "辅码",
+                "开双拼后可用：打完双拼再敲两个大写辅码键严格筛选候选（首字第 1 码 + 末字第 1 码，单字取两码），对不上就不出候选；第一码大写表示反转顺序。",
+                |ui| {
+                    ui.add_enabled_ui(enabled, |ui| {
+                        let (response, picked) = combo(ui, "fuma", &FUMA, &fuma);
+                        if let Some(value) = picked {
+                            settings.save("general", "fuma", value);
+                        }
+                        response
+                    })
+                    .inner
+                },
+            );
+            let mut page_size = settings.config.general.page_size as i64;
+            list.row("\u{EA37}", "每页候选数", "", |ui| {
+                let response =
+                    ui.add(egui::DragValue::new(&mut page_size).range(1..=MAX_PAGE_SIZE as i64));
+                if response.changed() {
+                    settings.save("general", "page_size", page_size);
+                }
+                response
+            });
+            let page_keys = settings.config.general.page_keys.clone();
+            list.row(
+                "\u{E736}",
+                "翻页键",
+                "选「, .」或「- =」时组句中敲对应符号是翻页，不再是上屏加标点。",
+                |ui| {
+                    let (response, picked) = combo(ui, "page-keys", &PAGE_KEYS, &page_keys);
+                    if let Some(value) = picked {
+                        settings.save("general", "page_keys", value);
+                    }
+                    response
+                },
+            );
+            let current = settings.config.shortcut.delete_candidate;
+            list.row(
+                "\u{E74D}",
+                "删除候选",
+                "按住修饰键再按候选序号：自己造的词整删；词库里的词清掉学习记录，回到原排序。",
+                |ui| {
+                    let (response, picked) = modifier_combo(ui, current);
+                    if let Some(value) = picked {
+                        settings.save("shortcut", "delete_candidate", value);
+                    }
+                    response
+                },
+            );
+            let mut chinese = settings.config.general.full_width_punctuation;
+            list.row(
+                "\u{E90A}",
+                "中文标点转全角",
+                "没在打拼音时敲 , . ? ! 等出「，。？！」，数字后面的点保持半角；悬浮状态条的「，。」格也能切。",
+                |ui| {
+                    let response = toggle(ui, &mut chinese, "中文标点转全角");
+                    if response.changed() {
+                        settings.save("general", "full_width_punctuation", chinese);
+                    }
+                    response
+                },
+            );
+            let mut english = settings.config.general.english_full_width_punctuation;
+            list.row(
+                "\u{E8D2}",
+                "英文标点转全角",
+                "中英各记一份，缺省英文半角。",
+                |ui| {
+                    let response = toggle(ui, &mut english, "英文标点转全角");
+                    if response.changed() {
+                        settings.save("general", "english_full_width_punctuation", english);
+                    }
+                    response
+                },
+            );
+            let mut model = settings.config.model.enabled;
+            list.row(
+                "\u{E8CB}",
+                "本地整句模型",
+                "随包的小模型在本机给整句候选重新排序，全程离线；停键后几十毫秒生效。关掉只用词库统计。",
+                |ui| {
+                    let response = toggle(ui, &mut model, "本地整句模型");
+                    if response.changed() {
+                        settings.save("model", "enabled", model);
+                    }
+                    response
+                },
+            );
+            let mut chinese_first = settings.config.general.chinese_first;
+            list.row(
+                "\u{E71C}",
+                "中文候选优先",
+                "开着时整段输入是英文词时（hello、key）英文词排第二，空格上屏的仍是中文；关着（缺省）拼音不成立的输入英文词排第一。",
+                |ui| {
+                    let response = toggle(ui, &mut chinese_first, "中文候选优先");
+                    if response.changed() {
+                        settings.save("general", "chinese_first", chinese_first);
+                    }
+                    response
+                },
+            );
         });
-        let page_keys = settings.config.general.page_keys.clone();
-        field(
-            ui,
-            "\u{E736}",
-            "翻页键",
-            "选「, .」或「- =」时组句中敲对应符号是翻页，不再是上屏加标点。",
-            |ui| {
-                let (response, picked) = combo(ui, "page-keys", &PAGE_KEYS, &page_keys);
-                if let Some(value) = picked {
-                    settings.save("general", "page_keys", value);
-                }
-                response
-            },
-        );
-        let current = settings.config.shortcut.delete_candidate;
-        field(
-            ui,
-            "\u{E74D}",
-            "删除候选",
-            "按住修饰键再按候选序号：自己造的词整删；词库里的词清掉学习记录，回到原排序。",
-            |ui| {
-                let (response, picked) = modifier_combo(ui, current);
-                if let Some(value) = picked {
-                    settings.save("shortcut", "delete_candidate", value);
-                }
-                response
-            },
-        );
-    });
-}
-
-fn punctuation_group(settings: &mut Settings, ui: &mut egui::Ui) {
-    group(ui, "\u{E90A}", "标点", |ui| {
-        let mut chinese = settings.config.general.full_width_punctuation;
-        field(
-            ui,
-            "\u{E90A}",
-            "中文模式标点转全角",
-            "没在打拼音时敲 , . ? ! 等出「，。？！」，数字后面的点保持半角；悬浮状态条的「，。」格也能切，切的是当前模式那份。",
-            |ui| {
-                let response = toggle(ui, &mut chinese, "中文模式标点转全角");
-                if response.changed() {
-                    settings.save("general", "full_width_punctuation", chinese);
-                }
-                response
-            },
-        );
-        let mut english = settings.config.general.english_full_width_punctuation;
-        field(
-            ui,
-            "\u{E8D2}",
-            "英文模式标点转全角",
-            "中英各记一份，缺省英文半角。",
-            |ui| {
-                let response = toggle(ui, &mut english, "英文模式标点转全角");
-                if response.changed() {
-                    settings.save("general", "english_full_width_punctuation", english);
-                }
-                response
-            },
-        );
-    });
-}
-
-fn quality_group(settings: &mut Settings, ui: &mut egui::Ui) {
-    group(ui, "\u{E735}", "候选质量", |ui| {
-        let mut model = settings.config.model.enabled;
-        field(
-            ui,
-            "\u{E8CB}",
-            "本地整句模型",
-            "随包的小模型在本机给整句候选重新排序，全程离线；停键后几十毫秒生效。关掉只用词库统计。模型文件优先读用户目录 model\\ 下的 .qjm，其次安装目录 data\\model\\。",
-            |ui| {
-                let response = toggle(ui, &mut model, "本地整句模型");
-                if response.changed() {
-                    settings.save("model", "enabled", model);
-                }
-                response
-            },
-        );
-        let mut chinese_first = settings.config.general.chinese_first;
-        field(
-            ui,
-            "\u{E71C}",
-            "输入拼音时中文候选排在英文词前面",
-            "开着时整段输入是英文词时（hello、key）英文词排第二，空格上屏的仍是中文；关着（缺省）拼音不成立的输入英文词排第一。",
-            |ui| {
-                let response = toggle(ui, &mut chinese_first, "输入拼音时中文候选排在英文词前面");
-                if response.changed() {
-                    settings.save("general", "chinese_first", chinese_first);
-                }
-                response
-            },
-        );
     });
 }
 

@@ -1,75 +1,48 @@
-//! 「关于」页里的输入统计：输入量（今天 / 7 天 / 累计）、折成几本书。
+//! 「关于」页里的输入统计：今天 / 最近 7 天 / 累计各一行，累计那行折成几本书。
 //! 直读 `%APPDATA%\Qingjian` 下的 `usage.tsv`，不经 Server；打开这页时读一次。
 
-use eframe::egui;
 use jiff::Zoned;
 use qingjian_core::{Usage, UsageSummary, book_scale};
 use qingjian_learning::UsageStats;
 
 use crate::app::Settings;
-use crate::widgets::{LABEL_SIZE, block, note};
 
-const COLUMNS: [&str; 4] = ["汉字", "中文词", "英文词", "上屏次数"];
-
-pub(crate) fn view(settings: &Settings, ui: &mut egui::Ui) {
+pub(crate) fn summary(settings: &Settings) -> UsageSummary {
     let today = Zoned::now().date();
-    let usage = UsageStats::open(settings.data_dir().join("usage.tsv")).summary_on(today);
-    block(ui, "\u{E8EF}", "输入统计", |ui| {
-        egui::Grid::new("usage-table")
-            .num_columns(COLUMNS.len() + 1)
-            .spacing([18.0, 4.0])
-            .show(ui, |ui| {
-                ui.label(egui::RichText::new("").size(LABEL_SIZE));
-                for column in COLUMNS {
-                    ui.label(egui::RichText::new(column).size(LABEL_SIZE).strong());
-                }
-                ui.end_row();
-                row(ui, "今天", &usage.today);
-                row(ui, "最近 7 天", &usage.week);
-                row(ui, "累计", &usage.total);
-            });
-        ui.add_space(8.0);
-        ui.label(
-            egui::RichText::new(scale_line(usage.total.hanzi))
-                .size(LABEL_SIZE)
-                .strong(),
-        );
-        ui.add_space(2.0);
-        note(ui, &since_line(&usage));
-        note(
-            ui,
-            "数的是上屏的文字：选一个词算一个中文词，整句按词切开数；英文候选、回车原样上屏的英文词算英文词。只在这台电脑上数，与输入日志无关。",
-        );
-    });
+    UsageStats::open(settings.data_dir().join("usage.tsv")).summary_on(today)
 }
 
-fn row(ui: &mut egui::Ui, label: &str, usage: &Usage) {
-    ui.label(egui::RichText::new(label).size(LABEL_SIZE));
-    for value in [usage.hanzi, usage.words, usage.english_words, usage.commits] {
-        ui.label(egui::RichText::new(group_digits(value)).size(LABEL_SIZE));
-    }
-    ui.end_row();
+/// 一行的右侧：「4,482 字」。
+pub(crate) fn hanzi(usage: &Usage) -> String {
+    format!("{} 字", group_digits(usage.hanzi))
 }
 
-fn since_line(summary: &UsageSummary) -> String {
-    match &summary.since {
-        Some(date) => format!("自 {date} 起，有输入的天数 {}。", summary.days),
-        None => "还没有记录，打几个字再来看。".to_owned(),
-    }
+/// 一行的悬停提示：中文词 / 英文词 / 上屏次数。
+pub(crate) fn detail(usage: &Usage) -> String {
+    format!(
+        "中文词 {} · 英文词 {} · 上屏 {} 次",
+        group_digits(usage.words),
+        group_digits(usage.english_words),
+        group_digits(usage.commits)
+    )
 }
 
-/// 「累计输入 20.4 万字，约等于 1.7 本《活着》（约 12 万字）。」
-fn scale_line(hanzi: u64) -> String {
+/// 「累计 20.4 万字，约 1.7 本《活着》」。
+pub(crate) fn scale_line(summary: &UsageSummary) -> String {
+    let hanzi = summary.total.hanzi;
     if hanzi == 0 {
-        return "累计输入 0 字。".to_owned();
+        return "还没有记录，打几个字再来看。".to_owned();
     }
     let (book, ratio) = book_scale(hanzi);
+    let since = match &summary.since {
+        Some(date) => format!("；自 {date} 起有输入的天数 {}", summary.days),
+        None => String::new(),
+    };
     format!(
-        "累计输入 {}，约等于 {} 本《{}》（约 {}）。",
+        "累计 {}，约 {} 本《{}》{since}",
         hanzi_text(hanzi),
         format_ratio(ratio),
         book.title,
-        hanzi_text(book.hanzi),
     )
 }
 

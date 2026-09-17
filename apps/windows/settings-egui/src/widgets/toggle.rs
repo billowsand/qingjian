@@ -3,18 +3,16 @@
 
 use eframe::egui;
 
-/// 开关宽高比：宽是高的两倍，与 Fluent 的 ToggleSwitch 接近。
-const ASPECT: f32 = 2.0;
+/// 开关尺寸，与 Fluent 的 ToggleSwitch 接近（不跟着 `interact_size` 走，各行大小一致）。
+const SIZE: egui::Vec2 = egui::vec2(36.0, 19.0);
 
 /// 滑块与外框的间距。
-const KNOB_INSET: f32 = 2.0;
+const KNOB_INSET: f32 = 2.5;
 
 /// `label` 只给无障碍用：`widget_info` 里不给名字的话，UIA 树里这个 CheckBox 的 Name 是空的，
 /// 读屏只念得出「已选中」念不出是哪一项（`labelled_by` 也盖不住它）。
 pub(crate) fn toggle(ui: &mut egui::Ui, on: &mut bool, label: &str) -> egui::Response {
-    let height = ui.spacing().interact_size.y;
-    let size = egui::vec2(height * ASPECT, height);
-    let (rect, mut response) = ui.allocate_exact_size(size, egui::Sense::click());
+    let (rect, mut response) = ui.allocate_exact_size(SIZE, egui::Sense::click());
     if response.clicked() {
         *on = !*on;
         response.mark_changed();

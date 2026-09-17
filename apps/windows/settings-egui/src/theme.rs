@@ -9,14 +9,17 @@ use qingjian_render::{Color, Palette};
 
 use crate::widgets::{CARD_PADDING_X, CARD_PADDING_Y, CARD_RADIUS, NOTE_OPACITY};
 
-/// 控件高度基准。加上 `button_padding` 与卡片内边距，一行设置正好 34 px（WinUI 版两行文字要 76）。
-const INTERACT_HEIGHT: f32 = 18.0;
+/// 控件高度基准；行高由 `widgets::list` 定，这里只管控件自己多高。
+const INTERACT_HEIGHT: f32 = 20.0;
+
+/// 下拉框 / 按钮的圆角。
+const CONTROL_RADIUS: u8 = 5;
 
 /// 装两套 Visuals（浅色 / 深色）与更紧的间距，再按当前系统明暗选一套。
 pub(crate) fn install(ctx: &egui::Context) {
     ctx.all_styles_mut(|style| {
         style.spacing.item_spacing = egui::vec2(6.0, 3.0);
-        style.spacing.button_padding = egui::vec2(8.0, 2.0);
+        style.spacing.button_padding = egui::vec2(10.0, 3.0);
         style.spacing.interact_size.y = INTERACT_HEIGHT;
         style.spacing.combo_height = 320.0;
     });
@@ -83,9 +86,41 @@ fn visuals(base: egui::Visuals, dark: bool) -> egui::Visuals {
     visuals.selection.stroke = egui::Stroke::new(1.0, color32(colors.accent));
     visuals.hyperlink_color = color32(colors.accent);
     visuals.widgets.noninteractive.corner_radius = egui::CornerRadius::same(CARD_RADIUS as u8);
-    visuals.widgets.inactive.corner_radius = egui::CornerRadius::same(6);
-    visuals.widgets.hovered.corner_radius = egui::CornerRadius::same(6);
-    visuals.widgets.active.corner_radius = egui::CornerRadius::same(6);
+    // 下拉框与按钮：白卡上再放一层更浅的底 + 1 px 描边，像 Fluent 的控件，而不是 egui 缺省的灰块。
+    let (control, border, border_strong) = if dark {
+        (
+            egui::Color32::from_rgb(48, 52, 60),
+            egui::Color32::from_rgb(70, 75, 84),
+            egui::Color32::from_rgb(92, 98, 108),
+        )
+    } else {
+        (
+            egui::Color32::from_rgb(250, 249, 246),
+            egui::Color32::from_rgb(222, 220, 214),
+            egui::Color32::from_rgb(196, 193, 186),
+        )
+    };
+    for (widget, fill, stroke) in [
+        (&mut visuals.widgets.inactive, control, border),
+        (
+            &mut visuals.widgets.hovered,
+            control.gamma_multiply(if dark { 1.18 } else { 0.97 }),
+            border_strong,
+        ),
+        (
+            &mut visuals.widgets.active,
+            control.gamma_multiply(if dark { 1.3 } else { 0.94 }),
+            border_strong,
+        ),
+    ] {
+        widget.corner_radius = egui::CornerRadius::same(CONTROL_RADIUS);
+        widget.weak_bg_fill = fill;
+        widget.bg_fill = fill;
+        widget.bg_stroke = egui::Stroke::new(1.0, stroke);
+    }
+    visuals.widgets.open.corner_radius = egui::CornerRadius::same(CONTROL_RADIUS);
+    visuals.widgets.open.weak_bg_fill = control;
+    visuals.widgets.open.bg_stroke = egui::Stroke::new(1.0, color32(colors.accent));
     visuals
 }
 
@@ -105,6 +140,25 @@ pub(crate) fn selected_fill(ctx: &egui::Context) -> egui::Color32 {
     color32(colors.highlight)
 }
 
+/// 导航项鼠标悬停时的底色。
+pub(crate) fn hover_fill(ctx: &egui::Context) -> egui::Color32 {
+    selected_fill(ctx).gamma_multiply(0.5)
+}
+
+/// 图标列的颜色：比正文淡一档，让标签自己突出来。
+pub(crate) fn icon_color(ctx: &egui::Context) -> egui::Color32 {
+    color32(palette(dark_mode(ctx)).gloss)
+}
+
+/// 行与行之间那条淡线。
+pub(crate) fn separator_color(ctx: &egui::Context) -> egui::Color32 {
+    if dark_mode(ctx) {
+        egui::Color32::from_rgb(58, 62, 70)
+    } else {
+        egui::Color32::from_rgb(234, 232, 226)
+    }
+}
+
 /// 强调色（品牌蓝），开关打开时用。
 pub(crate) fn accent(ctx: &egui::Context) -> egui::Color32 {
     color32(palette(dark_mode(ctx)).accent)
@@ -120,14 +174,14 @@ pub(crate) fn nav_frame(ctx: &egui::Context) -> egui::Frame {
     };
     egui::Frame::NONE
         .fill(fill)
-        .inner_margin(egui::Margin::symmetric(12, 16))
+        .inner_margin(egui::Margin::symmetric(10, 14))
 }
 
 /// 正文区的底。
 pub(crate) fn page_frame(ctx: &egui::Context) -> egui::Frame {
     egui::Frame::NONE
         .fill(color32(palette(dark_mode(ctx)).background))
-        .inner_margin(egui::Margin::symmetric(28, 20))
+        .inner_margin(egui::Margin::symmetric(20, 16))
 }
 
 /// 一张设置卡片的外框：底色 + 1 px 描边 + 圆角，取值与 WinUI 版 `controls/mod.rs` 相同。

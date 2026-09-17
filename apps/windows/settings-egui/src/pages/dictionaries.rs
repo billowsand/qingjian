@@ -1,4 +1,4 @@
-//! 「词库」页：随包领域词库开关，用户导入词库的开关 / 移除 / 导入。
+//! 「词库」页：随包领域词库一张卡，导入的词库一张卡。一本一行，名称 + 条数在左，开关（用户词库还有「移除」）在右。
 //! 随包开关写 `[dictionaries] domains`（列打开的），用户词库写 `disabled`（列关掉的）。
 
 use std::path::{Path, PathBuf};
@@ -9,143 +9,146 @@ use qingjian_platform::extra_dictionaries;
 
 use crate::app::Settings;
 use crate::files;
-use crate::widgets::{LABEL_SIZE, block, hint, note, page};
+use crate::widgets::{List, caption, note, page, plain_list, toggle};
 
 /// 一本词库读出来的显示信息。
 struct DictInfo {
     /// 文件名主干，配置里用它当键。
     stem: String,
 
-    /// 「名称 · N 条 · 随包 / 许可证」，坏文件标出来。
+    /// 「名称 · N 条」。
     label: String,
 
-    /// 打不开的文件：只列出来，不给勾。
+    /// 许可证，挂在悬停提示里。
+    license: String,
+
+    /// 打不开的文件：只列出来，开关灰着。
     broken: bool,
 }
 
+/// 一行上发生的事。
+enum Action {
+    None,
+
+    /// 勾选变了，值是新状态。
+    Toggled(bool),
+
+    /// 按了「移除」。
+    Remove,
+}
+
 pub(crate) fn view(settings: &mut Settings, ui: &mut egui::Ui) {
-    page(ui, "词库", "只加载你真正会用到的词", |ui| {
-        bundled_block(settings, ui);
-        imported_block(settings, ui);
+    page(ui, "词库", |ui| {
+        caption(ui, "随包领域词库 · 基础词库始终启用，不在这里");
+        bundled(settings, ui);
+        caption(ui, "导入的词库");
+        imported(settings, ui);
     });
 }
 
-fn bundled_block(settings: &mut Settings, ui: &mut egui::Ui) {
-    block(ui, "\u{E8F1}", "随包领域词库", |ui| {
-        let Some(dir) = files::repo_resource("data/generated/dicts") else {
-            note(ui, "没找到随包领域词库目录（安装布局待定）。");
-            return;
-        };
-        let dicts = list(&dir, true);
-        if dicts.is_empty() {
-            note(ui, "随包领域词库目录是空的。");
-            return;
-        }
+fn bundled(settings: &mut Settings, ui: &mut egui::Ui) {
+    let Some(dir) = files::repo_resource("data/generated/dicts") else {
+        note(ui, "没找到随包领域词库目录。");
+        return;
+    };
+    let dicts = read_dir(&dir);
+    if dicts.is_empty() {
+        note(ui, "随包领域词库目录是空的。");
+        return;
+    }
+    plain_list(ui, |list| {
         for info in dicts {
-            let mut enabled = settings.config.dictionaries.is_domain_enabled(&info.stem);
-            if row(ui, &info, &mut enabled, false).changed() {
-                toggle_domain(settings, &info.stem, enabled);
+            let enabled = settings.config.dictionaries.is_domain_enabled(&info.stem);
+            if let Action::Toggled(on) = row(list, &info, enabled, false) {
+                toggle_domain(settings, &info.stem, on);
             }
         }
-        ui.add_space(4.0);
-        note(
-            ui,
-            "随包的基础词库始终启用，不在这里；这里只管领域词库的开关。改完自动生效。",
-        );
     });
 }
 
-fn imported_block(settings: &mut Settings, ui: &mut egui::Ui) {
-    block(ui, "\u{E8B5}", "导入的词库", |ui| {
-        let dicts = list(&user_dir(settings), false);
-        if dicts.is_empty() {
-            note(
-                ui,
-                "还没有导入词库。点下面「导入词库」加一本，或把文件放进 %APPDATA%\\Qingjian\\dicts。",
-            );
-        }
-        for info in dicts {
-            let mut enabled = settings.config.dictionaries.is_enabled(&info.stem);
-            let response = row(ui, &info, &mut enabled, true);
-            if response.changed() {
-                toggle_user(settings, &info.stem, enabled);
-            }
-            if response.clicked() {
-                remove_user_dict(settings, &info.stem);
-                settings.reload();
+fn imported(settings: &mut Settings, ui: &mut egui::Ui) {
+    let dicts = read_dir(&user_dir(settings));
+    plain_list(ui, |list| {
+        for info in &dicts {
+            let enabled = settings.config.dictionaries.is_enabled(&info.stem);
+            match row(list, info, enabled, true) {
+                Action::Toggled(on) => toggle_user(settings, &info.stem, on),
+                Action::Remove => {
+                    remove_user_dict(settings, &info.stem);
+                    settings.reload();
+                }
+                Action::None => {}
             }
         }
-        ui.add_space(4.0);
-        ui.horizontal(|ui| {
-            if ui.button("导入词库…").clicked() {
-                import(settings);
-                settings.reload();
-            }
-            note(
-                ui,
-                "接受字在 TSV、Rime .dict.yaml、.qj；导入即复制进用户词库目录。",
-            );
+        list.custom(|ui| {
+            ui.horizontal(|ui| {
+                if ui.button("导入词库…").clicked() {
+                    import(settings);
+                    settings.reload();
+                }
+                if dicts.is_empty() {
+                    note(ui, "接受字在 TSV、Rime .dict.yaml、.qj");
+                }
+            });
         });
     });
 }
 
-/// 一本词库一行：复选框 +（用户词库才有的）「移除」。
-///
-/// 返回的 `Response`：`changed()` 是勾选变了，`clicked()` 是按了「移除」——一行只可能发生一件。
-fn row(ui: &mut egui::Ui, info: &DictInfo, enabled: &mut bool, removable: bool) -> egui::Response {
-    ui.horizontal(|ui| {
-        let check = ui.add_enabled(
-            !info.broken,
-            egui::Checkbox::new(enabled, egui::RichText::new(&info.label).size(LABEL_SIZE)),
-        );
-        let check = hint(
-            check,
-            if info.broken {
-                "文件打不开，检查格式或重新导入"
-            } else {
-                ""
-            },
-        );
-        if !removable {
-            return check;
+/// 一本词库一行：名称 + 条数在左，开关（`removable` 时还有「移除」）在右；许可证与坏文件提示挂悬停。
+fn row(list: &mut List, info: &DictInfo, enabled: bool, removable: bool) -> Action {
+    let tip = if info.broken {
+        "文件打不开，检查格式或重新导入"
+    } else {
+        &info.license
+    };
+    let mut action = Action::None;
+    let broken = info.broken;
+    let mut on = enabled;
+    list.row("", &info.label, tip, |ui| {
+        let mut response = ui
+            .add_enabled_ui(!broken, |ui| toggle(ui, &mut on, &info.label))
+            .inner;
+        if response.changed() {
+            action = Action::Toggled(on);
         }
-        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+        if removable {
             let remove = ui.button("移除");
-            if remove.clicked() { remove } else { check }
-        })
-        .inner
-    })
-    .inner
+            if remove.clicked() {
+                action = Action::Remove;
+            }
+            response |= remove;
+        }
+        response
+    });
+    action
 }
 
-/// 目录里的词库，读出显示信息。`builtin` 是随包的那批（标「随包」而不是列许可证）。
-fn list(dir: &Path, builtin: bool) -> Vec<DictInfo> {
+/// 目录里的词库，读出显示信息。
+fn read_dir(dir: &Path) -> Vec<DictInfo> {
     extra_dictionaries::list(dir)
         .into_iter()
-        .map(|(stem, path)| read_info(&path, stem, builtin))
+        .map(|(stem, path)| read_info(&path, stem))
         .collect()
 }
 
-fn read_info(path: &Path, stem: String, builtin: bool) -> DictInfo {
+fn read_info(path: &Path, stem: String) -> DictInfo {
     let Ok(dict) = Dictionary::from_path(path) else {
         return DictInfo {
             label: format!("{stem}（文件损坏）"),
             stem,
+            license: String::new(),
             broken: true,
         };
     };
     let metadata = dict.metadata();
     let name = metadata.map_or_else(|| stem.clone(), |m| m.name.clone());
     let license = metadata.map_or_else(String::new, |m| m.license.clone());
-    let mut label = format!("{name} · {} 条", dict.len());
-    if builtin {
-        label.push_str(" · 随包");
-    } else if !license.is_empty() {
-        label.push_str(&format!(" · {license}"));
-    }
+    // 随包词库的名称都带「青简领域词库：」这类前缀，列表里只留后半截。
+    let short = name.rsplit('：').next().unwrap_or(&name).trim().to_owned();
     DictInfo {
+        label: format!("{short} · {} 条", dict.len()),
         stem,
-        label,
+        license,
         broken: false,
     }
 }

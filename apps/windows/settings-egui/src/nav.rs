@@ -10,9 +10,18 @@ use crate::widgets::{BRAND_SIZE, LABEL_SIZE, LOGO_SIZE, NOTE_SIZE};
 /// Logo 编进二进制，不依赖随包文件（与 WinUI 版同一张图）。
 const LOGO: &[u8] = include_bytes!("../../../../assets/icon/logo.png");
 
+/// 导航项行高。
+const ITEM_HEIGHT: f32 = 34.0;
+
+/// 图标中心距行左边缘。
+const ICON_INSET: f32 = 16.0;
+
+/// 文字左边缘距行左边缘。
+const LABEL_INSET: f32 = 30.0;
+
 pub(crate) fn view(settings: &mut Settings, ui: &mut egui::Ui) {
     brand(ui);
-    ui.add_space(12.0);
+    ui.add_space(14.0);
     let current = settings.page().to_owned();
     for (tag, label, icon) in PAGES {
         if item(ui, icon, label, current == tag).clicked() {
@@ -21,36 +30,60 @@ pub(crate) fn view(settings: &mut Settings, ui: &mut egui::Ui) {
     }
 }
 
-/// 一个导航项：选中的铺一层强调底色。
+/// 一个导航项：整行可点，选中的铺一层强调底色、文字用强调色。
 ///
-/// 图标与文字是同一段按钮文本，`widget_info` 要重报一次名字——否则 UIA 树里这个 Button 的 Name
-/// 连图标那个私用区码点一起念（读屏会念出「方块 通用」）。
+/// 图标由 painter 按字形外框居中画（与列表行同一套做法，不跟字体基线走），文字单独 `label`——
+/// 这样图标和文字在视觉上真正对齐，`widget_info` 里报的名字也不带那个私用区码点。
 fn item(ui: &mut egui::Ui, icon: &str, label: &str, selected: bool) -> egui::Response {
-    let text = egui::RichText::new(format!("{icon}  {label}")).size(LABEL_SIZE);
-    let button = egui::Button::new(text)
-        .frame(true)
-        .fill(if selected {
-            theme::selected_fill(ui.ctx())
-        } else {
-            egui::Color32::TRANSPARENT
-        })
-        .stroke(egui::Stroke::NONE)
-        .min_size(egui::vec2(ui.available_width(), 36.0));
-    let response = ui.add(button);
+    let width = ui.available_width();
+    let (rect, response) =
+        ui.allocate_exact_size(egui::vec2(width, ITEM_HEIGHT), egui::Sense::click());
     response.widget_info(|| {
         egui::WidgetInfo::selected(egui::WidgetType::SelectableLabel, true, selected, label)
     });
+    if !ui.is_rect_visible(rect) {
+        return response;
+    }
+    let painter = ui.painter();
+    if selected {
+        painter.rect_filled(rect, 6.0, theme::selected_fill(ui.ctx()));
+    } else if response.hovered() {
+        painter.rect_filled(rect, 6.0, theme::hover_fill(ui.ctx()));
+    }
+    let tone = if selected {
+        theme::accent(ui.ctx())
+    } else {
+        ui.style().visuals.text_color()
+    };
+    painter.text(
+        egui::pos2(rect.left() + ICON_INSET, rect.center().y + 1.0),
+        egui::Align2::CENTER_CENTER,
+        icon,
+        egui::FontId::proportional(16.0),
+        if selected {
+            tone
+        } else {
+            theme::icon_color(ui.ctx())
+        },
+    );
+    painter.text(
+        egui::pos2(rect.left() + LABEL_INSET, rect.center().y),
+        egui::Align2::LEFT_CENTER,
+        label,
+        egui::FontId::proportional(LABEL_SIZE),
+        tone,
+    );
     response
 }
 
 /// 品牌头：Logo + 「字在」+ 「更自在的输入」，层级与安装器、设计稿一致。
 fn brand(ui: &mut egui::Ui) {
     ui.horizontal(|ui| {
-        ui.add_space(4.0);
+        ui.add_space(2.0);
         if let Some(texture) = logo(ui.ctx()) {
             ui.add(egui::Image::new(&texture).fit_to_exact_size(egui::vec2(LOGO_SIZE, LOGO_SIZE)));
         }
-        ui.add_space(8.0);
+        ui.add_space(6.0);
         ui.vertical(|ui| {
             ui.label(egui::RichText::new("字在").size(BRAND_SIZE).strong());
             ui.label(

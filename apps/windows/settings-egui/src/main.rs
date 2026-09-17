@@ -25,13 +25,13 @@ mod theme;
 #[cfg(windows)]
 mod widgets;
 
-/// 窗口初始大小，与正式设置程序的观感对齐。
+/// 窗口初始大小：导航 168 + 正文一列，够放「标签 + 184 宽的控件」，不铺满半个屏幕。
 #[cfg(windows)]
-const WINDOW_SIZE: [f32; 2] = [980.0, 700.0];
+const WINDOW_SIZE: [f32; 2] = [700.0, 560.0];
 
-/// 窗口最小大小：再小卡片里的「标签 + 控件」两列就挤了。
+/// 窗口最小大小：再小控件列就开始挤标签了。
 #[cfg(windows)]
-const MIN_WINDOW_SIZE: [f32; 2] = [760.0, 520.0];
+const MIN_WINDOW_SIZE: [f32; 2] = [620.0, 460.0];
 
 #[cfg(windows)]
 fn main() -> eframe::Result<()> {
