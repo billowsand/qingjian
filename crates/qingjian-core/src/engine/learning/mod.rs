@@ -16,21 +16,6 @@ pub use learner::{Learner, NoLearner};
 pub(super) use muted::MutedLearner;
 
 impl Engine {
-    /// 取回释义兜底写好的释义，记进译者（个人释义表）；返回学了几条。壳定时调，不阻塞。
-    /// 结果的语言与当前学习语言对不上（中途切过语言）就丢。
-    pub fn poll_glosses(&mut self) -> usize {
-        let filled = self.gloss_filler.poll();
-        let mut learned = 0;
-        for gloss in filled {
-            if gloss.translation.language == self.translator.language() {
-                tracing::debug!(word = %gloss.word, "释义兜底写入个人释义表");
-                self.translator.learn(&gloss.word, gloss.translation);
-                learned += 1;
-            }
-        }
-        learned
-    }
-
     /// 当前学习语言的词汇汇总（偏好设置「统计」页）。
     pub fn vocabulary_summary(&self) -> VocabularySummary {
         self.vocabulary.summary(self.translator.language())
@@ -81,18 +66,16 @@ impl Engine {
     pub(super) fn meter_commit(&mut self, text: &str, source: InputSource, english_word: bool) {
         let mut usage = Usage::of_text(text);
         usage.words = match source {
-            InputSource::Word | InputSource::Cloud => 1,
-            InputSource::Sentence | InputSource::CloudSentence => {
-                sentence::segment_text(text, &*self.language_model).map_or(usage.hanzi, |clauses| {
+            InputSource::Word => 1,
+            InputSource::Sentence => sentence::segment_text(text, &*self.language_model)
+                .map_or(usage.hanzi, |clauses| {
                     clauses.iter().map(|words| words.len() as u64).sum()
-                })
-            }
+                }),
             InputSource::English
             | InputSource::Custom
             | InputSource::Shortcut
             | InputSource::Emoji
-            | InputSource::Raw
-            | InputSource::Translation => 0,
+            | InputSource::Raw => 0,
         };
         if source == InputSource::Raw && !english_word {
             usage.english_words = 0;
@@ -147,11 +130,11 @@ impl Engine {
         self.log_sequence
     }
 
-    /// 用户要求删掉一个候选（修饰键 + 数字）：中文词与云端词交给 Learner 删用户词、清学习；英文词删个人英文词；
+    /// 用户要求删掉一个候选（修饰键 + 数字）：中文词交给 Learner 删用户词、清学习；英文词删个人英文词；
     /// 整句、快捷候选、emoji 没什么可删。删完缓存作废，它也不再当下一个词的上文。
     pub fn forget(&mut self, candidate: &Candidate) -> Forgotten {
         let forgotten = match candidate.kind {
-            CandidateKind::Chinese | CandidateKind::Cloud => self.learner.forget(&candidate.text),
+            CandidateKind::Chinese => self.learner.forget(&candidate.text),
             CandidateKind::English => Forgotten {
                 user_word: self.learner.forget_english(&candidate.text),
                 learning: false,

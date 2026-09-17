@@ -13,7 +13,7 @@ TSV 解析、查询与生成工具把 `lue` / `nue` 统一成 `lve` / `nve`。
 ## crates/qingjian-core
 
 模块：`composition` / `parser` / `correction`（拼写纠错：整段一处编辑的候选纠正 + `typo` 音节级敲错变体表，后者进整句词图当带代价的边）/
-`candidate` / `ranking` / `shortcut` / `sentence` / `fuzzy` / `shuangpin`（双拼：四套方案键位表、键 → 全拼解码与消耗换算）/ `zhuyin`（大千注音：键 → 注音符号 → 拼音，`[general] zhuyin` 开关，声调只判音节完整不进查询）/ `emoji` /
+`candidate` / `ranking` / `shortcut` / `sentence` / `shuangpin`（双拼：四套方案键位表、键 → 全拼解码与消耗换算）/ `zhuyin`（大千注音：键 → 注音符号 → 拼音，`[general] zhuyin` 开关，声调只判音节完整不进查询）/ `emoji` /
 `english`（英文词候选：精确词 / 前缀补全 / 一处编辑纠正，给中文模式下的中英混输用；英文模式本身是纯直通，不出候选）/
 `fuma`（辅码：字级形码表 `FumaTable`，每行 `字=两码`，表在 `assets/fuma/xiaohe.txt`；
   词组辅码不存表，`expected_codes` 运行时按「单字两码、多字首字第 1 码 + 末字第 1 码」现算，`matches` 严格过滤，首末字不在表里即不匹配；
@@ -23,7 +23,7 @@ TSV 解析、查询与生成工具把 `lue` / `nue` 统一成 `lve` / `nve`。
   **两个键**（切不成一个音节的一对小写键，或含大写）没有歧义，从解码里剥掉并只留匹配的候选（`FumaCodes::Both`），
   第一键大写时两码反转。注音模式下整套不介入（`fuma_scheme` 一并挡掉）。判定挂在每次 `Engine::decode` 上，
   所以写成零分配：末键按字节看，`decode_keys` 返回 `Cow`，辅码关着时原样借用键串。
-  两码那档在 `query_inner` rank 前按 `expected_codes` 严格过滤，云端词在 `validate_cloud_words` 里过同一道闸，
+  两码那档在 `query_inner` rank 前按 `expected_codes` 严格过滤，
   不出英文候选与 emoji，整句在 `plain_sentence` 里同规则过滤；首码那档只置顶，什么都不排除。
   上屏消耗：两码那档盖满拼音就连 2 键一起吃，盖不满的由 `commit::consume_scope` 丢掉；
   首码那档由 `commit::consumed_first_code` 判断——盖满辅码键之前那段拼音、首码又对得上的才多吃那一键，
@@ -52,7 +52,7 @@ TSV 解析、查询与生成工具把 `lue` / `nue` 统一成 `lve` / `nve`。
 - `FrequencyLearner`：用户选择次数（`user.tsv`）、按输入串记的选择（`user-choices.tsv`，词级排序里同输入串选过的优先）、用户词（`user-words.tsv`，主词库同格式，
   Engine 与主词库一起查）、个人英文词（`user-english.tsv`，中文模式下回车原样上屏的英文词与选过的英文候选，与随包英文词表一起出候选且在前）、
   个人敲错表（`user-typos.tsv`，接受过的 (敲的, 要的) 音节对，词图敲错边与整段纠错的代价按它打折）与个人 n-gram（`user-ngram.tsv`，Core `sentence::UserNgram`，
-  二元 + 三元在线计数，整句转换与词级排序里与静态模型插值；Tab 接受的云端整句按 `sentence::segment_text` 切词后也记；
+  二元 + 三元在线计数，整句转换与词级排序里与静态模型插值；
   连着选出的两个词记够次数自动造词进用户词，一段拼音分几次选完的合成词记两次也造）。
 - `InputLog`：输入日志（`input-log.jsonl`，每次上屏一行：敲的键、切分、看到的前几个候选、选了第几个、来源、纠错、撤销，
   Core `InputLogger` trait 的落盘实现，`[general] input_log` 缺省开，只写本机，给离线回归评测与个人模型用）。
@@ -62,22 +62,6 @@ TSV 解析、查询与生成工具把 `lue` / `nue` 统一成 `lve` / `nve`。
   Engine `annotate` 据此填 `Sense::fresh`，看到轮次不到 `FRESH_UNTIL` = 3 的译词壳里画橙色；「看到」按上屏那一刻屏幕上那一页算，壳每次画完 `Engine::note_displayed` 告知当前页）。
 - 各表落盘走 Core `storage::write_atomic`（临时文件 + fsync + 改名），加载按行容错（坏行警告跳过，真读不了壳退回内存学习），
   壳激活期间每 60 秒 `Engine::flush_learning`；IMK 回调边界 `imk::catch_panic` 拦 panic、缓冲区字母原样上屏（见 architecture.md「崩溃不丢」）。
-
-## crates/qingjian-predict
-
-- `CloudPredictor`：`Predictor` trait 的网络实现（async-openai，OpenAI 兼容接口，默认 DeepSeek），后台线程防抖 / 缓存 / 超时，`submit` / `poll` 非阻塞。
-  `PredictConfig` 是配置的 `[predict]` 分节。只在组句中联想，一次请求给云端词（容错校验后补进候选第一页末尾 `[predict] slots` 格，缺省 2，不预留不占位，
-  前面的本地候选不挪；排布在 Core `CandidateLayout`）和整句补全（preedit 右侧，Tab）；上屏后不联想，本地历史不进请求。
-- `CloudGlossFiller`：释义兜底（Core `GlossFiller` trait，与 Predictor 分开的线程与通道，攒 1.5 秒 / 8 个词发一次，问过不再问）：
-  随包释义表没有的词库词 / 云端词上屏后入队，结果壳每秒 `Engine::poll_glosses` 经 `Translator::learn` 写进 `qingjian-translate::PersonalGlossary`
-  （`user-glossary-<语言>.tsv`，`LayeredTranslator` 个人表优先）；随云联想开关一起开。
-- 自建服务（LM Studio / Ollama / llama.cpp）与云端服务商的两个差别集中在 `endpoint.rs`，按地址（回环 / 私有网段 / `.local`）判一次：
-  不发 `response_format: json_object`（LM Studio 只认 `json_schema` / `text`，收到 `json_object` 直接 400），
-  地址只有路径为空时补 `/v1`（`http://127.0.0.1:12345` → `.../v1`，漏了会得到 `Unexpected endpoint or method.`），
-  没填密钥时给个占位值（自建服务不校验）。不发 JSON 模式后模型偶尔把 JSON 包在 ``` 围栏或解释里，`prompt::parse_reply` 先整段、
-  再剥围栏、最后取第一个 `{` 到最后一个 `}`。
-- 问字键（缺省 `u`）开头是问字模式（`PredictionKind::Question`，答案带读音、不校验拼音），`?` 开头要 `ModeKeys::question_mark` 开着才算（配置 `[shortcut] question_mark`，缺省关，壳用 `Engine::takes_question_mark` 决定空缓冲区的 `?` 是入口还是标点）；`PredictionKind::Translate` 是壳里快捷键触发的「翻译选中文字」
-  （双向：汉字为主译成学习语言，外文译回中文，`prediction::translation_target`），译文走结果的 `sentence`。
 
 ## crates/qingjian-format
 
@@ -105,7 +89,7 @@ Engine 侧在 `engine/rescoring/`：接了打分器就取 Viterbi 前 `RESCORE_P
 
 ## crates/qingjian-platform
 
-`Config`（TOML 配置文件，`[general]` / `[shortcut]` / `[fuzzy]` / `[dictionaries]` / `[predict]` 分节，首次运行写模板，
+`Config`（TOML 配置文件，`[general]` / `[shortcut]` / `[dictionaries]` 分节，首次运行写模板，
 `set_value` 用 toml_edit 原地改键保留注释；`[model] enabled` 本地整句模型开关，`LocalModelConfig`）；`extra_dictionaries` 列出 / 加载随包领域词库与用户 `dicts/`
 （Windows Server 与设置程序共用，同名 `.qj` 优先于 `.tsv`）；`protocol` 模块是 Windows Server ↔ TSF DLL 的 IPC 协议类型
 （`ClientMessage` / `ServerMessage` / `Frame` / `PreeditSegment`，全 serde，两端共用，见 `docs/design/architecture.md`「Windows：TSF」）。
@@ -123,7 +107,6 @@ Engine 侧在 `engine/rescoring/`：接了打分器就取 Viterbi 前 `RESCORE_P
 
 测试工具，`cargo run -p qingjian-cli -- kaifa`。
 
-- `--predict` 强制开云联想并等结果打印，交互模式下上屏后也联想。
 - `--typing` 逐键计时（性能测试用 release 构建跑，目标每键 10 ms 以内）。
 - `--chinese-first` 打开中文优先（`[general] chinese_first = true` 的排法），配合 `--replay` 比两种英文词位置。
 - `--replay <input-log.jsonl>` 回放评测：把日志里每次上屏的键重新喂给引擎，按来源算首选 / 前五命中率、平均名次、不在候选的条数，打印没命中的例子（`--misses N`）；

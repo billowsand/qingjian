@@ -181,7 +181,7 @@ impl Router {
         self.requery_rescored();
     }
 
-    /// 分回来了：按重排后的顺序重建候选布局，云端词与整句补全留着，重画当前页。
+    /// 分回来了：按重排后的顺序重建候选布局，重画当前页。
     fn requery_rescored(&mut self) {
         let Ok(query) = self.engine.query() else {
             return;
@@ -194,16 +194,7 @@ impl Router {
         else {
             return;
         };
-        let cloud = layout.cloud().to_vec();
-        let mut rebuilt = CandidateLayout::new(
-            query.candidates.items.clone(),
-            self.config.page_size,
-            self.config.cloud_slots,
-        );
-        if !cloud.is_empty() {
-            rebuilt.set_cloud(cloud);
-        }
-        *layout = rebuilt;
+        *layout = CandidateLayout::new(query.candidates.items.clone(), self.config.page_size);
         *preedit = query.marked_segments().iter().map(Into::into).collect();
         *cursor = query.marked_cursor();
         let frame = self.current_frame();

@@ -12,7 +12,6 @@ pub mod emoji;
 pub mod engine;
 pub mod english;
 pub mod fuma;
-pub mod fuzzy;
 pub mod history;
 pub mod parser;
 pub mod punctuation;
@@ -33,18 +32,14 @@ pub use composition::Composition;
 pub use correction::Correction;
 pub use emoji::EmojiTable;
 pub use engine::{
-    AnnotationReport, BOOKS, Book, CloudWord, CommitEntry, Engine, EngineSession, FRESH_UNTIL,
-    FilledGloss, Forgotten, GlossFiller, INPUT_LOG_VERSION, InputLogEntry, InputLogger,
-    InputSource, Learner, LevelCount, MarkedKind, MarkedSegment, ModeKeys, NEURAL_MARGIN,
-    NEURAL_WEIGHT, NoGlossFiller, NoInputLogger, NoLearner, NoPredictor, NoTranslator,
-    NoUsageMeter, NoVocabularyTracker, Prediction, PredictionKind, PredictionPolicy,
-    PredictionRequest, Predictor, QUESTION_PREFIX, Query, RESCORE_CONTEXT_CHARS, SurroundingText,
-    Timings, Translator, Usage, UsageMeter, UsageSummary, VocabularySummary, VocabularyTracker,
-    book_scale,
+    AnnotationReport, BOOKS, Book, CommitEntry, Engine, EngineSession, FRESH_UNTIL, Forgotten,
+    INPUT_LOG_VERSION, InputLogEntry, InputLogger, InputSource, Learner, LevelCount, MarkedKind,
+    MarkedSegment, NEURAL_MARGIN, NEURAL_WEIGHT, NoInputLogger, NoLearner, NoTranslator,
+    NoUsageMeter, NoVocabularyTracker, Query, RESCORE_CONTEXT_CHARS, Timings, Translator, Usage,
+    UsageMeter, UsageSummary, VocabularySummary, VocabularyTracker, book_scale,
 };
 pub use fuma::FumaTable;
 pub use fuma::Scheme as FumaScheme;
-pub use fuzzy::FuzzyRules;
 pub use history::InputHistory;
 pub use parser::{ParseError, Segmentation};
 pub use punctuation::Punctuation;

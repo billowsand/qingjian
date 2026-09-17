@@ -3,15 +3,6 @@
 use super::*;
 
 impl Engine {
-    /// 精确匹配自定义输入码时，数字键应选择候选。
-    pub(super) fn has_custom_phrase(&self) -> bool {
-        !self.english_mode
-            && self
-                .custom_phrases
-                .iter()
-                .any(|p| p.enabled && p.code == self.composition.scope())
-    }
-
     /// 所有普通候选完成排序后按输入码固定位置。
     pub(super) fn insert_custom_phrases(&self, items: &mut Vec<Candidate>) {
         if self.english_mode {
@@ -40,13 +31,7 @@ impl Engine {
 
     /// 日期 / 时间 / 星期这类快捷候选插在本地首选之后：`rq` 首选仍是词库里的词，快捷写法紧随其后。
     pub(super) fn insert_shortcuts(&self, items: &mut Vec<Candidate>, scope: &str) {
-        let expression_char =
-            if self.zhuyin && crate::zhuyin::layout::map_key(self.modes().expression).is_some() {
-                '\0'
-            } else {
-                self.modes().expression
-            };
-        let shortcuts = shortcut::candidates(scope, expression_char, &jiff::Zoned::now());
+        let shortcuts = shortcut::candidates(scope, &jiff::Zoned::now());
         if shortcuts.is_empty() {
             return;
         }

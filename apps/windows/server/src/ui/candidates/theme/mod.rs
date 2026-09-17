@@ -44,9 +44,6 @@ pub(crate) struct Theme {
 
     pub index_color: COLORREF,
 
-    /// 云联想的云朵与文字。
-    pub cloud_color: COLORREF,
-
     /// preedit 输入光标。
     pub caret_color: COLORREF,
 
@@ -93,7 +90,6 @@ impl Theme {
             pos_color: palette.pos_color,
             fresh_color: palette.fresh_color,
             index_color: palette.index_color,
-            cloud_color: palette.cloud_color,
             caret_color: palette.caret_color,
             correction_color: palette.correction_color,
             background: palette.background,

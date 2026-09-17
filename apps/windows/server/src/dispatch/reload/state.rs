@@ -4,7 +4,6 @@ use std::path::PathBuf;
 use std::time::{Instant, SystemTime};
 
 use qingjian_platform::DictionariesConfig;
-use qingjian_predict::PredictConfig;
 
 /// 热加载状态。
 pub(crate) struct ConfigReload {
@@ -25,9 +24,6 @@ pub(crate) struct ConfigReload {
 
     /// 上次看到的 mtime。
     pub(super) last_mtime: Option<SystemTime>,
-
-    /// 已应用的 `[predict]`。
-    pub(super) applied_predict: PredictConfig,
 
     /// 已应用的 `[dictionaries]`。
     pub(super) applied_dictionaries: DictionariesConfig,

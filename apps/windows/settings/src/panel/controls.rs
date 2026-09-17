@@ -124,7 +124,7 @@ pub(super) fn page(title: &str, body: impl Into<View>) -> View {
                 .into(),
             body.into(),
             TextBlock::new()
-                .text("●  本地处理，云服务由你决定")
+                .text("●  全部本地处理，不上传任何数据")
                 .font_size(12.0)
                 .opacity(0.6)
                 .into(),

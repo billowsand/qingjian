@@ -53,8 +53,8 @@ fn unparsable_tail_is_kept_aside() {
         .clone();
     engine.commit(&kaifa);
     assert_eq!(engine.composition().text(), "v");
-    // 剩下的 v 进表达式模式：没候选但也不报错
-    assert!(engine.query().unwrap().candidates.items.is_empty());
+    // 剩下的 v 切不动音节：查询报错，由壳回车原样上屏
+    assert!(engine.query().is_err());
 }
 
 #[test]
@@ -246,37 +246,6 @@ fn shortcuts_follow_the_first_local_candidate() {
     assert!(engine.composition().is_empty());
 }
 
-#[test]
-fn expression_mode_skips_pinyin_and_evaluates() {
-    let mut engine = self::engine();
-    assert!(!engine.expression_mode());
-    engine.set_input("v1+2");
-    assert!(engine.expression_mode());
-    let query = engine.query().unwrap();
-    assert_eq!(query.marked_text(), "v1+2");
-    assert_eq!(query.marked_cursor(), 4);
-    assert_eq!(query.candidates.items[0].text, "3");
-    assert_eq!(query.candidates.items[0].kind, CandidateKind::Shortcut);
-    assert_eq!(query.candidates.items[1].text, "1+2=3");
-    let result = query.candidates.items[0].clone();
-    assert_eq!(engine.commit(&result), "3");
-    assert!(engine.composition().is_empty());
-
-    // 只有 v：候选为空但不报错，preedit 照显示
-    engine.set_input("v");
-    let query = engine.query().unwrap();
-    assert!(query.candidates.items.is_empty());
-    assert_eq!(query.marked_text(), "v");
-
-    // v 开头的英文词仍能混输
-    let words = WordList::parse("very\n").unwrap();
-    let mut engine = self::engine().with_english(words);
-    engine.set_input("very");
-    let query = engine.query().unwrap();
-    assert_eq!(query.candidates.items[0].text, "very");
-    assert_eq!(query.candidates.items[0].kind, CandidateKind::English);
-}
-
 /// 只认句首的 开发 与 开发 → 先 的假模型：让两词路径压过整段的词。
 struct XianModel;
 
@@ -300,21 +269,6 @@ fn a_word_spelling_the_sentence_keeps_its_rank_unless_its_reading_differs() {
     let all = texts_of(&engine);
     assert_eq!(&all[..2], ["开发线", "开发先"]);
     assert_eq!(all.iter().filter(|t| *t == "开发先").count(), 1);
-
-    // 同文本的词是按别的读音（xiang，靠模糊音 an-ang 对上）收的：那条错读音的词让位，整句以正确读音排最前
-    let sample = format!("{SAMPLE}开发线\tkai fa xian\t5000\n开发先\tkai fa xiang\t1\n");
-    let mut engine =
-        Engine::new(Dictionary::parse(&sample).unwrap()).with_language_model(Box::new(XianModel));
-    engine.set_fuzzy(FuzzyRules {
-        an_ang: true,
-        ..FuzzyRules::default()
-    });
-    engine.set_input("kaifaxian");
-    let items = engine.query().unwrap().candidates.items;
-    assert_eq!(items[0].text, "开发先");
-    assert_eq!(items[0].kind, CandidateKind::Sentence);
-    assert_eq!(items[0].syllables, ["kai", "fa", "xian"]);
-    assert_eq!(items.iter().filter(|c| c.text == "开发先").count(), 1);
 }
 
 #[test]

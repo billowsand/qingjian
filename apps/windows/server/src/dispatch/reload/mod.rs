@@ -1,5 +1,5 @@
 //! 配置热加载：空闲时看 `config.toml` 的 mtime，改了就重读并应用（与 macOS 壳对齐）。
-//! 便宜的设置无条件重设；云联想 / 附加词库只在对应项变了才重建。热加载状态在 [`ConfigReload`]。
+//! 便宜的设置无条件重设；附加词库只在对应项变了才重建。热加载状态在 [`ConfigReload`]。
 
 mod state;
 
@@ -7,9 +7,8 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime};
 
-use qingjian_core::{Engine, FumaScheme, FumaTable, NoGlossFiller, NoPredictor};
+use qingjian_core::{FumaScheme, FumaTable};
 use qingjian_platform::{Config, extra_dictionaries};
-use qingjian_predict::{CloudGlossFiller, CloudPredictor, PredictConfig};
 
 pub(super) use self::state::ConfigReload;
 
@@ -39,33 +38,6 @@ pub fn load_fuma(root: &Path, scheme: FumaScheme) -> Option<Arc<FumaTable>> {
     }
 }
 
-/// 按 `[predict]` 接云联想与释义兜底；关着或缺密钥就退回本地实现。启动与热加载共用。
-pub fn attach_cloud(engine: &mut Engine, predict: &PredictConfig) {
-    if !predict.enabled {
-        tracing::info!("云联想未开启（[predict] enabled = false）");
-        engine.set_predictor(Box::new(NoPredictor));
-        engine.set_gloss_filler(Box::new(NoGlossFiller));
-        return;
-    }
-    match CloudPredictor::new(predict) {
-        Ok(predictor) => {
-            engine.set_predictor(Box::new(predictor));
-            tracing::info!(model = %predict.model, "云联想已接入");
-        }
-        Err(error) => {
-            tracing::warn!(%error, "云联想接入失败（缺 API key？），退回本地候选");
-            engine.set_predictor(Box::new(NoPredictor));
-        }
-    }
-    match CloudGlossFiller::new(predict) {
-        Ok(filler) => engine.set_gloss_filler(Box::new(filler)),
-        Err(error) => {
-            tracing::warn!(%error, "释义兜底未启用");
-            engine.set_gloss_filler(Box::new(NoGlossFiller));
-        }
-    }
-}
-
 impl Router {
     /// `config.toml` 路径；没开热加载（测试）时为 `None`。
     pub(super) fn config_path(&self) -> Option<&Path> {
@@ -74,7 +46,7 @@ impl Router {
             .map(|reload| reload.config_path.as_path())
     }
 
-    /// 开启热加载：记下路径与当前已应用的 predict / dictionaries。
+    /// 开启热加载：记下路径与当前已应用的 dictionaries。
     pub fn watch_config(
         &mut self,
         config: &Config,
@@ -91,7 +63,6 @@ impl Router {
             bundled_dicts_dir,
             user_dir,
             last_mtime,
-            applied_predict: config.predict.clone(),
             applied_dictionaries: config.dictionaries.clone(),
         });
     }
@@ -137,12 +108,10 @@ impl Router {
 
     /// 应用新配置。
     fn apply_config(&mut self, config: &Config) {
-        self.engine.set_fuzzy(config.fuzzy);
         self.engine.set_shuangpin(config.general.shuangpin());
         self.apply_fuma(config);
         self.engine.set_zhuyin_mode(config.general.zhuyin);
         self.engine.set_learning(config.general.learning);
-        self.engine.set_mode_keys(config.shortcut.mode);
         self.engine.set_chinese_first(config.general.chinese_first);
         let previous = self.config.render_settings();
         self.config = RouterConfig::from(config);
@@ -156,10 +125,6 @@ impl Router {
         let Some(reload) = &mut self.reload else {
             return;
         };
-        if config.predict != reload.applied_predict {
-            attach_cloud(&mut self.engine, &config.predict);
-            reload.applied_predict = config.predict.clone();
-        }
         if config.dictionaries != reload.applied_dictionaries {
             // 别传用户目录本身：那里的学习数据 .tsv 会被当词库装。
             let dicts = extra_dictionaries::load(

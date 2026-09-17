@@ -18,7 +18,6 @@ qingjian-core.workspace = true
 qingjian-dictionary.workspace = true
 qingjian-learning.workspace = true
 qingjian-platform.workspace = true
-qingjian-predict.workspace = true
 qingjian-lm.workspace = true
 qingjian-neural.workspace = true
 qingjian-translate.workspace = true

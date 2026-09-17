@@ -14,8 +14,7 @@ Windows 端的整体结构、为什么是两个 package、构建与注册步骤�
 - **COM 层**（`com`，`cfg(windows)`）：实现 TSF 要求的 COM 接口。`DllGetClassObject` → `IClassFactory` →
   `#[implement(ITfTextInputProcessor, ITfKeyEventSink)]`；`Activate` 时把自己挂到击键管理器上收键、并连
   Server；`OnKeyDown` 转发按键，`edit_session` / `composition` 经 `ITfContext` 做 preedit 内联与上屏，
-  `anchor` 把组句 / 选区的屏幕矩形报给 Server 摆候选窗口（窗口在 Server 进程自绘），`poll` 定时拉取云联想的异步
+  `anchor` 把组句 / 选区的屏幕矩形报给 Server 摆候选窗口（窗口在 Server 进程自绘），`poll` 定时拉取重排的异步
   结果。`DllRegisterServer`（`registry`）写 InprocServer32 并经 `ITfInputProcessorProfiles` /
   `ITfCategoryMgr` 把字在登记成键盘类文本服务。
-
 DLL 侧日志在 `%LOCALAPPDATA%\Qingjian\logs\tsf.<日期>.log`（与 Server / 设置程序同目录，前缀区分），按天一个文件、只留最近 7 天。

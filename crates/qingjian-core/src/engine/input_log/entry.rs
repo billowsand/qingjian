@@ -27,7 +27,7 @@ pub struct CommitEntry {
     /// 来源。
     pub source: InputSource,
 
-    /// 选的是查询时候选列表里的第几个（从 0 数）；不在列表里（晚到的云端词、原样上屏）为 `None`。
+    /// 选的是查询时候选列表里的第几个（从 0 数）；不在列表里（原样上屏）为 `None`。
     pub index: Option<usize>,
 
     /// 查询时排在前面的几个候选文本，用来离线算首选命中率。
@@ -110,19 +110,6 @@ pub enum InputLogEntry {
     Passthrough {
         /// 攒下的字符。
         text: String,
-    },
-
-    /// 云端联想的结果到达并展示了：给过用户什么，紧接着的 `commit` 说明接没接受。
-    Prediction {
-        /// 请求时的作用域（原始键）。
-        scope: String,
-
-        /// 云端词文本。
-        words: Vec<String>,
-
-        /// 整句补全。
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        sentence: Option<String>,
     },
 
     /// 上文链断了（切换应用、失焦、清空）：文本流的段落边界。

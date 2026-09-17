@@ -21,7 +21,6 @@ qingjian-learning.workspace = true
 qingjian-lm.workspace = true
 qingjian-neural.workspace = true
 qingjian-platform.workspace = true
-qingjian-predict.workspace = true
 qingjian-render.workspace = true
 dotenvy.workspace = true
 thiserror.workspace = true

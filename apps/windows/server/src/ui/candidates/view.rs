@@ -1,5 +1,5 @@
 //! 候选窗口的绘制与测量。布局镜像 macOS 端：竖排 `序号  候选词   读音·词性 译文`，
-//! 横排 `序号 候选词` 左右排、高亮项的译文另起一行；顶部一行拼音，右侧整句补全。
+//! 横排 `序号 候选词` 左右排、高亮项的译文另起一行；顶部一行拼音。
 
 use qingjian_platform::LayoutMode;
 use qingjian_platform::protocol::PreeditKind;
@@ -12,9 +12,6 @@ use windows::Win32::Graphics::Gdi::{
 
 use super::RenderData;
 use super::theme::Theme;
-
-/// 云端候选词前的小云朵（macOS 用 SF Symbol `cloud`）。
-const CLOUD_GLYPH: &str = "☁";
 
 /// 竖排的列宽与统一行高。
 struct Columns {
@@ -67,7 +64,7 @@ fn horizontal_size(hdc: HDC, data: &RenderData) -> (i32, i32) {
     for row in &data.rows {
         let index = measure(hdc, theme.index_font, &row.index);
         let text = measure(hdc, theme.text_font, &row.text);
-        width += index.cx + index_gap + cloud_prefix_width(hdc, theme, row) + text.cx;
+        width += index.cx + index_gap + text.cx;
         row_height = row_height.max(text.cy + theme.row_padding * 2);
     }
     width += theme.column_gap * (data.rows.len().saturating_sub(1)) as i32 + highlight_inset * 2;
@@ -112,10 +109,9 @@ pub(super) fn paint(hdc: HDC, data: &RenderData, client: RECT) {
     }
 }
 
-/// 顶部拼音行：各段按样式画、自己画光标、右侧整句补全。返回占用高度。
-/// 拼音配成「只在行内」时这行只剩整句补全，照画（与字在渲染器的 `has_top_line` 一致）。
+/// 顶部拼音行：各段按样式画、自己画光标。返回占用高度。
 fn draw_top_line(hdc: HDC, data: &RenderData, y: i32) -> i32 {
-    if data.preedit.is_empty() && data.sentence.is_none() {
+    if data.preedit.is_empty() {
         return 0;
     }
     let theme = &data.theme;
@@ -141,7 +137,7 @@ fn draw_top_line(hdc: HDC, data: &RenderData, y: i32) -> i32 {
         }
         x += width;
     }
-    // 没有拼音就没有光标可画（「只在行内」时这行只有整句补全）
+    // 没有拼音就没有光标可画（「只在行内」时没有顶部行）
     if !data.preedit.is_empty() {
         let before = concat_before_cursor(&data.preedit, data.cursor);
         let caret_x = theme.padding + measure(hdc, theme.annotation_font, &before).cx;
@@ -155,31 +151,7 @@ fn draw_top_line(hdc: HDC, data: &RenderData, y: i32) -> i32 {
     }
     // 只敲了辅码首码：高亮候选的第二码画成淡色幽灵字，告诉用户下一键敲什么
     if let Some(hint) = &data.fuma_hint {
-        x += draw_text(hdc, theme.annotation_font, theme.pos_color, x, top, hint);
-    }
-    if let Some(sentence) = &data.sentence {
-        let sentence_x = if data.preedit.is_empty() {
-            x
-        } else {
-            x + theme.column_gap
-        };
-        let cloud = cloud_glyph_width(hdc, theme);
-        draw_text(
-            hdc,
-            theme.annotation_font,
-            theme.cloud_color,
-            sentence_x,
-            top,
-            CLOUD_GLYPH,
-        );
-        draw_text(
-            hdc,
-            theme.annotation_font,
-            theme.gloss_color,
-            sentence_x + cloud,
-            top,
-            sentence,
-        );
+        draw_text(hdc, theme.annotation_font, theme.pos_color, x, top, hint);
     }
     height + theme.row_padding * 2
 }
@@ -239,7 +211,7 @@ fn draw_rows(hdc: HDC, data: &RenderData, mut y: i32, width: i32) {
             baseline + small_offset,
             &row.index,
         );
-        draw_word(hdc, theme, row, text_x, baseline, small_offset);
+        draw_word(hdc, theme, row, text_x, baseline);
         let mut x = annotation_x;
         for (segment, tone) in &row.annotation {
             x += draw_text(
@@ -284,8 +256,7 @@ fn draw_horizontal(hdc: HDC, data: &RenderData, y: i32, width: i32) {
     for (i, row) in data.rows.iter().enumerate() {
         let index_width = measure(hdc, theme.index_font, &row.index).cx;
         let text_size = measure(hdc, theme.text_font, &row.text);
-        let item_width =
-            index_width + index_gap + cloud_prefix_width(hdc, theme, row) + text_size.cx;
+        let item_width = index_width + index_gap + text_size.cx;
         if i == data.highlight {
             let rect = RECT {
                 left: x - highlight_inset,
@@ -304,14 +275,7 @@ fn draw_horizontal(hdc: HDC, data: &RenderData, y: i32, width: i32) {
             baseline + small_offset,
             &row.index,
         );
-        draw_word(
-            hdc,
-            theme,
-            row,
-            x + index_width + index_gap,
-            baseline,
-            small_offset,
-        );
+        draw_word(hdc, theme, row, x + index_width + index_gap, baseline);
         x += item_width + theme.column_gap;
     }
     if let Some(footer) = &data.footer {
@@ -343,7 +307,7 @@ fn draw_horizontal(hdc: HDC, data: &RenderData, y: i32, width: i32) {
 }
 
 fn top_line_size(hdc: HDC, data: &RenderData) -> (i32, i32) {
-    if data.preedit.is_empty() && data.sentence.is_none() {
+    if data.preedit.is_empty() {
         return (0, 0);
     }
     let theme = &data.theme;
@@ -356,12 +320,6 @@ fn top_line_size(hdc: HDC, data: &RenderData) -> (i32, i32) {
         if let Some(hint) = &data.fuma_hint {
             width += measure(hdc, theme.annotation_font, hint).cx;
         }
-    }
-    if let Some(sentence) = &data.sentence {
-        if !data.preedit.is_empty() {
-            width += theme.column_gap;
-        }
-        width += cloud_glyph_width(hdc, theme) + measure(hdc, theme.annotation_font, sentence).cx;
     }
     (width, height + theme.row_padding * 2)
 }
@@ -382,9 +340,7 @@ fn columns(hdc: HDC, theme: &Theme, rows: &[Row]) -> Columns {
             .map(|(s, _)| measure(hdc, theme.annotation_font, s).cx)
             .sum();
         columns.index_width = columns.index_width.max(index.cx);
-        columns.text_width = columns
-            .text_width
-            .max(text.cx + cloud_prefix_width(hdc, theme, row));
+        columns.text_width = columns.text_width.max(text.cx);
         columns.annotation_width = columns.annotation_width.max(annotation);
         columns.row_height = columns.row_height.max(text.cy + theme.row_padding * 2);
     }
@@ -396,36 +352,16 @@ fn small_offset(hdc: HDC, theme: &Theme, text_height: i32) -> i32 {
     ((text_height - line_height(hdc, theme.annotation_font)) / 2).max(0)
 }
 
-/// 云朵字形加它与后面文字的间隔。
-fn cloud_glyph_width(hdc: HDC, theme: &Theme) -> i32 {
-    measure(hdc, theme.annotation_font, CLOUD_GLYPH).cx + theme.column_gap / 2
-}
-
-fn cloud_prefix_width(hdc: HDC, theme: &Theme, row: &Row) -> i32 {
-    if row.cloud {
-        cloud_glyph_width(hdc, theme)
-    } else {
-        0
-    }
-}
-
-/// 画候选词本体，云端词前带小云朵。返回占用宽度。
-fn draw_word(hdc: HDC, theme: &Theme, row: &Row, x: i32, baseline: i32, small_offset: i32) -> i32 {
-    let prefix = cloud_prefix_width(hdc, theme, row);
-    let color = if row.cloud {
-        draw_text(
-            hdc,
-            theme.annotation_font,
-            theme.cloud_color,
-            x,
-            baseline + small_offset,
-            CLOUD_GLYPH,
-        );
-        theme.cloud_color
-    } else {
-        theme.text_color
-    };
-    prefix + draw_text(hdc, theme.text_font, color, x + prefix, baseline, &row.text)
+/// 画候选词本体。返回占用宽度。
+fn draw_word(hdc: HDC, theme: &Theme, row: &Row, x: i32, baseline: i32) -> i32 {
+    draw_text(
+        hdc,
+        theme.text_font,
+        theme.text_color,
+        x,
+        baseline,
+        &row.text,
+    )
 }
 
 fn tone_color(theme: &Theme, tone: Tone) -> COLORREF {

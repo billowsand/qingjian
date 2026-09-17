@@ -16,12 +16,11 @@ mod tuning;
 use std::time::Instant;
 
 use clap::Parser;
-use qingjian_core::{EmojiTable, Engine, FumaScheme, FumaTable, FuzzyRules, Language};
+use qingjian_core::{EmojiTable, Engine, FumaScheme, FumaTable, Language};
 use qingjian_dictionary::{Dictionary, WordList};
 use qingjian_learning::FrequencyLearner;
 use qingjian_lm::BigramModel;
 use qingjian_platform::Config;
-use qingjian_predict::CloudPredictor;
 use qingjian_translate::Glossary;
 
 use crate::args::Args;
@@ -215,25 +214,6 @@ fn build_engine(args: &Args) -> Result<Engine, CliError> {
         .clone()
         .unwrap_or_else(args::default_config_file);
     let mut config = Config::load(&config_path)?;
-    if args.predict {
-        config.predict.enabled = true;
-    }
-    if !args.fuzzy.is_empty() {
-        let mut rules = FuzzyRules::default();
-        for name in &args.fuzzy {
-            if name == "all" {
-                rules = FuzzyRules::ALL;
-            } else if !rules.enable(name) {
-                tracing::warn!(name, "不认识的模糊音规则，忽略");
-            }
-        }
-        config.fuzzy = rules;
-    }
-    if config.fuzzy.any() {
-        tracing::info!(rules = ?config.fuzzy, "模糊音已启用");
-    }
-    engine.set_fuzzy(config.fuzzy);
-    engine.set_mode_keys(config.shortcut.mode);
     if let Some(scheme) = &args.shuangpin {
         config.general.shuangpin = if scheme == "off" {
             String::new()
@@ -265,10 +245,6 @@ fn build_engine(args: &Args) -> Result<Engine, CliError> {
     }
     engine.set_shuangpin(config.general.shuangpin());
     engine.set_zhuyin_mode(config.general.zhuyin);
-    if config.predict.enabled {
-        let predictor = CloudPredictor::new(&config.predict)?;
-        engine = engine.with_predictor(Box::new(predictor));
-    }
     Ok(engine)
 }
 

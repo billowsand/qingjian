@@ -10,7 +10,7 @@ use super::{
     AUTO_WORD_MAX_CHARS, AUTO_WORD_THRESHOLD, AUTO_WORD_THRESHOLD_SAME_BUFFER,
     EXPLICIT_TRANSITION_WEIGHT, Engine, choice_key, segment_longest_prefix,
 };
-use crate::candidate::{Candidate, CandidateKind, CandidateList, Language};
+use crate::candidate::{Candidate, CandidateKind, CandidateList};
 use crate::correction::typo;
 use crate::{parser, sentence};
 use qingjian_dictionary::Dictionary;
@@ -67,7 +67,7 @@ impl Engine {
             .as_ref()
             .and_then(|t| t.senses().get(sense))
             .map(|s| s.text.clone())?;
-        self.commit_with(candidate, InputSource::Translation, Some(sense));
+        self.commit_with(candidate, InputSource::from(candidate.kind), Some(sense));
         Some(text)
     }
 
@@ -115,22 +115,6 @@ impl Engine {
             }
             // emoji 按它对应词的音节消耗拼音，不记学习
             CandidateKind::Emoji => self.consumed_by(candidate),
-            // 云端词是针对整段作用域要的（拼音可能有错，按音节对不上），上屏吃掉整段；词库里没有的记成用户词
-            CandidateKind::Cloud => {
-                if let Some(syllables) = self.learned_syllables(candidate) {
-                    let learned = Candidate {
-                        syllables,
-                        ..candidate.clone()
-                    };
-                    if !self.knows_word(&learned) {
-                        self.learner.learn_word(&learned.text, &learned.syllables);
-                    }
-                }
-                self.learner.record(candidate);
-                let (consumed, input) = self.whole_scope();
-                self.learner.record_choice(&input, &candidate.text);
-                (consumed, input)
-            }
             // 英文词与快捷候选对应整段作用域；选中的英文词记次数并进个人英文词表，下次同样的前缀它靠前
             CandidateKind::English | CandidateKind::Shortcut | CandidateKind::Custom(_) => {
                 if candidate.kind == CandidateKind::English {
@@ -163,22 +147,10 @@ impl Engine {
                 );
             }
         }
-        // 词库里有、释义表里没有的词：交给释义兜底在后台问云端，写进个人释义表，下次就有译词；私密输入中不问
-        if matches!(
-            candidate.kind,
-            CandidateKind::Chinese | CandidateKind::Cloud
-        ) && self.gloss_filler.is_enabled()
-            && !self.private
-            && self.translator.language() != Language::Chinese
-            && self.translator.translate(&candidate.text).is_none()
-        {
-            self.gloss_filler
-                .request(self.translator.language(), &candidate.text);
-        }
         self.consume_scope(consumed);
         let buffer_left = !self.composition.is_empty();
         match candidate.kind {
-            CandidateKind::Chinese | CandidateKind::Cloud => {
+            CandidateKind::Chinese => {
                 self.record_word(
                     &candidate.text,
                     &candidate.syllables,
@@ -230,18 +202,15 @@ impl Engine {
         self.history.record(&candidate.text);
         let learned = matches!(
             candidate.kind,
-            CandidateKind::Chinese | CandidateKind::Cloud | CandidateKind::Sentence
+            CandidateKind::Chinese | CandidateKind::Sentence
         );
         let commit = if learned {
             LastCommit {
                 text: candidate.text.clone(),
                 chars: candidate.text.chars().count(),
                 input,
-                chosen: matches!(
-                    candidate.kind,
-                    CandidateKind::Chinese | CandidateKind::Cloud
-                )
-                .then(|| candidate.text.clone()),
+                chosen: matches!(candidate.kind, CandidateKind::Chinese)
+                    .then(|| candidate.text.clone()),
                 transitions: std::mem::take(&mut self.recording),
                 typos,
                 erased: 0,
@@ -494,15 +463,10 @@ impl Engine {
             }
             let longest = (1..=rest.len().min(parser::MAX_SYLLABLE_LEN))
                 .rev()
-                .find(|&len| {
-                    let typed = &rest[..len];
-                    self.fuzzy.is_variant(typed, syllable) || typo::is_variant(typed, syllable)
-                });
+                .find(|&len| typo::is_variant(&rest[..len], syllable));
             if let Some(len) = longest {
                 let typed = &rest[..len];
-                if !self.fuzzy.is_variant(typed, syllable) {
-                    alignment.typos.push((typed.to_owned(), syllable.clone()));
-                }
+                alignment.typos.push((typed.to_owned(), syllable.clone()));
                 pos += len;
                 continue;
             }

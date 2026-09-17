@@ -11,12 +11,9 @@ mod correcting;
 mod decoded;
 mod extras;
 mod fuma;
-mod gloss;
 mod input_log;
 mod learning;
 mod marked;
-mod mode_keys;
-mod prediction;
 mod privacy;
 mod query;
 mod rescoring;
@@ -36,19 +33,12 @@ use qingjian_dictionary::{Dictionary, Match, WordList};
 pub use alignment::Alignment;
 pub use annotation::AnnotationReport;
 pub use commit::{LastCommit, Transition};
-pub use gloss::{FilledGloss, GlossFiller, NoGlossFiller};
 pub use input_log::{
     CommitEntry, INPUT_LOG_VERSION, InputLogEntry, InputLogger, InputSource, LOGGED_CANDIDATES,
     NoInputLogger,
 };
 pub use learning::{Forgotten, Learner, NoLearner};
 pub use marked::{MarkedKind, MarkedSegment};
-pub use mode_keys::{ModeKeys, QUESTION_PREFIX};
-pub use prediction::{
-    CloudWord, NoPredictor, Prediction, PredictionKind, PredictionPolicy, PredictionRequest,
-    Predictor, SurroundingText,
-};
-
 pub use query::Query;
 pub use session::EngineSession;
 pub use statistics::{BOOKS, Book, NoUsageMeter, Usage, UsageMeter, UsageSummary, book_scale};
@@ -63,7 +53,6 @@ use crate::composition::Composition;
 use crate::correction::{self, Correction, TypoCosts, typo};
 use crate::emoji::EmojiTable;
 use crate::english;
-use crate::fuzzy::{Expanded, FuzzyRules};
 use crate::history::InputHistory;
 use crate::parser::{self, ParseError, Segmentation};
 use crate::punctuation::Punctuation;
@@ -82,9 +71,6 @@ pub struct Engine {
 
     /// 译文提供方，缺省为 [`NoTranslator`]。
     translator: Box<dyn Translator>,
-
-    /// 前缀模式键（表达式 / 问字）。
-    modes: ModeKeys,
 
     /// 附加词库（领域词库、用户导入的），与主词库一起查词、一起进整句词图；不参与语言模型（它们没有 bigram，
     /// 走词频兜底）。壳按用户目录 `dicts/` 与配置 `[dictionaries]` 装配。
@@ -117,9 +103,6 @@ pub struct Engine {
 
     /// 中英混输时中文候选总在英文词前面（缺省关：拼音不像话的输入英文词排第一，常在中文模式里打英文词的人靠它）。
     chinese_first: bool,
-
-    /// 联想提供方，缺省为 [`NoPredictor`]。
-    predictor: Box<dyn Predictor>,
 
     /// 整句转换的语言模型，缺省为 [`NoLanguageModel`]（退化成一元词频）。
     language_model: Box<dyn LanguageModel>,
@@ -188,17 +171,11 @@ pub struct Engine {
     /// 上次记 `break` 之后有没有上屏过：没有就不再记，免得失焦一次记一条。
     committed_since_break: bool,
 
-    /// 最近一次联想请求时的作用域：结果可能在上屏之后才到，日志里要记请求时的拼音。
-    last_prediction_scope: String,
-
     /// 输入统计的累计方（打了多少字）；缺省不记。
     meter: Box<dyn UsageMeter>,
 
     /// 学习语言的词汇记录（见过 / 上屏过哪些译词）；缺省不记也不标生词。
     vocabulary: Box<dyn VocabularyTracker>,
-
-    /// 释义兜底：释义表里没有的词上屏后问云端；缺省不问。
-    gloss_filler: Box<dyn GlossFiller>,
 
     /// 候选窗口当前页上的译词（壳每次画完告知），上屏时记成「看到过」。
     displayed: Vec<(Language, String)>,
@@ -215,20 +192,8 @@ pub struct Engine {
     /// 本次会话经我们上屏的文本，应用不给上下文时用它联想。
     history: InputHistory,
 
-    /// 最近一次联想请求的序号，0 表示还没发过。
-    prediction_sequence: u64,
-
-    /// 最近一次联想请求的种类：只有组句联想的结果要按拼音校验。
-    last_prediction_kind: PredictionKind,
-
-    /// 最近一次问字请求里本地把问题拼音转成的汉字，用来剔掉模型复述问题的「答案」。
-    last_question_guess: String,
-
     /// 连续上屏的链，个人 n-gram 与自动造词靠它。
     chain: CommitChain,
-
-    /// 模糊音开关，缺省全关。
-    fuzzy: FuzzyRules,
 
     /// 双拼方案，`None` 为全拼。开着时缓冲区里是双拼键，查词前先解成全拼（见 [`crate::shuangpin`]）。
     shuangpin: Option<Scheme>,
@@ -293,12 +258,6 @@ const AUTO_WORD_MAX_CHARS: usize = 4;
 /// 整句是模型自己算出来的，按空格接受它会把这条路径喂回模型，形成自我强化；用户明确改选的词要能压过这种回声。
 pub const EXPLICIT_TRANSITION_WEIGHT: u32 = 2;
 
-/// 拼音短于这个字母数不联想：一两个字母的意图太模糊，白花一次请求。
-const MIN_PREDICTION_LETTERS: usize = 2;
-
-/// 随联想请求附带的本地候选条数。
-const PREDICTION_CANDIDATE_HINTS: usize = 5;
-
 /// 一次查询最多给壳多少条候选。同音字最多的音节也不到这个数，再往后都是长词，没人会翻到。
 const MAX_CANDIDATES: usize = 500;
 
@@ -322,7 +281,6 @@ impl Engine {
             extra_dictionaries: Vec::new(),
             translator: Box::new(NoTranslator),
             english_translator: Box::new(NoTranslator),
-            modes: ModeKeys::default(),
             learner: learning::MutedLearner::new(Box::new(NoLearner)),
             composition: Composition::default(),
             english: None,
@@ -331,7 +289,6 @@ impl Engine {
             full_width_punctuation: true,
             custom_phrases: Vec::new(),
             chinese_first: false,
-            predictor: Box::new(NoPredictor),
             language_model: Box::new(NoLanguageModel),
             sentence_scorer: None,
             rescorer: None,
@@ -355,19 +312,13 @@ impl Engine {
             composition_started: None,
             application: None,
             committed_since_break: false,
-            last_prediction_scope: String::new(),
             meter: Box::new(NoUsageMeter),
             vocabulary: Box::new(NoVocabularyTracker),
-            gloss_filler: Box::new(NoGlossFiller),
             displayed: Vec::new(),
             last_query: std::cell::RefCell::new(None),
             recording: Vec::new(),
             history: InputHistory::default(),
-            prediction_sequence: 0,
-            last_prediction_kind: PredictionKind::Compose,
-            last_question_guess: String::new(),
             chain: CommitChain::default(),
-            fuzzy: FuzzyRules::default(),
             shuangpin: None,
             fuma: None,
             zhuyin: false,
@@ -376,15 +327,9 @@ impl Engine {
     }
 }
 
-/// 缓冲区是否是英文直输段：含拼音键与 `'` 以外的字符（`no-way`、`a.b`），且不是表达式 / 问字模式。
+/// 缓冲区是否是英文直输段：含拼音键与 `'` 以外的字符（`no-way`、`a.b`）。
 /// 微软 / 搜狗双拼下 `;` 也是拼音键；辅码开着时大写字母也是拼音键（末尾的辅码段由解码层处理）。
-fn is_raw(
-    text: &str,
-    modes: ModeKeys,
-    shuangpin: Option<Scheme>,
-    fuma: bool,
-    zhuyin: bool,
-) -> bool {
+fn is_raw(text: &str, shuangpin: Option<Scheme>, fuma: bool, zhuyin: bool) -> bool {
     let is_key = |c: char| {
         if zhuyin {
             crate::zhuyin::layout::map_key(c).is_some() || c == ' '
@@ -395,13 +340,9 @@ fn is_raw(
             }
         }
     };
-    !text.is_empty()
-        && !modes.is_expression(text, zhuyin)
-        && !modes.is_question(text, zhuyin)
-        && text.chars().any(|c| !(is_key(c) || c == '\''))
+    !text.is_empty() && text.chars().any(|c| !(is_key(c) || c == '\''))
 }
 
-/// 命中是否靠模糊音：某个音节不被敲的那个模式接受。
 /// 原样上屏的字母串像不像一个英文词：纯 ASCII 字母、至少两个。中文模式下还要求它**不能**切成完整的拼音
 /// （`hao` 回车多半是要拼音字母本身，`gist` / `python` / `hello` 切不干净才是英文）；英文模式下敲的全是英文，不用判。
 fn looks_like_english_word(raw: &str, english_mode: bool) -> bool {
@@ -428,11 +369,6 @@ fn pattern_key(pattern: &[qingjian_dictionary::SyllablePattern<'_>]) -> String {
 fn take_last_chars(text: &str, count: usize) -> String {
     let total = text.chars().count();
     text.chars().skip(total.saturating_sub(count)).collect()
-}
-
-/// 开头 `count` 个字符。
-fn take_first_chars(text: &str, count: usize) -> String {
-    text.chars().take(count).collect()
 }
 
 /// 光标后剩余拼音的显示形式：能切就按音节用 `'` 连上，切不动就原样。

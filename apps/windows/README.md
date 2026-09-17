@@ -24,14 +24,14 @@ Engine 只此一份，跑在独立的 Server 进程；每个应用进程里的 T
 ## 为什么是两个 package 而不是一个
 
 两个产物的依赖集合刻意不同：DLL 只依赖 `qingjian-core`、`qingjian-platform` 与官方 `windows` crate（COM
-`implement` 宏），Server 才依赖词库 / 学习 / 云联想（含 tokio）整棵树。合成一个 package 后，DLL 的
+`implement` 宏），Server 才依赖词库 / 学习整棵树。合成一个 package 后，DLL 的
 编译单元会拉进 Server 的依赖；用 feature 区分也不行，workspace 一起构建时 feature 会统一。crate 边界就是
 「DLL 不含 Engine」这条约束的强制手段。判断标准：换掉平台适配层，不应该需要改 Core 的任何一行。
 
 ## 三个部分
 
 - **Server 进程**（`server/`）：装配并持有 Engine（词库 / 语言模型 / 学习），按 `SessionId` 为每个
-  应用会话维护各自的组句状态，处理按键、产出候选与上屏文本，把云联想 / 本地整句模型的异步结果主动推给
+  应用会话维护各自的组句状态，处理按键、产出候选与上屏文本，把本地整句模型的异步结果主动推给
   对应会话。
 - **IPC 协议**（`qingjian-platform::protocol`，两端共用）：`ClientMessage`（DLL → Server：开 / 关会话（带宿主 exe 名，
   `[apps]` 按应用设置据此查）、按键、上屏、回上下文）与 `ServerMessage`（Server → DLL：按键结果、上屏结果、异步重绘、请求上下文），一次要绘制的状态是

@@ -3,9 +3,8 @@
 use qingjian_platform::{CandidateRenderer, Config, LayoutMode, LogLevel, PreeditMode, ThemeMode};
 use windows_reactor::*;
 
-use super::cloud_status::CloudStatus;
 use super::controls::{export_logs, log_dir, open_in_editor, open_with_explorer};
-use super::pages::{about, cloud, dictionaries, general, shortcut};
+use super::pages::{about, dictionaries, general, shortcut};
 use super::{Message, Settings};
 
 impl Component for Settings {
@@ -19,12 +18,11 @@ impl Component for Settings {
             config,
             path,
             page: "general".to_string(),
-            cloud_status: CloudStatus::Idle,
             families: qingjian_render::system_fonts::families(),
         }
     }
 
-    fn update(&mut self, message: Message, context: &ComponentContext<Self>) {
+    fn update(&mut self, message: Message, _context: &ComponentContext<Self>) {
         match message {
             Message::Navigate(Some(tag)) => self.page = tag,
             Message::Navigate(None) => {}
@@ -71,51 +69,16 @@ impl Component for Settings {
             Message::Font(_) => {}
             Message::StatusBar(on) => self.save("status_bar", "enabled", on),
 
-            // 云服务页
+            // 本地整句模型页
             Message::LocalModel(on) => self.save("model", "enabled", on),
-            Message::CloudEnabled(on) => self.save("predict", "enabled", on),
-            Message::CloudApiKey(value) => self.save("predict", "api_key", value),
-            Message::CloudModel(value) => self.save("predict", "model", value),
-            Message::CloudBaseUrl(value) => self.save("predict", "base_url", value),
-            Message::CloudSlots(Some(value)) => {
-                let slots = (value.round() as i64).clamp(0, 9);
-                self.save("predict", "slots", slots);
-            }
-            Message::CloudSentence(on) => self.save("predict", "sentence", on),
-            Message::TestConnection => {
-                if matches!(self.cloud_status, CloudStatus::Testing) {
-                    return;
-                }
-                self.cloud_status = CloudStatus::Testing;
-                let config = self.config.predict.clone();
-                context.spawn_background(move |cancel| {
-                    Message::CloudTestDone(cloud::run_test(&config, &cancel))
-                });
-            }
-            Message::CloudTestDone(result) => {
-                self.cloud_status = match result {
-                    Ok(message) => CloudStatus::Ok(message),
-                    Err(message) => CloudStatus::Failed(message),
-                };
-            }
 
             // 快捷键页
             Message::PageKeys(Some(i)) if i < shortcut::PAGE_KEYS.len() => {
                 self.save("general", "page_keys", shortcut::PAGE_KEYS[i].1);
             }
-            Message::ModeExpression(Some(i)) if i < shortcut::MODE_KEYS.len() => {
-                self.save("shortcut", "expression", shortcut::MODE_KEYS[i]);
-            }
-            Message::ModeQuestion(Some(i)) if i < shortcut::MODE_KEYS.len() => {
-                self.save("shortcut", "question", shortcut::MODE_KEYS[i]);
-            }
-            Message::QuestionMark(on) => self.save("shortcut", "question_mark", on),
             Message::DeleteCandidate(Some(i)) if i < shortcut::MODIFIERS.len() => {
                 self.save("shortcut", "delete_candidate", shortcut::MODIFIERS[i].1);
             }
-
-            // 模糊音页
-            Message::Fuzzy(key, on) => self.save("fuzzy", key, on),
 
             // 词库页
             Message::ToggleDomain(name, on) => {
@@ -204,9 +167,8 @@ impl Component for Settings {
             item("general", "通用", Symbol::Setting),
             item("candidates", "候选窗口", Symbol::View),
             item("shortcut", "快捷键", Symbol::Keyboard),
-            item("fuzzy", "模糊音", Symbol::Audio),
             item("dictionaries", "词库", Symbol::Library),
-            item("cloud", "云服务", Symbol::World),
+            item("cloud", "本地整句模型", Symbol::World),
             item("usage", "统计", Symbol::List),
             item("advanced", "高级", Symbol::Repair),
             item("about", "关于", Symbol::Help),

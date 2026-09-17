@@ -6,7 +6,6 @@ members = [
     "crates/qingjian-translate",
     "crates/qingjian-learning",
     "crates/qingjian-platform",
-    "crates/qingjian-predict",
     "crates/qingjian-lm",
     "crates/qingjian-format",
     "crates/qingjian-neural",
@@ -30,7 +29,6 @@ qingjian-dictionary = { path = "crates/qingjian-dictionary" }
 qingjian-translate = { path = "crates/qingjian-translate" }
 qingjian-learning = { path = "crates/qingjian-learning" }
 qingjian-platform = { path = "crates/qingjian-platform" }
-qingjian-predict = { path = "crates/qingjian-predict" }
 qingjian-lm = { path = "crates/qingjian-lm" }
 qingjian-format = { path = "crates/qingjian-format" }
 qingjian-neural = { path = "crates/qingjian-neural" }

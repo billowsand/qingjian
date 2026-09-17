@@ -29,9 +29,6 @@ pub(crate) struct RenderData {
     /// 页码，只有多页时有。
     pub(super) footer: Option<String>,
 
-    /// 整句补全，画在拼音行右侧。
-    pub(super) sentence: Option<String>,
-
     /// 辅码「下一键」幽灵提示（` s`，含前导空格），只敲了首码时才有：高亮候选的第二码，
     /// 淡画在拼音行末尾。不放候选旁的标注里，否则候选框高度随标注行出现 / 消失而变。
     pub(super) fuma_hint: Option<String>,
@@ -55,7 +52,6 @@ impl RenderData {
             rows: Vec::new(),
             highlight: usize::MAX,
             footer: None,
-            sentence: None,
             fuma_hint: None,
             notice: None,
             layout: LayoutMode::default(),
@@ -82,7 +78,6 @@ impl RenderData {
         self.highlight = frame.highlight;
         self.footer =
             (frame.page_count > 1).then(|| format!("{}/{}", frame.page + 1, frame.page_count));
-        self.sentence = frame.sentence.clone();
         self.notice = frame.notice.clone();
         self.fuma_hint = fuma_hint(frame);
     }
@@ -111,7 +106,7 @@ impl RenderData {
             // 协议里 usize::MAX 表示不高亮。
             highlighted: (self.highlight != usize::MAX).then_some(self.highlight),
             footer: self.footer.clone(),
-            sentence: self.sentence.clone(),
+            sentence: None,
             status: self.notice.clone(),
             fuma_hint: self.fuma_hint.clone(),
         }

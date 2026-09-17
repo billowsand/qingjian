@@ -1,6 +1,5 @@
 //! 按键怎么作用到 Engine / 高亮上。分流规则与 macOS 壳的 `handle_text` / `handle_command` 对齐。
 
-use qingjian_core::{QUESTION_PREFIX, shortcut};
 use qingjian_platform::protocol::KeyEvent;
 
 use super::{Effect, codes, with_prefix};
@@ -8,10 +7,8 @@ use crate::dispatch::Router;
 
 impl Router {
     /// 功能键靠键码，其余靠字符。组句中修饰键 + 数字是快捷键；带 Ctrl / Alt / Win 而没配到快捷键的键归应用。
-    /// 表达式模式里 Shift + 数字打的是 `^ * ( )`，不当快捷键。
     pub(crate) fn apply_key(&mut self, event: &KeyEvent) -> Effect {
         if self.composing()
-            && !self.engine.expression_mode()
             && let Some(digit) = codes::digit_key(event.virtual_key)
             && let Some(effect) = self.apply_digit_shortcut(digit, event.modifiers.chord())
         {
@@ -25,44 +22,11 @@ impl Router {
         };
         // 英文状态（Caps Lock 亮着或持久英文模式）：敲的字母直接进输入框，不组句也不出候选窗。
         let english = event.modifiers.caps || event.modifiers.english_mode;
-        // 缓冲区为空时敲 `?` 先进问字模式（配置 `[shortcut] question_mark`，缺省关），中英文模式都行：
-        // 后面跟字母就是在问字，跟别的键就还原成问号。
-        if !self.composing() && c == QUESTION_PREFIX && self.engine.takes_question_mark() {
-            self.engine.push(c);
-            return Effect::Changed(None);
-        }
-        let question = self.composing() && self.engine.question_mode();
-        // 英文模式下问字：Caps 让字母以大写送来，按小写收进问题。
-        let c = if question && english && c.is_ascii_uppercase() {
-            c.to_ascii_lowercase()
-        } else {
-            c
-        };
-        // 只有一个 `?` 时敲了字母以外的键：还原成问号上屏；空格只是「把这个 ? 上屏」，其他键按没在组句重新分派。
-        if question && !c.is_ascii_lowercase() && self.engine.bare_question() {
-            let mark = self.restore_bare_question(english);
-            if c == ' ' {
-                return Effect::Changed(Some(mark));
-            }
-            return with_prefix(Some(mark), self.apply_key(event), c);
-        }
-        if english && !question {
+        if english {
             self.apply_english(c, event)
         } else {
             self.apply_chinese(c, event)
         }
-    }
-
-    /// 缓冲区里只有一个 `?`：清掉，还原成问号（按当前模式的全角设置转）。
-    fn restore_bare_question(&mut self, english: bool) -> String {
-        self.engine.clear();
-        if self.full_width_for(english)
-            && let Some(mark) = self.engine.punctuate(QUESTION_PREFIX)
-        {
-            return mark.to_owned();
-        }
-        self.engine.note_passthrough(QUESTION_PREFIX);
-        QUESTION_PREFIX.to_string()
     }
 
     /// 退格 / Esc / 回车 / Tab / 方向键；没在组句时都交还应用。
@@ -74,14 +38,6 @@ impl Router {
             }
             return Effect::Passthrough;
         }
-        // 只有一个 `?` 时按了回车：回车就是「把这个 ? 上屏」，吞掉，否则聊天框会连消息一起发出去；
-        // 退格 / Esc 照常删掉它。其他功能键 macOS 壳还原后交给应用，Windows 放行同步、上屏异步，
-        // 先动光标再插问号会插错位置，所以还原后一并吞掉。
-        if self.engine.bare_question() && !matches!(event.virtual_key, codes::BACK | codes::ESCAPE)
-        {
-            let english = event.modifiers.caps || event.modifiers.english_mode;
-            return Effect::Changed(Some(self.restore_bare_question(english)));
-        }
         match event.virtual_key {
             codes::BACK => {
                 self.engine.backspace();
@@ -92,11 +48,6 @@ impl Router {
                 Effect::Changed(None)
             }
             codes::RETURN => Effect::Changed(Some(self.engine.take_raw())),
-            // Tab：有整句补全就接受，否则交还应用（缩进 / 跳焦点）。
-            codes::TAB => match self.sentence.take() {
-                Some(sentence) => Effect::Changed(Some(self.engine.accept_prediction(&sentence))),
-                None => Effect::Passthrough,
-            },
             codes::DOWN => {
                 self.move_highlight(1);
                 Effect::Navigated
@@ -138,11 +89,7 @@ impl Router {
     /// 没在组句时的其他字符走全角标点（与 macOS 壳一致，组句中的标点仍进英文直输段）。
     fn apply_chinese(&mut self, c: char, event: &KeyEvent) -> Effect {
         if c.is_ascii_uppercase() {
-            if self.composing()
-                && !self.engine.expression_mode()
-                && !self.engine.question_mode()
-                && self.engine.fuma_enabled()
-            {
+            if self.composing() && self.engine.fuma_enabled() {
                 // 辅码键：进缓冲区参与过滤（触发判定与反转顺序在 Core）
                 self.engine.push(c);
                 return Effect::Changed(None);
@@ -187,14 +134,9 @@ impl Router {
     }
 
     /// 组句中的可打印键：数字选当前页第 N 个，翻页键翻页，空格上屏高亮，其余进英文直输段。
-    /// 表达式模式（`v1+2`）里数字和运算符进算式；问字模式敲的还可能是码点（`u4e00`、`u+1f600`），数字与 `+` 进缓冲区；
     /// 微软 / 搜狗双拼的 `;` 是 ing 键，末尾有落单声母时进缓冲区。
     fn apply_printable(&mut self, c: char, event: &KeyEvent) -> Effect {
-        let expression = self.engine.expression_mode();
-        if (expression && shortcut::is_expression_char(c))
-            || (self.engine.unicode_entry() && (c.is_ascii_digit() || c == '+'))
-            || (c == ';' && self.engine.takes_semicolon())
-        {
+        if c == ';' && self.engine.takes_semicolon() {
             self.engine.push(c);
             return Effect::Changed(None);
         }
@@ -211,12 +153,6 @@ impl Router {
         }
         if c == ' ' {
             return Effect::Changed(Some(self.commit_highlighted()));
-        }
-        // 表达式 / 问字模式下的其他字符不进缓冲区（与 macOS 壳一致）：先把高亮候选上屏，再按没在组句处理这个键。
-        if c != '\'' && (expression || self.engine.question_mode()) {
-            let committed = self.commit_highlighted();
-            let effect = self.apply_punctuation(c, event);
-            return with_prefix(Some(committed), effect, c);
         }
         self.engine.push(c);
         Effect::Changed(None)

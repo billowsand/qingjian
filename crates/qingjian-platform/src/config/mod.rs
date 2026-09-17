@@ -12,8 +12,6 @@ mod theme_mode;
 
 use std::path::Path;
 
-use qingjian_core::FuzzyRules;
-use qingjian_predict::PredictConfig;
 use serde::{Deserialize, Serialize};
 use toml_edit::DocumentMut;
 
@@ -46,17 +44,11 @@ pub struct Config {
     #[serde(deserialize_with = "deserialize_phrases")]
     pub custom_phrases: Vec<qingjian_core::CustomPhrase>,
 
-    /// 快捷键：前缀模式键（表达式 / 问字）与修饰键组合。
+    /// 快捷键：修饰键组合。
     pub shortcut: ShortcutConfig,
-
-    /// 模糊音开关。
-    pub fuzzy: FuzzyRules,
 
     /// 附加词库开关。
     pub dictionaries: DictionariesConfig,
-
-    /// 云联想。
-    pub predict: PredictConfig,
 
     /// 悬浮状态条（桌面上常驻、可拖动的中 / 英浮窗）。
     pub status_bar: StatusBarConfig,
@@ -111,7 +103,7 @@ full_width_punctuation = true
 # 英文模式下的同一件事，中英各记一份，状态条切的是当前模式那份
 english_full_width_punctuation = false
 # 双拼方案：留空为全拼；xiaohe 小鹤 / ziranma 自然码 / microsoft 微软 / sogou 搜狗
-# 开着时 v / u / i 都是音节键，表达式模式没有入口，问字只能靠 question_mark 打开后用 ? 进；微软、搜狗方案的 ; 键是 ing
+# 微软、搜狗方案的 ; 键是 ing
 shuangpin = ""
 # 辅码（辅助码）方案：留空为关；xiaohe 小鹤辅码。只在双拼下生效：组句中末尾敲的大写字母当辅码键，
 # 敲完两码严格筛选候选（首字第 1 码 + 末字第 1 码，单字取两码）；对不上就不出候选。
@@ -133,27 +125,9 @@ learning = true
 # enabled = true    # 是否启用；停用仍保留位置
 
 [shortcut]
-# 前缀模式键，只能是 v / u / i 之一且互不相同（这三个字母不是任何拼音音节的开头）
-# 表达式模式：v1+2 出 3，v123 出中文数字
-expression = "v"
-# 问字模式：usangemu 问「三个木」（云端答），u4e00 出码点对应的字符（本地答）
-question = "u"
-# 没在组句时敲 ? 是否也进问字模式（中英文模式都行，后面跟字母才是问题，跟别的键还原成问号）；false 的话问号就是问号
-question_mark = false
 "#,
     template_shortcut_keys!(),
     r#"
-[fuzzy]
-# 模糊音：开了之后敲 zi 也出 zhi 的字、敲 lan 也出 nan 的字。默认全关，按需打开。
-z_zh = false
-c_ch = false
-s_sh = false
-n_l = false
-f_h = false
-l_r = false
-an_ang = false
-en_eng = false
-in_ing = false
 
 [dictionaries]
 # 随包的领域词库（法律 / 医学 / 地名 / 成语 / 诗词 / IT / 财经 / 饮食 / 动物 / 汽车 / 历史人物），列在这里的才加载；
@@ -166,30 +140,6 @@ disabled = []
 [model]
 # 本地整句模型：随包的小模型在本机给整句候选重新排序，全程离线；停顿后几十毫秒生效。关掉只用词库统计
 enabled = true
-
-[predict]
-# 云联想：把光标附近的文本发到下面的接口，让模型补全整句 / 联想下文。默认关闭。
-# 开启后状态条上会带一个云朵标识；密码框里绝不发送。
-enabled = false
-# OpenAI 兼容接口地址与模型名（DeepSeek 默认值）。本机自己跑模型（LM Studio / Ollama）填 "http://127.0.0.1:端口" 即可，
-# 路径不写会自动补 /v1，密钥也可以留空（这些服务不校验）
-base_url = "https://api.deepseek.com"
-model = "deepseek-v4-flash"
-# 推理强度（reasoning_effort）：none 关掉模型的思考，联想要快；留空则不发这个参数
-reasoning_effort = "none"
-# 密钥：填在这里，或留空并设置 api_key_env 指定的环境变量（偏好设置里填的密钥写进配置同目录的 .env）
-# api_key = ""
-api_key_env = "QINGJIAN_API_KEY"
-# 单次请求超时（毫秒）、停止敲键多久后才发请求（毫秒）
-timeout_ms = 5000
-debounce_ms = 300
-# 光标前 / 后最多发多少个字符——这是发往云端的上下文上限
-lookback = 64
-lookahead = 32
-# 云端词到了补进候选窗口第一页末尾几格（比如 2 就是 8、9 两格），前面的本地候选不动；0 表示不要云端词
-slots = 2
-# 组句中除了词候选还要不要整句补全（preedit 右侧，Tab 接受）
-sentence = true
 
 [status_bar]
 # 桌面上常驻、可拖动的悬浮状态条（Windows）：「中 / 英」格点一下切换模式（开着双拼时还显示方案名）、「，。」格切全角 / 半角标点、齿轮打开设置。
@@ -414,25 +364,17 @@ mod tests {
 
     #[test]
     fn partial_file_keeps_other_defaults() {
-        let config: Config = toml::from_str("[predict]\nenabled = true\nlookback = 10\n").unwrap();
-        assert!(config.predict.enabled);
-        assert_eq!(config.predict.lookback, 10);
-        assert_eq!(config.predict.model, "deepseek-v4-flash");
-        assert_eq!(config.predict.reasoning_effort, "none");
-        assert_eq!(config.predict.api_key_env, "QINGJIAN_API_KEY");
-    }
-
-    #[test]
-    fn fuzzy_section_parses() {
-        let config: Config = toml::from_str("[fuzzy]\nz_zh = true\nan_ang = true\n").unwrap();
-        assert!(config.fuzzy.z_zh && config.fuzzy.an_ang && !config.fuzzy.n_l);
-        assert!(config.fuzzy.any());
+        let config: Config = toml::from_str("[model]\nenabled = false\n").unwrap();
+        assert!(!config.model.enabled);
+        // 没写的分节保持各自缺省：状态条缺省关、每页候选数缺省拉满。
+        assert!(!config.status_bar.enabled);
+        assert_eq!(config.general.page_size(), 9);
     }
 
     #[test]
     fn general_and_shortcut_sections_parse() {
         let config: Config = toml::from_str(
-            "[general]\npage_size = 5\npage_keys = \"[]\"\ntheme = \"dark\"\nlayout = \"horizontal\"\npreedit = \"window\"\n[shortcut]\nexpression = \"i\"\n",
+            "[general]\npage_size = 5\npage_keys = \"[]\"\ntheme = \"dark\"\nlayout = \"horizontal\"\npreedit = \"window\"\n[shortcut]\ndelete_candidate = \"ctrl\"\n",
         )
         .unwrap();
         assert_eq!(config.general.page_size(), 5);
@@ -443,8 +385,7 @@ mod tests {
         assert_eq!(config.general.learning_language, "en");
         assert_eq!(config.general.shuangpin(), None);
         assert_eq!(config.general.log_level, LogLevel::Info);
-        assert_eq!(config.shortcut.mode.expression, 'i');
-        assert_eq!(config.shortcut.mode.question, 'u');
+        assert!(config.shortcut.delete_keys().ctrl);
     }
 
     #[test]
@@ -453,31 +394,24 @@ mod tests {
         let _ = std::fs::remove_file(&path);
         Config::set_value(&path, "general", "page_size", 5i64).unwrap();
         Config::set_value(&path, "general", "theme", "dark").unwrap();
-        Config::set_value(&path, "shortcut", "question", "i").unwrap();
         let config = Config::load(&path).unwrap();
         assert_eq!(config.general.page_size, 5);
         assert_eq!(config.general.theme, ThemeMode::Dark);
-        assert_eq!(config.shortcut.mode.question, 'i');
         let _ = std::fs::remove_file(&path);
     }
 
     #[test]
     fn set_bool_keeps_comments_and_flips_only_that_key() {
         let path = std::env::temp_dir().join("qingjian-config-set-bool-test.toml");
-        std::fs::write(
-            &path,
-            "# 头注释\n[fuzzy]\n# 说明\nz_zh = false\nn_l = true\n",
-        )
-        .unwrap();
-        Config::set_bool(&path, "fuzzy", "z_zh", true).unwrap();
-        Config::set_bool(&path, "predict", "enabled", true).unwrap();
+        std::fs::write(&path, "# 头注释\n[model]\n# 说明\nenabled = false\n").unwrap();
+        Config::set_bool(&path, "model", "enabled", true).unwrap();
         let text = std::fs::read_to_string(&path).unwrap();
         assert!(
-            text.starts_with("# 头注释\n[fuzzy]\n# 说明\nz_zh = true\nn_l = true\n"),
+            text.starts_with("# 头注释\n[model]\n# 说明\nenabled = true\n"),
             "{text}"
         );
         let config = Config::load(&path).unwrap();
-        assert!(config.fuzzy.z_zh && config.fuzzy.n_l && config.predict.enabled);
+        assert!(config.model.enabled);
         let _ = std::fs::remove_file(&path);
     }
 
@@ -485,24 +419,24 @@ mod tests {
     fn set_bool_starts_from_template_when_missing() {
         let path = std::env::temp_dir().join("qingjian-config-set-bool-missing-test.toml");
         let _ = std::fs::remove_file(&path);
-        Config::set_bool(&path, "predict", "enabled", true).unwrap();
+        Config::set_bool(&path, "model", "enabled", false).unwrap();
         let text = std::fs::read_to_string(&path).unwrap();
         assert!(text.contains("# 字在输入法配置"));
-        assert!(Config::load(&path).unwrap().predict.enabled);
+        assert!(!Config::load(&path).unwrap().model.enabled);
         let _ = std::fs::remove_file(&path);
     }
 
     #[test]
     fn set_bool_refuses_broken_file() {
         let path = std::env::temp_dir().join("qingjian-config-set-bool-broken-test.toml");
-        std::fs::write(&path, "[fuzzy\nz_zh = false\n").unwrap();
+        std::fs::write(&path, "[model\nenabled = false\n").unwrap();
         assert!(matches!(
-            Config::set_bool(&path, "fuzzy", "z_zh", true),
+            Config::set_bool(&path, "model", "enabled", true),
             Err(ConfigError::Edit { .. })
         ));
         assert_eq!(
             std::fs::read_to_string(&path).unwrap(),
-            "[fuzzy\nz_zh = false\n"
+            "[model\nenabled = false\n"
         );
         let _ = std::fs::remove_file(&path);
     }

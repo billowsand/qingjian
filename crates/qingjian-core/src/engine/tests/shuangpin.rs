@@ -62,26 +62,6 @@ fn shuangpin_records_choices_by_full_pinyin() {
 }
 
 #[test]
-fn shuangpin_gives_letter_mode_keys_back_to_syllables() {
-    let mut engine = xiaohe();
-    engine.set_input("v");
-    assert!(!engine.expression_mode());
-    assert_eq!(engine.query().unwrap().marked_text(), "zh");
-    engine.set_input("u1");
-    assert!(!engine.question_mode());
-    // `?` 入口开着时照常进问字（缺省关）
-    engine.set_input("?nihc");
-    assert!(!engine.question_mode());
-    engine.set_mode_keys(ModeKeys {
-        question_mark: true,
-        ..ModeKeys::default()
-    });
-    engine.set_input("?nihc");
-    assert!(engine.question_mode());
-    assert_eq!(engine.query().unwrap().marked_text(), "?ni'hao");
-}
-
-#[test]
 fn microsoft_semicolon_is_a_final_only_after_a_lone_initial() {
     let mut engine = engine();
     engine.set_shuangpin(Some(Scheme::Microsoft));
@@ -91,16 +71,6 @@ fn microsoft_semicolon_is_a_final_only_after_a_lone_initial() {
     assert!(!engine.takes_semicolon());
     assert!(!engine.raw_mode());
     assert_eq!(engine.query().unwrap().marked_text(), "xing");
-    // 问字模式里也认：`?x;` 问的是 xing
-    engine.set_mode_keys(ModeKeys {
-        question_mark: true,
-        ..ModeKeys::default()
-    });
-    engine.set_input("?x");
-    assert!(engine.takes_semicolon());
-    engine.push(';');
-    assert!(engine.question_mode());
-    assert_eq!(engine.query().unwrap().marked_text(), "?xing");
     engine.set_shuangpin(Some(Scheme::Xiaohe));
     engine.set_input("x");
     assert!(!engine.takes_semicolon());

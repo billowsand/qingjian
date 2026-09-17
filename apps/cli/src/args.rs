@@ -56,14 +56,6 @@ pub struct Args {
     #[arg(long)]
     pub config: Option<PathBuf>,
 
-    /// 启用云联想（无视配置里的 enabled）；密钥来自配置或 QINGJIAN_API_KEY（`api_key_env`）
-    #[arg(long)]
-    pub predict: bool,
-
-    /// 模糊音，逗号分隔（z-zh,c-ch,s-sh,n-l,f-h,l-r,an-ang,en-eng,in-ing），`all` 全开；给了就覆盖配置里的 [fuzzy]
-    #[arg(long, value_delimiter = ',')]
-    pub fuzzy: Vec<String>,
-
     /// 英文模式：字母不当拼音，候选来自英文词表的补全与拼错纠正。Windows 壳的英文模式是纯直通，这只是 Core 能力的验证入口
     #[arg(long)]
     pub english_mode: bool,

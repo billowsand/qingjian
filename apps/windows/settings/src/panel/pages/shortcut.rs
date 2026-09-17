@@ -1,4 +1,4 @@
-//! 「快捷键」页：翻页键、模式键、删候选的修饰键。
+//! 「快捷键」页：翻页键、删候选的修饰键。
 
 use qingjian_platform::Modifiers;
 use windows_reactor::*;
@@ -13,9 +13,6 @@ pub(crate) const PAGE_KEYS: [(&str, &str); 3] = [
     ("减号等号 - =", "-="),
 ];
 
-/// 可当模式键的字母（与 Core `ModeKeys::CANDIDATES` 一致）。
-pub(crate) const MODE_KEYS: [&str; 3] = ["v", "u", "i"];
-
 /// 修饰键预设：界面名 + 配置写法。
 pub(crate) const MODIFIERS: [(&str, &str); 6] = [
     ("Ctrl", "ctrl"),
@@ -25,17 +22,6 @@ pub(crate) const MODIFIERS: [(&str, &str); 6] = [
     ("Ctrl + Alt", "ctrl+alt"),
     ("Alt + Shift", "shift+alt"),
 ];
-
-fn mode_combo(current: char, callback: Callback<Option<usize>>) -> ComboBox {
-    let selected = MODE_KEYS
-        .iter()
-        .position(|key| key.starts_with(current))
-        .unwrap_or(0);
-    ComboBox::new()
-        .items_source(MODE_KEYS)
-        .selected_index(selected)
-        .on_selection_changed(callback)
-}
 
 /// 按解析后相等找当前项，不依赖字符串写法。
 fn modifier_combo(current: Modifiers, callback: Callback<Option<usize>>) -> ComboBox {
@@ -50,7 +36,6 @@ fn modifier_combo(current: Modifiers, callback: Callback<Option<usize>>) -> Comb
 }
 
 pub(crate) fn view(settings: &Settings, context: &mut ViewContext<Settings>) -> View {
-    let s = &settings.config.shortcut;
     let rows = [
         field(
             "翻页键",
@@ -61,27 +46,10 @@ pub(crate) fn view(settings: &Settings, context: &mut ViewContext<Settings>) -> 
                 .on_selection_changed(context.callback(Message::PageKeys)),
         ),
         field(
-            "表达式模式键",
-            "",
-            mode_combo(s.mode.expression, context.callback(Message::ModeExpression)),
-        ),
-        field(
-            "问字模式键",
-            "这两个字母开头进模式：v1+2 出 3，usangemu 问「三个木」（需要云服务）。两个键不能相同。",
-            mode_combo(s.mode.question, context.callback(Message::ModeQuestion)),
-        ),
-        field(
-            "没在输入拼音时敲 ? 也进入问字",
-            "开着时 ? 先进问字（中英文模式都行），后面跟字母才是问题，跟其他键时还原成问号；关着问号就是问号。双拼下这是问字唯一的入口。",
-            ToggleSwitch::new()
-                .is_on(s.mode.question_mark)
-                .on_toggled(context.callback(Message::QuestionMark)),
-        ),
-        field(
             "删除候选",
-            "按住修饰键再按候选序号：自己造的词、云端选过的词整删；词库里的词清掉学习记录，回到原排序。",
+            "按住修饰键再按候选序号：自己造的词整删；词库里的词清掉学习记录，回到原排序。",
             modifier_combo(
-                s.delete_candidate,
+                settings.config.shortcut.delete_candidate,
                 context.callback(Message::DeleteCandidate),
             ),
         ),

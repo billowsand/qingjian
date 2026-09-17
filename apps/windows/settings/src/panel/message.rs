@@ -25,27 +25,12 @@ pub(crate) enum Message {
     Font(Option<usize>),
     StatusBar(bool),
 
-    // 云服务页
+    // 本地整句模型页
     LocalModel(bool),
-    CloudEnabled(bool),
-    CloudApiKey(String),
-    CloudModel(String),
-    CloudBaseUrl(String),
-    CloudSlots(Option<f64>),
-    CloudSentence(bool),
-    TestConnection,
-    CloudTestDone(Result<String, String>),
 
     // 快捷键页
     PageKeys(Option<usize>),
-    ModeExpression(Option<usize>),
-    ModeQuestion(Option<usize>),
-    QuestionMark(bool),
     DeleteCandidate(Option<usize>),
-
-    // 模糊音页
-    /// 配置键 + 新值。
-    Fuzzy(&'static str, bool),
 
     // 词库页
     ToggleDomain(String, bool),

@@ -3,7 +3,6 @@ use qingjian_learning::LearningError;
 use qingjian_lm::LmError;
 use qingjian_neural::NeuralError;
 use qingjian_platform::ConfigError;
-use qingjian_predict::PredictError;
 use qingjian_translate::GlossaryError;
 #[derive(Debug, thiserror::Error)]
 pub enum CliError {
@@ -25,9 +24,6 @@ pub enum CliError {
 
     #[error(transparent)]
     Config(#[from] ConfigError),
-
-    #[error(transparent)]
-    Predict(#[from] PredictError),
 
     #[error(transparent)]
     LanguageModel(#[from] LmError),

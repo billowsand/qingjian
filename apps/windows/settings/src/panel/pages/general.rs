@@ -43,7 +43,7 @@ pub(crate) fn view(settings: &Settings, context: &mut ViewContext<Settings>) -> 
         ),
         field(
             "双拼",
-            "开双拼后 v、u、i 是音节键，表达式与问字模式只能用 ? 开头进；微软、搜狗方案的 ; 键是 ing。",
+            "开双拼后两键按方案表拆成声母 + 韵母；微软、搜狗方案的 ; 键是 ing 韵母键。",
             string_combo(
                 &SHUANGPIN,
                 &g.shuangpin,
@@ -61,7 +61,7 @@ pub(crate) fn view(settings: &Settings, context: &mut ViewContext<Settings>) -> 
         ),
         field(
             "大千注音",
-            "启用大千注音键盘布局（容错设定如 ㄢㄤ、ㄣㄥ 不分，请至「模糊音」分页开启）。",
+            "启用大千注音键盘布局；容错按标准大千键位（ㄢㄤ、ㄣㄥ 各自独立）。",
             ToggleSwitch::new()
                 .is_on(g.zhuyin)
                 .on_toggled(context.callback(Message::Zhuyin)),

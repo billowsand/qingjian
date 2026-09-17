@@ -88,31 +88,6 @@ fn typo_edges_in_the_lattice_correct_legal_but_unlikely_pinyin() {
     assert!(query.candidates.items.iter().all(|c| c.text != "是的"));
 }
 
-/// 模糊音命中的词按敲的字母消耗拼音（`zi` 对 `zhi`），不算敲错。
-#[test]
-fn fuzzy_hits_consume_the_typed_syllables() {
-    let dictionary =
-        Dictionary::parse("知识\tzhi shi\t500000\n只是\tzhi shi\t600000\n资\tzi\t1000\n").unwrap();
-    let mut engine =
-        Engine::new(dictionary).with_learner(Box::new(CountingLearner(HashMap::new())));
-    engine.set_fuzzy(FuzzyRules {
-        z_zh: true,
-        ..FuzzyRules::default()
-    });
-    engine.set_input("zishi");
-    let zhishi = engine
-        .query()
-        .unwrap()
-        .candidates
-        .items
-        .into_iter()
-        .find(|c| c.text == "知识")
-        .unwrap();
-    engine.commit(&zhishi);
-    assert!(engine.composition().is_empty());
-    assert_eq!(engine.learner().typo_count("zi", "zhi"), 0);
-}
-
 /// 接受整段一处编辑的纠正也记个人敲错表：敲的那段字母对纠正后的音节。
 #[test]
 fn accepted_whole_string_correction_feeds_the_typo_table() {
@@ -213,34 +188,4 @@ fn spelling_correction_fixes_one_edit_and_learns_from_enter() {
     assert_eq!(engine.take_raw(), "nihooma");
     engine.set_input("nihooma");
     assert!(engine.query().unwrap().correction.is_none());
-}
-
-#[test]
-fn fuzzy_rules_add_homophones_behind_exact_hits() {
-    // 词库里只有 kai fa 系列加一个 哈；敲 kaiha 没开 f/h 时只有前缀词 开（开哈 原样读得通，词图的敲错边翻不过它），
-    // 开了就出 开发（模糊命中）且覆盖更多字母排第一
-    let mut engine = Engine::new(Dictionary::parse(&format!("{SAMPLE}哈\tha\t50000\n")).unwrap());
-    engine.set_input("kaiha");
-    let before = texts_of(&engine);
-    assert!(!before.contains(&"开发".to_owned()));
-    assert!(before.contains(&"开".to_owned()));
-    engine.set_fuzzy(FuzzyRules {
-        f_h: true,
-        ..FuzzyRules::default()
-    });
-    let after = texts_of(&engine);
-    // ha 是前缀，换成 fa 前缀后 开放（词频更高）与 开发 都出，覆盖更多字母排在 开 前面
-    assert_eq!(after[0], "开放");
-    assert!(after.contains(&"开发".to_owned()));
-    assert!(after.contains(&"开".to_owned()));
-    // 整句转换走同一套写法：xiangkaiha → 想开发
-    engine.set_input("xiangkaiha");
-    let query = engine.query().unwrap();
-    assert_eq!(query.candidates.items[0].text, "想开发");
-    assert_eq!(query.candidates.items[0].kind, CandidateKind::Sentence);
-    // 敲对的仍然优先：kaifa 第一位还是 开发，且不重复
-    engine.set_input("kaifa");
-    let all = texts_of(&engine);
-    assert_eq!(all[0], "开发");
-    assert_eq!(all.iter().filter(|t| *t == "开发").count(), 1);
 }

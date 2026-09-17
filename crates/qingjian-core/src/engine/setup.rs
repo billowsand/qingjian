@@ -71,28 +71,11 @@ impl Engine {
     }
 
     /// 组句中敲 `;` 是否该进缓冲区：微软 / 搜狗双拼里它是 ing 的韵母键，只在末尾有落单的声母时收，
-    /// 其他时候仍是标点。问字模式（`?x`）看的是前缀之后的部分。
+    /// 其他时候仍是标点。
     pub fn takes_semicolon(&self) -> bool {
-        let body = self
-            .modes()
-            .question_body(self.composition.scope(), self.zhuyin);
         self.shuangpin
             .filter(|scheme| scheme.uses_semicolon())
-            .is_some_and(|scheme| scheme.decode(body).pending_initial())
-    }
-
-    /// 有效的模式键：双拼下 v / u / i 都是音节键，字母模式键让位，只剩 `?` 开头的问字。
-    pub(super) fn modes(&self) -> ModeKeys {
-        if self.shuangpin.is_some() {
-            self.modes.letterless()
-        } else {
-            self.modes
-        }
-    }
-
-    /// 缓冲区为空时敲 `?` 该不该进问字模式（配置 `[shortcut] question_mark`）：壳据此决定问号是入口还是标点。
-    pub fn takes_question_mark(&self) -> bool {
-        self.modes().question_mark
+            .is_some_and(|scheme| scheme.decode(self.composition.scope()).pending_initial())
     }
 
     /// 双拼开着时把一段键解成全拼；全拼下为 `None`，调用方原样用键。
@@ -127,34 +110,6 @@ impl Engine {
     pub fn with_emoji(mut self, table: EmojiTable) -> Self {
         self.emoji = Some(table);
         self
-    }
-
-    pub fn with_fuzzy(mut self, rules: FuzzyRules) -> Self {
-        self.fuzzy = rules;
-        self
-    }
-
-    /// 换模糊音规则：格子缓存里的代价随写法变，一起作废。
-    pub fn set_fuzzy(&mut self, rules: FuzzyRules) {
-        if self.fuzzy != rules {
-            self.forget_span_cache();
-        }
-        self.fuzzy = rules;
-    }
-
-    pub fn fuzzy(&self) -> FuzzyRules {
-        self.fuzzy
-    }
-
-    pub fn with_predictor(mut self, predictor: Box<dyn Predictor>) -> Self {
-        self.predictor = predictor;
-        self
-    }
-
-    /// 运行时换掉 Predictor（菜单开关云联想 / 配置热加载）；正在等的联想一并作废。
-    pub fn set_predictor(&mut self, predictor: Box<dyn Predictor>) {
-        self.cancel_prediction();
-        self.predictor = predictor;
     }
 
     /// 挂上同步的整句重打分器（字级 Transformer，查询里当场打分，评测用）。`weight` 是神经分的权重 λ，
@@ -297,20 +252,6 @@ impl Engine {
         self.english_translator = translator;
     }
 
-    pub fn with_mode_keys(mut self, keys: ModeKeys) -> Self {
-        self.modes = keys.sanitized();
-        self
-    }
-
-    /// 非法组合（相同、或不是 v / u / i）整个退回缺省。
-    pub fn set_mode_keys(&mut self, keys: ModeKeys) {
-        self.modes = keys.sanitized();
-    }
-
-    pub fn mode_keys(&self) -> ModeKeys {
-        self.modes
-    }
-
     /// 中英混输里中文候选是否总排在英文词前面（配置 `[general] chinese_first`，缺省关）。
     /// 关着时拼音「不像话」的输入英文词排第一（`hello` 先英文再 荷兰咯）；开了英文词固定第二。
     pub fn set_chinese_first(&mut self, on: bool) {
@@ -355,16 +296,6 @@ impl Engine {
     pub fn with_vocabulary_tracker(mut self, tracker: Box<dyn VocabularyTracker>) -> Self {
         self.vocabulary = tracker;
         self
-    }
-
-    pub fn with_gloss_filler(mut self, filler: Box<dyn GlossFiller>) -> Self {
-        self.gloss_filler = filler;
-        self
-    }
-
-    /// 运行时换释义兜底（随云联想开关）。
-    pub fn set_gloss_filler(&mut self, filler: Box<dyn GlossFiller>) {
-        self.gloss_filler = filler;
     }
 
     pub fn dictionary(&self) -> &Dictionary {

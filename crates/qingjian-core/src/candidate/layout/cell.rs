@@ -8,9 +8,6 @@ pub enum Cell<'a> {
     /// 本地候选。
     Local(&'a Candidate),
 
-    /// 云端词。
-    Cloud(&'a Candidate),
-
     /// 固定位置之前尚无真实候选的空格。
     Empty,
 }
@@ -18,7 +15,7 @@ pub enum Cell<'a> {
 impl<'a> Cell<'a> {
     pub fn candidate(self) -> Option<&'a Candidate> {
         match self {
-            Cell::Local(c) | Cell::Cloud(c) => Some(c),
+            Cell::Local(c) => Some(c),
             Cell::Empty => None,
         }
     }

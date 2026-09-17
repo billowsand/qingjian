@@ -10,9 +10,6 @@ pub struct RouterConfig {
     /// 每页候选数（`[general] page_size`）。
     pub page_size: usize,
 
-    /// 云端候选在第一页预留的格数（`[predict] slots`）。
-    pub cloud_slots: usize,
-
     /// 候选排布（`[general] layout`）。
     pub layout: LayoutMode,
 
@@ -67,7 +64,6 @@ impl From<&Config> for RouterConfig {
     fn from(config: &Config) -> Self {
         Self {
             page_size: config.general.page_size(),
-            cloud_slots: config.predict.slots,
             layout: config.general.layout,
             theme: config.general.theme,
             preedit: config.general.preedit,

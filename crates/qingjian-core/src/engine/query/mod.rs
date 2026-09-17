@@ -4,8 +4,11 @@ use super::*;
 use crate::engine::fuma::FumaCodes;
 
 mod english_tail;
+mod expanded;
 mod result;
 mod snapshot;
+
+use expanded::Expanded;
 
 pub(crate) use english_tail::EnglishTail;
 pub use result::Query;
@@ -67,19 +70,7 @@ impl Engine {
         if self.english_mode {
             return Ok(self.query_english(keys, rest, start));
         }
-        if self.modes().is_expression(keys, self.zhuyin) {
-            return Ok(self.query_expression(keys, rest, start));
-        }
-        if self.modes().is_question(keys, self.zhuyin) {
-            return Ok(self.query_question(keys, rest, start));
-        }
-        if is_raw(
-            keys,
-            self.modes(),
-            self.shuangpin,
-            self.fuma_enabled(),
-            self.zhuyin,
-        ) {
+        if is_raw(keys, self.shuangpin, self.fuma_enabled(), self.zhuyin) {
             return Ok(self.query_raw(keys, rest, start));
         }
         // 双拼先解成全拼（音节间已用 `'` 连好，切分没有歧义），之后与全拼同路；解不动的键当尾巴。
@@ -166,13 +157,21 @@ impl Engine {
             if last.complete && decoded.is_none() && parser::is_syllable_prefix(&last.text) {
                 patterns[count - 1].complete = false;
             }
-            // 词级候选只按敲的原样与模糊音查，敲错变体只进整句词图（它的候选从那边插进来）：
+            // 词级候选只按敲的原样查，敲错变体只进整句词图（它的候选从那边插进来）：
             // 词级排序把音节数对得上的排最前，敲错命中的词（`kaif` → 咖啡）会把更长的原样词挤到后面
-            let expanded = self.fuzzy.expand(&patterns);
-            let positions = expanded.positions();
+            let positions: Vec<Vec<qingjian_dictionary::SyllablePattern<'_>>> = patterns
+                .iter()
+                .map(|p| {
+                    vec![qingjian_dictionary::SyllablePattern {
+                        text: p.text,
+                        complete: p.complete,
+                    }]
+                })
+                .collect();
+            let positions_ref: &[Vec<qingjian_dictionary::SyllablePattern<'_>>] = &positions;
             let abbreviated = abbreviated_count(&patterns);
-            // 没有替代写法时每条命中都是敲的原音节，`penalty` 直接给 0（单字母简拼能命中几万条）
-            let hits = self.lookup_all(&positions);
+            // 每条命中都是敲的原音节，penalty 直接给 0（单字母简拼能命中几万条）
+            let hits = self.lookup_all(positions_ref);
             scored.reserve(hits.len());
             for hit in hits {
                 let full_last = last.complete
@@ -184,7 +183,7 @@ impl Engine {
                     abbreviated,
                     weight: self.learner.weight(hit.text),
                     fuma_hit: false,
-                    penalty: expanded.penalty(hit.syllables()),
+                    penalty: 0.0,
                 });
             }
             // 输入的前缀也出候选（`kaifazhe` → 开发、开），否则长句没法逐词上屏。
@@ -209,7 +208,7 @@ impl Engine {
                         abbreviated,
                         weight: self.learner.weight(hit.text),
                         fuma_hit: false,
-                        penalty: expanded.penalty(hit.syllables()),
+                        penalty: 0.0,
                     });
                 }
             }
@@ -335,40 +334,6 @@ impl Engine {
         })
     }
 
-    /// 表达式模式（`v` 开头）：不解析拼音，候选是算式结果 / 中文数字，再加上整段是英文词的情况（`very`）。
-    /// preedit 原样显示输入。
-    pub(super) fn query_expression(&self, scope: &str, rest: String, start: Instant) -> Query {
-        let mut items = shortcut::candidates(scope, self.modes().expression, &jiff::Zoned::now());
-        if let Some(word) = self.english.as_ref().and_then(|english| english.get(scope)) {
-            items.push(Candidate {
-                text: word.to_owned(),
-                kind: CandidateKind::English,
-                syllables: Vec::new(),
-                reading: None,
-                translation: None,
-                fuma: None,
-            });
-        }
-        Query {
-            segmentations: Vec::new(),
-            candidates: CandidateList { items },
-            tail: scope.to_owned(),
-            text: self.composition.text().to_owned(),
-            cursor: self.composition.cursor(),
-            rest,
-            decoded_keys: self.shuangpin.is_some() || self.zhuyin,
-            typed_display: None,
-            // 这些模式下辅码不激活（辅码要求前缀是完整双拼）
-            fuma: None,
-            correction: None,
-            timings: Timings {
-                parse: Duration::ZERO,
-                lookup: Duration::ZERO,
-                rank: start.elapsed(),
-            },
-        }
-    }
-
     /// 英文直输段：唯一候选就是原文（`no-way`），空格 / 回车都上屏它；preedit 原样显示。
     pub(super) fn query_raw(&self, scope: &str, rest: String, start: Instant) -> Query {
         let items = vec![Candidate {
@@ -436,50 +401,6 @@ impl Engine {
                 parse: Duration::ZERO,
                 lookup: Duration::ZERO,
                 rank: start.elapsed(),
-            },
-        }
-    }
-
-    /// 问字模式（问字键或 `?` 开头）：拼音问题本地没有候选，preedit 显示前缀加切分好的问题拼音，答案等云端；
-    /// 十六进制码点（`u4e00`、`u+1f600`）本地直接给出那个字符。
-    pub(super) fn query_question(&self, scope: &str, rest: String, start: Instant) -> Query {
-        let body = self.modes().question_body(scope, self.zhuyin);
-        let prefix = &scope[..scope.len() - body.len()];
-        let (candidates, tail) = match shortcut::unicode_form(body) {
-            Some(text) => (
-                CandidateList {
-                    items: vec![Candidate {
-                        text,
-                        kind: CandidateKind::Shortcut,
-                        syllables: Vec::new(),
-                        reading: None,
-                        translation: None,
-                        fuma: None,
-                    }],
-                },
-                scope.to_owned(),
-            ),
-            None => (
-                CandidateList::default(),
-                format!("{prefix}{}", self.marked_rest(body)),
-            ),
-        };
-        Query {
-            segmentations: Vec::new(),
-            candidates,
-            tail,
-            text: self.composition.text().to_owned(),
-            cursor: self.composition.cursor(),
-            rest,
-            decoded_keys: self.shuangpin.is_some() || self.zhuyin,
-            typed_display: None,
-            // 这些模式下辅码不激活（辅码要求前缀是完整双拼）
-            fuma: None,
-            correction: None,
-            timings: Timings {
-                parse: start.elapsed(),
-                lookup: Duration::ZERO,
-                rank: Duration::ZERO,
             },
         }
     }
@@ -630,7 +551,7 @@ impl Engine {
         paths.into_iter().next()
     }
 
-    /// 每个位置的写法：敲的原样、模糊音，再加音节级敲错变体（`correction::typo`）当带代价的边，
+    /// 每个位置的写法：敲的原样，再加音节级敲错变体（`correction::typo`）当带代价的边，
     /// 代价按类别定、按个人敲错表打折。太短的输入（不到 [`correction::MIN_LETTERS`]）、双拼、非末尾带简拼的切分不加敲错变体：
     /// 短串一处编辑几乎总能凑出别的词，双拼敲错一键换掉的是整个声母 / 韵母。不完整的位置（简拼、前缀）本来就按前缀查，不加。
     pub(super) fn expand_positions(
@@ -638,7 +559,11 @@ impl Engine {
         patterns: &[qingjian_dictionary::SyllablePattern<'_>],
         typos: bool,
     ) -> Expanded {
-        let mut expanded = self.fuzzy.expand(patterns);
+        let mut expanded = Expanded::new(
+            patterns
+                .iter()
+                .map(|p| (vec![(p.text.to_owned(), 0.0)], p.complete)),
+        );
         if !typos {
             return expanded;
         }
@@ -661,16 +586,6 @@ impl Engine {
             }
         }
         expanded
-    }
-
-    /// 本地整句转换把最优切分转成的汉字，给云端当参考（问字模式里就是问题的汉字形式）；转不出或有占位音节为空。
-    pub(super) fn local_guess(&self, segmentations: &[Segmentation]) -> String {
-        segmentations
-            .first()
-            .and_then(|best| self.convert_sentence(&best.patterns(), true))
-            .filter(|conversion| !conversion.has_placeholder())
-            .map(|conversion| conversion.text)
-            .unwrap_or_default()
     }
 
     /// 主词库与用户词一起查（每个位置多种写法）。用户词是用户自己选过的（云联想接受的词等），排序上靠 weight 自然靠前。

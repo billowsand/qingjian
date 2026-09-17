@@ -26,7 +26,7 @@ pub use self::candidates::{CandidateSink, NoopSink, RenderSettings};
 use self::composed::Composed;
 pub use self::config::RouterConfig;
 use self::reload::ConfigReload;
-pub use self::reload::{attach_cloud, load_fuma};
+pub use self::reload::load_fuma;
 pub use self::rescore::find_model;
 use self::rescore::{ModelLoader, RescoreState};
 use self::session::SessionInfo;
@@ -56,9 +56,6 @@ pub struct Router {
     /// 当前组句的展示状态；没在组句时为 `None`。
     composed: Option<Composed>,
 
-    /// 整句补全（preedit 右侧、Tab 上屏）；缓冲变化时清空。
-    sentence: Option<String>,
-
     /// 删候选后的屏幕提示，随下一帧下发、下一次按键清。
     notice: Option<String>,
 
@@ -87,7 +84,7 @@ pub struct Router {
     /// 状态条上点出来、还没被 DLL 用 `SyncMode` 取走的目标模式。
     pending_mode: Option<bool>,
 
-    /// 聚焦会话最近报来的光标矩形；云联想异步到达时按它原地重摆候选窗口。
+    /// 聚焦会话最近报来的光标矩形；重排结果异步到达时按它原地重摆候选窗口。
     last_rect: Option<ScreenRect>,
 
     /// 上次真正显示的帧与位置：没变就不重画（组字期间的空转 Poll 很多）。
@@ -118,7 +115,6 @@ impl Router {
             sessions: HashMap::new(),
             focused: None,
             composed: None,
-            sentence: None,
             notice: None,
             highlight: 0,
             navigated: false,
@@ -142,7 +138,7 @@ impl Router {
         self.candidates = sink;
     }
 
-    /// 直接碰 Engine：测试里改模式键这类启动时才设的开关。
+    /// 直接碰 Engine：测试里改启动时才设的开关。
     pub fn engine_mut(&mut self) -> &mut Engine {
         &mut self.engine
     }

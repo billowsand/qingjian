@@ -109,7 +109,6 @@ impl Router {
             Effect::Navigated => (None, KeyOutcome::Consumed),
             Effect::Passthrough => (None, KeyOutcome::Passthrough),
         };
-        self.poll_prediction();
         let frame = self.current_frame();
         self.reconcile_candidates(&frame);
         ServerMessage::KeyResult {
@@ -120,15 +119,10 @@ impl Router {
         }
     }
 
-    /// 云联想轮询：聚焦会话拉一次异步结果回最新一帧，否则回空帧。释义兜底与本地整句模型也借这个节拍收。
+    /// 轮询：聚焦会话回最新一帧，否则回空帧。本地整句模型的重排也借这个节拍收。
     fn handle_poll(&mut self, session: SessionId) -> ServerMessage {
         self.tick();
-        let learned = self.engine.poll_glosses();
-        if learned > 0 {
-            tracing::info!(learned, "释义兜底写入个人释义表");
-        }
         let frame = if self.focused == Some(session) {
-            self.poll_prediction();
             let frame = self.current_frame();
             self.reconcile_candidates(&frame);
             frame

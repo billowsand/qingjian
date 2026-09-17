@@ -86,14 +86,6 @@ fn preview_card(label: &str, palette: Palette) -> View {
                     preview_text("int. hello", 12.0, palette.gloss),
                 )),
         );
-    let cloud = StackPanel::new()
-        .orientation(Orientation::Horizontal)
-        .spacing(8.0)
-        .children((
-            preview_text("2", 11.0, palette.index),
-            preview_text("☁ 你好吗", 16.0, palette.cloud),
-            preview_text("hello?", 12.0, palette.gloss),
-        ));
     StackPanel::new().spacing(6.0).children((
         preview_text(label, 12.0, palette.gloss),
         Border::new()
@@ -103,11 +95,7 @@ fn preview_card(label: &str, palette: Palette) -> View {
             .border_thickness(1.0)
             .corner_radius(8.0)
             .padding(10.0)
-            .content(
-                StackPanel::new()
-                    .spacing(7.0)
-                    .children((preedit, selected, cloud)),
-            ),
+            .content(StackPanel::new().spacing(7.0).children((preedit, selected))),
     ))
 }
 
@@ -128,7 +116,7 @@ fn theme_preview(mode: ThemeMode) -> View {
             .text("字在 · 钴蓝薄荷")
             .font_size(16.0)
             .font_weight(FontWeight::SEMI_BOLD),
-        note("预览与候选窗、输入光标和云候选共用同一套语义色；“跟随系统”同时展示两种外观。"),
+        note("预览与候选窗、输入光标共用同一套语义色；“跟随系统”同时展示两种外观。"),
         cards,
     ))
 }

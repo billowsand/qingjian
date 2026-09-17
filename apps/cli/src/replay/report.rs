@@ -33,13 +33,6 @@ pub struct Report {
     pub breaks: usize,
     pub passthrough_chars: usize,
 
-    /// 云端联想展示了几次、其中紧接着被接受（上屏来源是云端词 / 云端整句）几次。
-    pub predictions: usize,
-    pub predictions_accepted: usize,
-
-    /// 上一条是联想、还没等到接下来的上屏。
-    pub prediction_pending: bool,
-
     /// 旧格式的空行（键与文本都空的原样上屏）。
     pub empty: usize,
 
@@ -58,11 +51,7 @@ impl Report {
             InputSource::Sentence => Some(&mut self.sentence),
             InputSource::English => Some(&mut self.english),
             InputSource::Shortcut | InputSource::Emoji => Some(&mut self.other),
-            InputSource::Custom
-            | InputSource::Cloud
-            | InputSource::CloudSentence
-            | InputSource::Raw
-            | InputSource::Translation => None,
+            InputSource::Custom | InputSource::Raw => None,
         }
     }
 
@@ -158,15 +147,6 @@ impl fmt::Display for Report {
         }
         if self.retypes > 0 {
             writeln!(f, "退格重打 {} 次", self.retypes)?;
-        }
-        if self.predictions > 0 {
-            writeln!(
-                f,
-                "云端联想展示 {} 次，紧接着被接受 {} 次（{}）",
-                self.predictions,
-                self.predictions_accepted,
-                percent(self.predictions_accepted, self.predictions)
-            )?;
         }
         if self.sessions + self.breaks + self.passthrough_chars > 0 {
             writeln!(
