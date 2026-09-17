@@ -69,12 +69,11 @@ pub(crate) fn view(settings: &mut Settings, ui: &mut egui::Ui) {
                     .inner
                 },
             );
-            let mut page_size = settings.config.general.page_size as i64;
+            let page_size = settings.config.general.page_size;
             list.row("\u{EA37}", "每页候选数", "", |ui| {
-                let response =
-                    ui.add(egui::DragValue::new(&mut page_size).range(1..=MAX_PAGE_SIZE as i64));
-                if response.changed() {
-                    settings.save("general", "page_size", page_size);
+                let (response, picked) = page_size_combo(ui, page_size);
+                if let Some(size) = picked {
+                    settings.save("general", "page_size", size as i64);
                 }
                 response
             });
@@ -158,6 +157,27 @@ pub(crate) fn view(settings: &mut Settings, ui: &mut egui::Ui) {
             );
         });
     });
+}
+
+/// 每页候选数下拉：1–9，与其他行一样是个下拉框，不用拖数字。
+fn page_size_combo(ui: &mut egui::Ui, current: usize) -> (egui::Response, Option<usize>) {
+    let mut picked = None;
+    let response = egui::ComboBox::from_id_salt("page-size")
+        .width(CONTROL_WIDTH)
+        .selected_text(egui::RichText::new(format!("{current} 个")).size(LABEL_SIZE))
+        .show_ui(ui, |ui| {
+            for size in 1..=MAX_PAGE_SIZE {
+                if ui
+                    .selectable_label(size == current, format!("{size} 个"))
+                    .clicked()
+                    && size != current
+                {
+                    picked = Some(size);
+                }
+            }
+        })
+        .response;
+    (response, picked)
 }
 
 /// 字符串下拉：返回控件的 `Response` 与「选了新项」时它的配置写法。
