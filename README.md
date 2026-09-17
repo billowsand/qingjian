@@ -43,19 +43,40 @@
 
 ## 看看它
 
-| 浅色候选窗 | 深色候选窗 |
-| :---: | :---: |
-| <img src="./assets/readme/nihao-vertical-light.png" width="360" alt="字在浅色候选窗" /> | <img src="./assets/readme/nihao-vertical-dark.png" width="360" alt="字在深色候选窗" /> |
+下面展示的是此前确定的“字在”Windows 视觉设计稿，也是图标、配色、候选界面、设置程序与安装体验的设计基准。
 
-| 浅色悬浮状态条 | 深色悬浮状态条 |
-| :---: | :---: |
-| <img src="./assets/readme/status-light.png" width="360" alt="字在浅色悬浮状态条" /> | <img src="./assets/readme/status-dark.png" width="360" alt="字在深色悬浮状态条" /> |
+### 候选窗与悬浮状态条
 
-下面这段话全部由字在输入：整句拼音一口气敲完，停顿后由本地小模型重排候选。
+<p align="center">
+  <img src="./assets/readme/input-ui-concept.png" alt="字在候选窗、横排输入栏、纠错状态与悬浮状态条设计" />
+</p>
 
-https://github.com/user-attachments/assets/d145fde9-a641-4543-8b15-dd7a2685de3d
+浅色与深色使用同一套语义：钴蓝表示当前选择，薄荷色表示正在输入或本地生效。候选内容永远比品牌装饰更重要。
 
-这些图片不是设计稿，而是由仓库里的实际渲染器生成。浅色、深色、横排、竖排和状态条共用同一套“字在”视觉语义。
+### Windows 设置界面
+
+<p align="center">
+  <img src="./assets/readme/windows-settings-concept.png" alt="字在 Windows 设置界面浅色与深色设计" />
+</p>
+
+设置程序遵循 Windows 11 的原生结构，品牌只出现在图标、导航、实时预览和关键状态中。它是当前过渡期的收敛工具，而不是项目最终形态。
+
+### 安装与系统集成
+
+<p align="center">
+  <img src="./assets/readme/windows-integration-concept.png" alt="字在安装向导、开始菜单、任务栏与系统输入法菜单设计" />
+</p>
+
+从安装包、开始菜单到任务栏与输入法切换菜单，字在使用同一套图标家族；小尺寸图标单独绘制，不把主图标机械缩小。
+
+<details>
+<summary><strong>查看品牌图标系统</strong></summary>
+
+<p align="center">
+  <img src="./assets/readme/brand-system.png" alt="字在主图标、单色图标与中英文模式图标系统" />
+</p>
+
+</details>
 
 ## 为什么是字在
 
