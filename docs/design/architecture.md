@@ -338,13 +338,13 @@ CC-CEDICT 表（`dict-convert cedict`）保留为备用来源，覆盖面广但�
   带 Alt 的组合是系统键、不经击键 sink（真机 `OnTestKeyDown` 里从没出现过），保留键由 TSF 在应用之前匹配，UWP 里也一样；组合激活时从
   `config.toml` 读一次（AppContainer 读不到用户目录时用缺省），命中后当作那个组合键转发给 Server 走原有的 `RequestSelection` 流程。
   DLL 记 `english_mode` 持久状态；任务栏的中 / 英指示器靠 `GUID_LBI_INPUTMODE` 语言栏按钮渲染
-  （`com/mode/button.rs`，图标现画「中」/「英」，第三方 TIP 单写转换模式 compartment 不出这个指示器），另外顺带写一份转换模式 compartment
+  （`com/mode/button.rs`，图标现画「中」/「A」，第三方 TIP 单写转换模式 compartment 不出这个指示器），另外顺带写一份转换模式 compartment
   （`GUID_COMPARTMENT_KEYBOARD_INPUTMODE_CONVERSION` 的 `TF_CONVERSIONMODE_NATIVE` 位，`com/mode/mod.rs`）。这条 compartment 还**反向同步**：激活时对它挂
   `ITfCompartmentEventSink`（`com/mode/conversion.rs`），用户点任务栏中 / 英（或别的输入指示器途径）改了转换模式时 `OnChange` 读回 `NATIVE` 位、与当前
   `english_mode` 不同才翻转（相同即我们自己写的那次，忽略以防回环），翻转顺带走 `update_mode_indicator` → 悬浮状态条也一起同步；Caps Lock 只管大小写，
   亮着无论中英模式都直接出大写英文（微软拼音式）。`KeyModifiers` 因此带 `caps`（大小写）与 `english_mode`（持久模式）两个非物理位，
   字母大小写按 `shift XOR caps`。Router（`dispatch/key/input.rs`）里 `english = caps || english_mode`，**英文状态一律纯直通**：
-  字母不进缓冲区、由壳直接插进输入框，没有候选窗（0.1.4 删掉了英文候选那条路径与 `[general] english_candidates` / `[apps] english_candidates_off` 两个开关，
+  字母不进缓冲区、由壳直接插进输入框，没有候选窗（0.1.5 删掉了英文候选那条路径与 `[general] english_candidates` / `[apps] english_candidates_off` 两个开关，
   理由见 candidate-ui.md）。「先上屏、再把这个键交给应用」在 Windows 上会乱序
   （放行是同步的、上屏走异步编辑会话），所以组句中的空格 / 标点 / Shift 大写字母改成吃掉，连同上屏文本一起插入。
   应用标识（宿主进程的 exe 文件名，DLL 里 `GetModuleFileNameW(NULL)` 取到就随 `OpenSession { app }` 报一次）仍逐会话记着，交给 Engine 做统计；

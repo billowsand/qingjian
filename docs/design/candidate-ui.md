@@ -118,7 +118,7 @@ computer
 不组句、不出候选窗；空格、回车、Tab、方向键、数字键都是它们本来的意思，只有标点还按英文那份全角设置转。
 `apply_english`（`dispatch/key/input.rs`）就这几行：组句中切过来的先 `take_raw` 把拼音原样上屏，再插字母。
 
-0.1.4 之前这里给过英文词表的补全与拼错纠正（Tab 与上下键选词，`[general] english_candidates` 开关，按应用的 `[apps] english_candidates_off` 名单）。
+0.1.5 之前这里给过英文词表的补全与拼错纠正（Tab 与上下键选词，`[general] english_candidates` 开关，按应用的 `[apps] english_candidates_off` 名单）。
 **整条路径连同两个开关一起删掉了**：切到英文模式就是「我现在要打英文」，这时候弹候选框与这个意图相反；
 真要靠英文词表，中文模式下的中英混输已经给了（见下），不必切模式。删开关而不是改缺省，是因为老配置文件里已经写着 `true`，改缺省对现有用户无效；
 两个键现在读到当没有（`retired_english_candidate_keys_are_ignored`）。Core 的 `english::suggest` 与个人英文词表照旧，供中英混输用。
