@@ -113,8 +113,9 @@ pub(super) fn paint(hdc: HDC, data: &RenderData, client: RECT) {
 }
 
 /// 顶部拼音行：各段按样式画、自己画光标、右侧整句补全。返回占用高度。
+/// 拼音配成「只在行内」时这行只剩整句补全，照画（与字在渲染器的 `has_top_line` 一致）。
 fn draw_top_line(hdc: HDC, data: &RenderData, y: i32) -> i32 {
-    if data.preedit.is_empty() {
+    if data.preedit.is_empty() && data.sentence.is_none() {
         return 0;
     }
     let theme = &data.theme;
@@ -140,17 +141,24 @@ fn draw_top_line(hdc: HDC, data: &RenderData, y: i32) -> i32 {
         }
         x += width;
     }
-    let before = concat_before_cursor(&data.preedit, data.cursor);
-    let caret_x = theme.padding + measure(hdc, theme.annotation_font, &before).cx;
-    let caret = RECT {
-        left: caret_x,
-        top,
-        right: caret_x + scale_line(theme),
-        bottom: top + height,
-    };
-    fill_rect(hdc, caret, theme.caret_color);
+    // 没有拼音就没有光标可画（「只在行内」时这行只有整句补全）
+    if !data.preedit.is_empty() {
+        let before = concat_before_cursor(&data.preedit, data.cursor);
+        let caret_x = theme.padding + measure(hdc, theme.annotation_font, &before).cx;
+        let caret = RECT {
+            left: caret_x,
+            top,
+            right: caret_x + scale_line(theme),
+            bottom: top + height,
+        };
+        fill_rect(hdc, caret, theme.caret_color);
+    }
     if let Some(sentence) = &data.sentence {
-        let sentence_x = x + theme.column_gap;
+        let sentence_x = if data.preedit.is_empty() {
+            x
+        } else {
+            x + theme.column_gap
+        };
         let cloud = cloud_glyph_width(hdc, theme);
         draw_text(
             hdc,
@@ -331,17 +339,22 @@ fn draw_horizontal(hdc: HDC, data: &RenderData, y: i32, width: i32) {
 }
 
 fn top_line_size(hdc: HDC, data: &RenderData) -> (i32, i32) {
-    if data.preedit.is_empty() {
+    if data.preedit.is_empty() && data.sentence.is_none() {
         return (0, 0);
     }
     let theme = &data.theme;
     let height = line_height(hdc, theme.annotation_font);
     let full: String = data.preedit.iter().map(|(t, _)| t.as_str()).collect();
-    let mut width = measure(hdc, theme.annotation_font, &full).cx + scale_line(theme);
+    // 有拼音才带光标那一竖；两者都有才隔一个列间距
+    let mut width = measure(hdc, theme.annotation_font, &full).cx;
+    if !data.preedit.is_empty() {
+        width += scale_line(theme);
+    }
     if let Some(sentence) = &data.sentence {
-        width += theme.column_gap
-            + cloud_glyph_width(hdc, theme)
-            + measure(hdc, theme.annotation_font, sentence).cx;
+        if !data.preedit.is_empty() {
+            width += theme.column_gap;
+        }
+        width += cloud_glyph_width(hdc, theme) + measure(hdc, theme.annotation_font, sentence).cx;
     }
     (width, height + theme.row_padding * 2)
 }

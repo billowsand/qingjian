@@ -162,6 +162,7 @@ impl Router {
                 theme: self.config.theme,
                 sentence: None,
                 notice: self.notice.clone(),
+                inline_preedit: self.config.preedit.inline(),
             },
             Some(Composed::Candidates {
                 preedit,
@@ -189,6 +190,7 @@ impl Router {
                     theme: self.config.theme,
                     sentence: self.sentence.clone(),
                     notice: self.notice.clone(),
+                    inline_preedit: self.config.preedit.inline(),
                 }
             }
         }

@@ -1,6 +1,6 @@
 use qingjian_core::ShuangpinScheme;
 use qingjian_platform::protocol::KeyModifiers;
-use qingjian_platform::{CandidateRenderer, Config, LayoutMode, ThemeMode};
+use qingjian_platform::{CandidateRenderer, Config, LayoutMode, PreeditMode, ThemeMode};
 
 use super::RenderSettings;
 
@@ -18,6 +18,9 @@ pub struct RouterConfig {
 
     /// 候选窗口外观（`[general] theme`）。
     pub theme: ThemeMode,
+
+    /// 组句拼音显示在行内还是候选窗口（`[general] preedit`）。
+    pub preedit: PreeditMode,
 
     /// 候选窗口 / 状态条由青简渲染器还是 GDI 画（`[general] renderer`）。
     pub renderer: CandidateRenderer,
@@ -67,6 +70,7 @@ impl From<&Config> for RouterConfig {
             cloud_slots: config.predict.slots,
             layout: config.general.layout,
             theme: config.general.theme,
+            preedit: config.general.preedit,
             renderer: config.general.renderer,
             font: config.general.font.trim().to_owned(),
             page_keys: config.general.page_keys(),

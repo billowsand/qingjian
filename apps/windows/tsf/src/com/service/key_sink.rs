@@ -187,14 +187,15 @@ impl TextService_Impl {
         let insertable = !event.modifiers.has_command_key();
         match (next, passthrough_char) {
             // 放行 + 没在组句 + 可打印字符：输入法插入，吃掉；Server 顺带交出的英文直输段字母拼在前面。
+            // 「没在组句」看 Server 的帧空不空，不看 `preedit`：拼音只在候选窗口时行内本来就是空串。
             (
                 Next::Document {
                     consumed: false,
                     commit,
-                    preedit,
+                    ..
                 },
                 Some(c),
-            ) if insertable && preedit.is_empty() => {
+            ) if insertable && !self.shared.composing() => {
                 let mut text = commit.unwrap_or_default();
                 text.push(c);
                 self.update_document(pic, Some(text), String::new());

@@ -10,9 +10,14 @@ use qingjian_core::CandidateList;
 
 use crate::{LayoutMode, ThemeMode};
 
+/// 老 Server 发来的帧没有 `inline_preedit` 字段，按「放行内」算（那时的行为）。
+fn inline_preedit_default() -> bool {
+    true
+}
+
 /// Server 告诉 DLL「现在屏幕上该是什么样」：组句的拼音行、候选页、高亮与页码。
 /// 空 [`Frame`]（`preedit` 与 `candidates` 都空）表示没有在组句，DLL 收起候选窗口。
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Frame {
     /// 组句拼音行的分段，按顺序拼成整行。
     pub preedit: Vec<PreeditSegment>,
@@ -45,6 +50,29 @@ pub struct Frame {
     /// 不参与 [`is_empty`](Self::is_empty)：单有提示不算在组句，否则空组句也会撑开候选窗口。
     #[serde(default)]
     pub notice: Option<String>,
+
+    /// 拼音行要不要放进应用里（TSF 组句 / marked text）。DLL 是纯渲染端，
+    /// 由 Server 按 `[general] preedit` 随帧下发；为 `false` 时 `preedit` 只画在候选窗口里。
+    #[serde(default = "inline_preedit_default")]
+    pub inline_preedit: bool,
+}
+
+impl Default for Frame {
+    fn default() -> Self {
+        Self {
+            preedit: Vec::new(),
+            cursor: 0,
+            candidates: CandidateList::default(),
+            highlight: 0,
+            page: 0,
+            page_count: 0,
+            layout: LayoutMode::default(),
+            theme: ThemeMode::default(),
+            sentence: None,
+            notice: None,
+            inline_preedit: inline_preedit_default(),
+        }
+    }
 }
 
 impl Frame {

@@ -1,17 +1,16 @@
 //! 组句起始时读应用光标前的文字，给本地整句模型当前文（对应 macOS 壳的 `surrounding_text`），
-//! 顺手按输入范围判这个输入框私密不私密（[`private_input`]）。在起组句的那次读写会话里做（此时选区还是原来的插入点，
+//! 顺手按输入范围判这个输入框私密不私密（[`private_input`]）。在一段组句起头的那次读写会话里做（此时选区还是原来的插入点，
 //! 拼音还没插进去），不另开会话。
-
-use std::mem::ManuallyDrop;
 
 use windows::Win32::System::Com::CoTaskMemFree;
 use windows::Win32::System::Variant::VT_UNKNOWN;
 use windows::Win32::UI::TextServices::{
     GUID_PROP_INPUTSCOPE, IS_ALPHANUMERIC_PIN, IS_NUMERIC_PASSWORD, IS_NUMERIC_PIN, IS_PASSWORD,
-    IS_PRIVATE, ITfContext, ITfInputScope, ITfRange, InputScope, TF_ANCHOR_START,
-    TF_DEFAULT_SELECTION, TF_SELECTION,
+    IS_PRIVATE, ITfContext, ITfInputScope, ITfRange, InputScope,
 };
 use windows::core::Interface;
+
+use super::selection_start;
 
 /// 往前读多少字（与 macOS 壳的 `RESCORE_LOOKBACK` 一致）。
 const LOOKBACK: i32 = 64;
@@ -59,24 +58,6 @@ fn text_before_caret(context: &ITfContext, ec: u32, range: ITfRange) -> Option<S
     unsafe { range.GetText(ec, 0, &mut buf, &mut fetched) }.ok()?;
     let text = String::from_utf16_lossy(&buf[..fetched as usize]);
     (!text.is_empty()).then_some(text)
-}
-
-/// 选区折成起点（插入点）。
-fn selection_start(context: &ITfContext, ec: u32) -> Option<ITfRange> {
-    let mut selection = [TF_SELECTION::default()];
-    let mut fetched = 0u32;
-    unsafe {
-        context
-            .GetSelection(ec, TF_DEFAULT_SELECTION, &mut selection, &mut fetched)
-            .ok()?;
-    }
-    if fetched == 0 {
-        return None;
-    }
-    // GetSelection 移交 range 的所有权（ManuallyDrop），取出后由这里释放。
-    let range = unsafe { ManuallyDrop::take(&mut selection[0].range) }?;
-    unsafe { range.Collapse(ec, TF_ANCHOR_START) }.ok()?;
-    Some(range)
 }
 
 /// 算作私密的输入范围：密码 / PIN 之外还有 `IS_PRIVATE`——Chromium（Edge / Chrome）给密码框与无痕窗口里所有输入框报的

@@ -5,11 +5,14 @@ use std::sync::{Arc, Mutex};
 
 use qingjian_core::sentence::SentenceScorer;
 use qingjian_core::{ModeKeys, ShuangpinScheme};
+use qingjian_platform::PreeditMode;
 use qingjian_platform::protocol::{
-    ClientMessage, Frame, KeyEvent, KeyModifiers, KeyOutcome, PROTOCOL_VERSION, PreeditKind,
-    ServerMessage, SessionId,
+    ClientMessage, FUMA_PREEDIT_PROTOCOL, Frame, KeyEvent, KeyModifiers, KeyOutcome,
+    PROTOCOL_VERSION, PreeditKind, ScreenRect, ServerMessage, SessionId,
 };
-use qingjian_windows_server::dispatch::{StatusEvent, StatusSink, StatusView};
+use qingjian_windows_server::dispatch::{
+    CandidateSink, RenderSettings, StatusEvent, StatusSink, StatusView,
+};
 use qingjian_windows_server::{AssemblySpec, Router, RouterConfig, assembly};
 
 const SESSION: SessionId = SessionId(1);
@@ -1197,11 +1200,11 @@ fn fuma_keys_show_in_the_preedit() {
 #[test]
 fn fuma_preedit_downgrades_for_old_dlls() {
     let mut router = fuma_router();
-    // 同一个会话按老协议重开（DLL 断线重连就是这条路）
+    // 同一个会话按认识 Fuma 之前的协议重开（DLL 断线重连就是这条路）
     router.handle(ClientMessage::OpenSession {
         session: SESSION,
         app: None,
-        protocol: PROTOCOL_VERSION - 1,
+        protocol: FUMA_PREEDIT_PROTOCOL - 1,
     });
     type_letters(&mut router, "kdfaf");
     let (_, _, frame) = press(&mut router, letter_with('X', SHIFT));
@@ -1247,4 +1250,84 @@ fn fuma_off_keeps_uppercase_as_temporary_english() {
     // 拼音原样上屏 + 大写直通在 Windows 上合起来一次插入
     assert_eq!(commit.as_deref(), Some("kdfaX"));
     assert_eq!(outcome, KeyOutcome::Consumed);
+}
+
+/// 记录候选窗口调用：`Some(帧)` 是显示、`None` 是收起。
+#[derive(Clone, Default)]
+struct RecordingCandidates(Arc<Mutex<Vec<Option<Frame>>>>);
+
+impl RecordingCandidates {
+    /// 最后一次真正显示出来的那一帧。
+    fn shown(&self) -> Option<Frame> {
+        self.0.lock().unwrap().iter().rev().find_map(Clone::clone)
+    }
+}
+
+impl CandidateSink for RecordingCandidates {
+    fn show(&self, frame: Frame, _rect: ScreenRect) {
+        self.0.lock().unwrap().push(Some(frame));
+    }
+
+    fn hide(&self) {
+        self.0.lock().unwrap().push(None);
+    }
+
+    fn configure(&self, _settings: RenderSettings) {}
+}
+
+/// 按 `[general] preedit` 敲一串拼音，返回（发给 DLL 的帧，候选窗口画的那帧）。
+/// 按真实顺序走：先收键，DLL 写完文档再报光标矩形——没有矩形 Server 不显示窗口。
+fn typed_with_preedit(mode: PreeditMode) -> (Frame, Option<Frame>) {
+    let mut router = router_with(RouterConfig {
+        preedit: mode,
+        ..RouterConfig::default()
+    });
+    let sink = RecordingCandidates::default();
+    router.set_candidate_sink(Box::new(sink.clone()));
+    let (_, _, frame) = type_letters(&mut router, "nihao");
+    router.handle(ClientMessage::PositionCandidates {
+        session: SESSION,
+        rect: ScreenRect {
+            left: 100,
+            top: 100,
+            right: 102,
+            bottom: 120,
+        },
+    });
+    (frame, sink.shown())
+}
+
+/// 缺省「行内 + 候选窗口」：两处都有拼音。
+#[test]
+fn preedit_both_shows_the_pinyin_inline_and_in_the_window() {
+    let (frame, shown) = typed_with_preedit(PreeditMode::Both);
+    assert!(frame.inline_preedit, "DLL 该把拼音写进应用");
+    let shown = shown.expect("候选窗口该显示");
+    assert_eq!(preedit(&shown), "ni'hao");
+}
+
+/// 「只在行内」：应用里照写，候选窗口那份帧里没有拼音行，候选照画。
+#[test]
+fn preedit_inline_keeps_the_pinyin_out_of_the_window() {
+    let (frame, shown) = typed_with_preedit(PreeditMode::Inline);
+    assert!(frame.inline_preedit, "DLL 该把拼音写进应用");
+    let shown = shown.expect("候选窗口该显示");
+    assert_eq!(preedit(&shown), "");
+    assert_eq!(shown.cursor, 0);
+    assert!(
+        candidate_texts(&shown).contains(&"你好"),
+        "候选还得照画: {:?}",
+        candidate_texts(&shown)
+    );
+}
+
+/// 「只在候选窗口」：`inline_preedit` 关掉让 DLL 不留 marked text，窗口那份仍带拼音行。
+#[test]
+fn preedit_window_keeps_the_pinyin_out_of_the_application() {
+    let (frame, shown) = typed_with_preedit(PreeditMode::Window);
+    assert!(!frame.inline_preedit, "DLL 不该把拼音写进应用");
+    // 拼音分段照发：候选窗口是 Server 自绘的，画它要靠这份帧
+    assert_eq!(preedit(&frame), "ni'hao");
+    let shown = shown.expect("候选窗口该显示");
+    assert_eq!(preedit(&shown), "ni'hao");
 }

@@ -2,14 +2,30 @@
 
 mod sink;
 
+use std::borrow::Cow;
+
 use qingjian_platform::protocol::{Frame, ScreenRect, SessionId};
 
 pub use self::sink::{CandidateSink, NoopSink, RenderSettings};
 use super::Router;
 
 impl Router {
+    /// 窗口那份帧：`[general] preedit` 说拼音只放行内时，把拼音行摘掉（候选还照画）。
+    /// 摘完变空帧的（只有拼音、没有候选）由 [`reconcile_candidates`](Self::reconcile_candidates) 收窗口。
+    fn window_frame<'a>(&self, frame: &'a Frame) -> Cow<'a, Frame> {
+        if self.config.preedit.in_window() {
+            return Cow::Borrowed(frame);
+        }
+        let mut frame = frame.clone();
+        frame.preedit.clear();
+        frame.cursor = 0;
+        Cow::Owned(frame)
+    }
+
     /// 空帧收窗口；非空且已知光标矩形就重绘；还没收到矩形（组句刚起）先不显示，免得在旧位置闪一下。
     pub(super) fn reconcile_candidates(&mut self, frame: &Frame) {
+        let shown = self.window_frame(frame);
+        let frame = shown.as_ref();
         if frame.is_empty() {
             self.engine.note_displayed(std::iter::empty());
             self.hide_candidate_window();
