@@ -11,6 +11,8 @@
 #[cfg(windows)]
 mod app;
 #[cfg(windows)]
+mod files;
+#[cfg(windows)]
 mod fonts;
 #[cfg(windows)]
 mod gpu;

@@ -20,7 +20,7 @@
 .PARAMETER EguiSettings
     设置程序换成 egui spike（分支 egui-settings-spike）：装 qingjian-settings-egui.exe（按正式名字装），
     不装那 118 项 Windows App Runtime。成品另起名 Zizai-<版本>-egui-Setup.exe，不覆盖正式包。
-    **只有「通用」页是真的，其余四页是占位**，只用于真机对比体积与观感，别拿去发。
+    五页都能用，但仍是 spike，只用于真机对比体积与观感，别拿去发。
 #>
 [CmdletBinding()]
 param([switch]$SkipBuild, [switch]$Sign, [switch]$EguiSettings)

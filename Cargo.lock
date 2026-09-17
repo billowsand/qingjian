@@ -3778,11 +3778,16 @@ name = "qingjian-windows-settings-egui"
 version = "0.0.0"
 dependencies = [
  "eframe",
+ "jiff",
  "png",
+ "qingjian-core",
+ "qingjian-learning",
  "qingjian-platform",
  "qingjian-render",
+ "rfd",
  "toml_edit",
  "wgpu",
+ "windows-registry",
  "winresource",
 ]
 

@@ -33,6 +33,13 @@ eframe = { version = "0.33", default-features = false, features = [
 wgpu = { version = "27.0", default-features = false, features = ["dx12"] }
 # 复用它的 system_fonts（DirectWrite 按字族名找字体文件）与候选窗配色 Palette
 qingjian-render.workspace = true
+# 词库页要读 .qj 的名称 / 词条数 / 许可证；关于页的输入统计要 Usage / book_scale
+qingjian-core.workspace = true
+qingjian-learning.workspace = true
+jiff.workspace = true
+rfd = "0.17"
+# 读 AppsUseLightTheme 跟随系统明暗（Server 判断候选窗深浅用的也是它）
+windows-registry.workspace = true
 # 解 Logo 的 PNG（渲染器也用它），省得为一张图引 egui_extras 的图片加载器
 png.workspace = true
 

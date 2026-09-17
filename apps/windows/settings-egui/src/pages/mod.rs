@@ -1,4 +1,7 @@
-//! 各分节页：spike 只复刻「通用」页，其余四页是占位，够量体积与观感。
+//! 各分节页：每个文件一个 `view(settings, ui)`，页内常量（下拉选项等）与它同放。
 
+pub(crate) mod about;
+pub(crate) mod advanced;
+pub(crate) mod appearance;
+pub(crate) mod dictionaries;
 pub(crate) mod general;
-pub(crate) mod placeholder;

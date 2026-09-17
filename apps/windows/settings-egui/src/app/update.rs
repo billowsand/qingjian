@@ -8,6 +8,8 @@ use crate::widgets::NAV_WIDTH;
 
 impl eframe::App for Settings {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+        crate::theme::follow_system(ctx, &mut self.dark);
+
         egui::SidePanel::left("nav")
             .exact_width(NAV_WIDTH)
             .resizable(false)
@@ -17,8 +19,11 @@ impl eframe::App for Settings {
         egui::CentralPanel::default()
             .frame(crate::theme::page_frame(ctx))
             .show(ctx, |ui| match self.page() {
-                "general" => pages::general::view(self, ui),
-                tag => pages::placeholder::view(ui, tag),
+                "appearance" => pages::appearance::view(self, ui),
+                "dictionaries" => pages::dictionaries::view(self, ui),
+                "advanced" => pages::advanced::view(self, ui),
+                "about" => pages::about::view(self, ui),
+                _ => pages::general::view(self, ui),
             });
 
         self.report_first_frame(frame);

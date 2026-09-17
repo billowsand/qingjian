@@ -62,8 +62,8 @@ fn brand(ui: &mut egui::Ui) {
     });
 }
 
-/// 解码一次 Logo 存进 egui 的纹理缓存（`png` 解码，不引 egui_extras 的图片加载器）。
-fn logo(ctx: &egui::Context) -> Option<egui::TextureHandle> {
+/// 解码一次 Logo 存进 egui 的纹理缓存（`png` 解码，不引 egui_extras 的图片加载器）；「关于」页也用它。
+pub(crate) fn logo(ctx: &egui::Context) -> Option<egui::TextureHandle> {
     let id = egui::Id::new("brand-logo");
     if let Some(handle) = ctx.data(|data| data.get_temp::<egui::TextureHandle>(id)) {
         return Some(handle);

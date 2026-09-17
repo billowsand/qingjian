@@ -77,7 +77,7 @@ Source: "{#Repo}\target\release\qingjian-server.exe";   DestDir: "{app}"; Flags:
 #ifdef EguiSettings
 ; egui spike 版设置程序（分支 egui-settings-spike，build.ps1 -EguiSettings）：按正式名字装，Server 的齿轮、
 ; 开始菜单快捷方式与安装前 taskkill 都不用改。自绘 UI 不要 Windows App Runtime，那 118 项 / 56 MB 整段不装。
-; 只有「通用」页是真的，其余四页是占位——别拿这个包当正式版发。
+; 五页都能用，但仍是 spike（说明改成悬停提示、图标码点未核对）——别拿这个包当正式版发。
 Source: "{#Repo}\target\release\qingjian-settings-egui.exe"; DestDir: "{app}"; DestName: "qingjian-settings.exe"; Flags: ignoreversion
 #else
 Source: "{#Repo}\target\release\qingjian-settings.exe"; DestDir: "{app}"; Flags: ignoreversion
