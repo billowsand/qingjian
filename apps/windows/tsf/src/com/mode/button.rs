@@ -5,7 +5,7 @@ use std::rc::Rc;
 
 use windows::Win32::Foundation::{COLORREF, E_NOINTERFACE, POINT, RECT};
 use windows::Win32::Graphics::Gdi::{
-    BI_RGB, BITMAPINFO, BITMAPINFOHEADER, CLEARTYPE_QUALITY, CLIP_DEFAULT_PRECIS, CreateBitmap,
+    ANTIALIASED_QUALITY, BI_RGB, BITMAPINFO, BITMAPINFOHEADER, CLIP_DEFAULT_PRECIS, CreateBitmap,
     CreateCompatibleDC, CreateDIBSection, CreateFontW, DEFAULT_CHARSET, DIB_RGB_COLORS, DT_CENTER,
     DT_SINGLELINE, DT_VCENTER, DeleteDC, DeleteObject, DrawTextW, FF_DONTCARE, FW_NORMAL, GdiFlush,
     OUT_TT_PRECIS, SelectObject, SetBkMode, SetTextColor, TRANSPARENT, VARIABLE_PITCH,
@@ -15,7 +15,9 @@ use windows::Win32::UI::TextServices::{
     ITfLangBarItemSink, ITfMenu, ITfSource, ITfSource_Impl, TF_LANGBARITEMINFO,
     TF_LBI_STYLE_BTN_BUTTON, TfLBIClick,
 };
-use windows::Win32::UI::WindowsAndMessaging::{CreateIconIndirect, HICON, ICONINFO};
+use windows::Win32::UI::WindowsAndMessaging::{
+    CreateIconIndirect, GetSystemMetrics, HICON, ICONINFO, SM_CXSMICON,
+};
 use windows::core::{BOOL, BSTR, GUID, IUnknown, Interface, Ref, Result, implement, w};
 
 use super::ModeState;
@@ -98,15 +100,35 @@ impl ITfSource_Impl for ModeButton_Impl {
     }
 }
 
-/// 透明底、白字的「中」/「英」图标（Win11 深色托盘可见）。画得比托盘尺寸大，系统缩小后更锐。
+/// 托盘图标的边长：按系统的小图标尺寸原样画（画大了再让系统缩只会糊），取不到按 16 算。
+fn icon_size() -> i32 {
+    unsafe { GetSystemMetrics(SM_CXSMICON) }.clamp(16, 64)
+}
+
+/// 字的颜色：跟着**任务栏**的深浅走（`SystemUsesLightTheme`，与应用深浅是两个设置）——
+/// 浅色任务栏画近黑，深色任务栏画白。读不到按 Win11 缺省的深色任务栏算。
+fn glyph_color() -> u32 {
+    let light_taskbar = windows_registry::CURRENT_USER
+        .open(r"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize")
+        .and_then(|key| key.get_u32("SystemUsesLightTheme"))
+        .is_ok_and(|value| value == 1);
+    if light_taskbar {
+        0x0019_1919
+    } else {
+        0x00FF_FFFF
+    }
+}
+
+/// 透明底的「中」/「英」图标。灰度抗锯齿的覆盖率进 alpha 通道：ClearType 的彩色子像素在透明底上
+/// 只能按「非零即不透明」当成实心像素，托盘里就是一团彩色毛边。像素是非预乘 alpha（与 ICO 一致）。
 /// 系统取走 HICON 后负责销毁。
 fn make_mode_icon(ch: char) -> Result<HICON> {
-    const SIZE: i32 = 24;
+    let size = icon_size();
     let bmi = BITMAPINFO {
         bmiHeader: BITMAPINFOHEADER {
             biSize: size_of::<BITMAPINFOHEADER>() as u32,
-            biWidth: SIZE,
-            biHeight: -SIZE, // top-down
+            biWidth: size,
+            biHeight: -size, // top-down
             biPlanes: 1,
             biBitCount: 32,
             biCompression: BI_RGB.0,
@@ -120,7 +142,7 @@ fn make_mode_icon(ch: char) -> Result<HICON> {
         let memdc = CreateCompatibleDC(None);
         let old_bmp = SelectObject(memdc, color.into());
         let font = CreateFontW(
-            -(SIZE - 2), // 负字高 = 精确字符高度
+            -size, // 负字高 = 精确字符高度；汉字的墨迹约 0.85 字高，居中画进来不会切边
             0,
             0,
             0,
@@ -131,18 +153,19 @@ fn make_mode_icon(ch: char) -> Result<HICON> {
             DEFAULT_CHARSET,
             OUT_TT_PRECIS,
             CLIP_DEFAULT_PRECIS,
-            CLEARTYPE_QUALITY,
+            ANTIALIASED_QUALITY,
             (VARIABLE_PITCH.0 | FF_DONTCARE.0) as u32,
             w!("Microsoft YaHei UI"),
         );
         let old_font = SelectObject(memdc, font.into());
         let _ = SetBkMode(memdc, TRANSPARENT);
+        // 一律先画白字：底是全 0，灰度就是这一像素的覆盖率，下面再换成真正的颜色。
         SetTextColor(memdc, COLORREF(0x00FF_FFFF));
         let mut rect = RECT {
             left: 0,
             top: 0,
-            right: SIZE,
-            bottom: SIZE,
+            right: size,
+            bottom: size,
         };
         let mut text: Vec<u16> = ch.to_string().encode_utf16().collect();
         DrawTextW(
@@ -152,17 +175,26 @@ fn make_mode_icon(ch: char) -> Result<HICON> {
             DT_CENTER | DT_VCENTER | DT_SINGLELINE,
         );
         let _ = GdiFlush();
-        // GDI 画字不写 alpha：画上字的像素补成不透明，其余保持透明。
-        let pixels = std::slice::from_raw_parts_mut(bits.cast::<u32>(), (SIZE * SIZE) as usize);
-        for p in pixels.iter_mut().filter(|p| **p & 0x00FF_FFFF != 0) {
-            *p |= 0xFF00_0000;
+        // GDI 画字不写 alpha：把覆盖率搬进 alpha，颜色换成任务栏配色。
+        let rgb = glyph_color();
+        let pixels = std::slice::from_raw_parts_mut(bits.cast::<u32>(), (size * size) as usize);
+        for p in pixels.iter_mut() {
+            let drawn = *p;
+            let coverage = (drawn & 0xFF)
+                .max((drawn >> 8) & 0xFF)
+                .max((drawn >> 16) & 0xFF);
+            *p = if coverage == 0 {
+                0
+            } else {
+                (coverage << 24) | rgb
+            };
         }
         SelectObject(memdc, old_font);
         let _ = DeleteObject(font.into());
         SelectObject(memdc, old_bmp);
         let _ = DeleteDC(memdc);
         // 掩码全 0，透明靠 32bpp 的 alpha。
-        let mask = CreateBitmap(SIZE, SIZE, 1, 1, None);
+        let mask = CreateBitmap(size, size, 1, 1, None);
         let info = ICONINFO {
             fIcon: true.into(),
             xHotspot: 0,
