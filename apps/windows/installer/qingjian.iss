@@ -53,7 +53,11 @@ SetupIconFile={#Repo}\apps\windows\tsf\resources\qingjian.ico
 UninstallDisplayIcon={app}\qingjian.ico
 Compression=lzma2
 SolidCompression=yes
-WizardStyle=modern
+WizardStyle=modern dynamic
+WizardImageFile={#Repo}\assets\icon\installer-wizard-light.png
+WizardImageFileDynamicDark={#Repo}\assets\icon\installer-wizard-dark.png
+WizardSmallImageFile={#Repo}\assets\icon\logo.png
+WizardSmallImageFileDynamicDark={#Repo}\assets\icon\logo.png
 
 [Languages]
 Name: "chs"; MessagesFile: "compiler:Languages\ChineseSimplified.isl"
