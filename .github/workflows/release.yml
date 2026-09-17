@@ -117,7 +117,7 @@ jobs:
         run: |
           python tools/release/releases_json.py --notes-for "$VERSION" > "$RUNNER_TEMP/notes.md"
           printf '\n> 内测版没有代码签名：安装时 SmartScreen 拦截请点「更多信息 → 仍要运行」；任务栏搜索、「设置」等系统应用里候选窗口可能被遮挡。\n' >> "$RUNNER_TEMP/notes.md"
-          gh release create "$GITHUB_REF_NAME" --title "青简 Windows $VERSION" --notes-file "$RUNNER_TEMP/notes.md" \
+          gh release create "$GITHUB_REF_NAME" --title "字在 Windows $VERSION" --notes-file "$RUNNER_TEMP/notes.md" \
             target/installer/*.exe target/installer/SHA256SUMS target/installer/build-info.json
 
       - name: Generate releases.json

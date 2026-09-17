@@ -1,4 +1,4 @@
-//! 中 / 英输入模式指示器：Win11 托盘品牌图标左边的模式图标。按微软 IME 的做法经 `GUID_LBI_INPUTMODE`
+//! 中 / A 输入模式指示器：Win11 托盘品牌图标左边的模式图标。按微软 IME 的做法经 `GUID_LBI_INPUTMODE`
 //! 语言栏按钮把图标交给系统（转换模式 compartment 不走这条通道，光写它不显示）。
 
 use std::rc::Rc;
@@ -23,7 +23,7 @@ use windows::core::{BOOL, BSTR, GUID, IUnknown, Interface, Ref, Result, implemen
 use super::ModeState;
 use crate::com::CLSID_QINGJIAN;
 
-/// `GUID_LBI_INPUTMODE` 语言栏按钮：图标随 [`ModeState`] 显示中 / 英，点它切模式。
+/// `GUID_LBI_INPUTMODE` 语言栏按钮：图标随 [`ModeState`] 显示中 / A，点它切模式。
 #[implement(ITfLangBarItemButton, ITfSource)]
 pub(crate) struct ModeButton {
     state: Rc<ModeState>,
@@ -119,7 +119,7 @@ fn glyph_color() -> u32 {
     }
 }
 
-/// 透明底的「中」/「英」图标。灰度抗锯齿的覆盖率进 alpha 通道：ClearType 的彩色子像素在透明底上
+/// 透明底的「中」/「A」图标。灰度抗锯齿的覆盖率进 alpha 通道：ClearType 的彩色子像素在透明底上
 /// 只能按「非零即不透明」当成实心像素，托盘里就是一团彩色毛边。像素是非预乘 alpha（与 ICO 一致）。
 /// 系统取走 HICON 后负责销毁。
 fn make_mode_icon(ch: char) -> Result<HICON> {
