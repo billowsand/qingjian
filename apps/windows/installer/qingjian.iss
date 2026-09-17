@@ -29,6 +29,12 @@
 ; 按版本起名的 TSF DLL（见文件头「升级」）。
 #define TsfDll "qingjian_tsf-" + AppVersion + ".dll"
 #define TsfDll32 "qingjian_tsf-" + AppVersion + "-x86.dll"
+; egui spike 版的包另起名字，和正式包放在一起不会互相覆盖。
+#ifdef EguiSettings
+  #define SetupSuffix "-egui"
+#else
+  #define SetupSuffix ""
+#endif
 
 [Setup]
 AppId={{A7E3C1F2-5B94-4D6A-9C0E-2F8B1D3A6E70}
@@ -48,7 +54,7 @@ PrivilegesRequired=admin
 ; 别让 Restart Manager 去关所有加载了 DLL 的应用（那是每一个有文本框的应用）。
 CloseApplications=no
 OutputDir={#Repo}\target\installer
-OutputBaseFilename=Zizai-{#AppVersion}-Setup
+OutputBaseFilename=Zizai-{#AppVersion}{#SetupSuffix}-Setup
 SetupIconFile={#Repo}\apps\windows\tsf\resources\qingjian.ico
 UninstallDisplayIcon={app}\qingjian.ico
 Compression=lzma2
@@ -68,10 +74,17 @@ Name: "chs"; MessagesFile: "compiler:Languages\ChineseSimplified.isl"
 Source: "{#Repo}\target\release\qingjian_tsf.dll";      DestDir: "{app}"; DestName: "{#TsfDll}"; Flags: ignoreversion uninsrestartdelete
 Source: "{#Repo}\target\i686-pc-windows-msvc\release\qingjian_tsf.dll"; DestDir: "{app}"; DestName: "{#TsfDll32}"; Flags: ignoreversion uninsrestartdelete
 Source: "{#Repo}\target\release\qingjian-server.exe";   DestDir: "{app}"; Flags: ignoreversion
+#ifdef EguiSettings
+; egui spike 版设置程序（分支 egui-settings-spike，build.ps1 -EguiSettings）：按正式名字装，Server 的齿轮、
+; 开始菜单快捷方式与安装前 taskkill 都不用改。自绘 UI 不要 Windows App Runtime，那 118 项 / 56 MB 整段不装。
+; 只有「通用」页是真的，其余四页是占位——别拿这个包当正式版发。
+Source: "{#Repo}\target\release\qingjian-settings-egui.exe"; DestDir: "{app}"; DestName: "qingjian-settings.exe"; Flags: ignoreversion
+#else
 Source: "{#Repo}\target\release\qingjian-settings.exe"; DestDir: "{app}"; Flags: ignoreversion
 ; 设置程序自带一份 Windows App Runtime（自包含部署：Windows 10 上机器装的框架包用不了，见 docs\notes\windows-win10.md）；
 ; 文件由 build.ps1 按 settings-runtime.txt 从 target\release 挑进 target\installer\settings-runtime，必须与 exe 同级。
 Source: "{#Repo}\target\installer\settings-runtime\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+#endif
 Source: "{#Repo}\apps\windows\tsf\resources\qingjian.ico"; DestDir: "{app}"; Flags: ignoreversion
 ; —— 随包生成数据（只装运行时要的 .qj / .tsv，不装 dev 中间产物）——
 Source: "{#Repo}\data\generated\dict.qj";        DestDir: "{app}\data\generated";       Flags: ignoreversion

@@ -11,6 +11,10 @@ publish = false
 name = "qingjian-settings-egui"
 path = "src/main.rs"
 
+[features]
+# 控制台子系统：量首帧耗时与 wgpu 适配器时用（缺省 GUI 子系统，双击不弹黑窗）
+console = []
+
 [dependencies]
 qingjian-platform.workspace = true
 toml_edit.workspace = true
@@ -31,6 +35,9 @@ wgpu = { version = "27.0", default-features = false, features = ["dx12"] }
 qingjian-render.workspace = true
 # 解 Logo 的 PNG（渲染器也用它），省得为一张图引 egui_extras 的图片加载器
 png.workspace = true
+
+[target."cfg(windows)".build-dependencies]
+winresource = "0.1.31"
 
 [lints]
 workspace = true

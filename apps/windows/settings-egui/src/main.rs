@@ -3,6 +3,10 @@
 //!
 //! 与正式设置程序（`apps/windows/settings`，Windows Reactor / WinUI）并存，互不影响：
 //! 两边读写同一个 `config.toml`，可以开着比。
+//!
+//! 缺省是 GUI 子系统（装进安装包双击不弹黑窗）；量首帧耗时与 wgpu 适配器时用 `--features console` 编，
+//! 那两行 `println!` 才有地方出。
+#![cfg_attr(all(windows, not(feature = "console")), windows_subsystem = "windows")]
 
 #[cfg(windows)]
 mod app;
@@ -27,7 +31,6 @@ const WINDOW_SIZE: [f32; 2] = [980.0, 700.0];
 #[cfg(windows)]
 const MIN_WINDOW_SIZE: [f32; 2] = [760.0, 520.0];
 
-/// 控制台子系统（不加 `windows_subsystem = "windows"`）：spike 要看首帧耗时与 wgpu 选了哪个适配器。
 #[cfg(windows)]
 fn main() -> eframe::Result<()> {
     let started = std::time::Instant::now();

@@ -69,6 +69,10 @@ powershell -ExecutionPolicy Bypass -File apps\windows\installer\build.ps1
 成品在 `target\installer\Zizai-<版本>-Setup.exe`。改了数据 / 脚本但二进制没变时加 `-SkipBuild`；`-Sign` 用自签证书签产物
 （uiAccess 要求 Server 签名 + 装 Program Files）。
 
+`-EguiSettings`（只在分支 `egui-settings-spike` 上有用）把设置程序换成 egui spike：按正式名字装
+`qingjian-settings-egui.exe`，不装那 118 项 Windows App Runtime，成品另起名 `Zizai-<版本>-egui-Setup.exe`。
+同一提交实测 76.9 → 66.2 MiB。**那个包里的设置程序只有「通用」页是真的，其余四页是占位**，只用于真机对比，别拿去发。
+
 安装向导使用 `assets\icon\installer-wizard-light.png` 与 `installer-wizard-dark.png`，由 `assets\icon\generate.py` 和主图标一起生成；
 `WizardStyle=modern dynamic` 会在启动时按 Windows 明暗模式选对应画面。改了图标生成脚本后先重新生成资源再打包。
 

@@ -28,7 +28,7 @@ egui 是现成 toolkit，不落在那条理由里；`design/candidate-ui.md` 排
 | exe | 5.08 MB | **10.87 MB** |
 | 跟着装的运行时 | 56.1 MB / 118 项 | 0 |
 | 安装目录合计 | 61.2 MB | **10.9 MB** |
-| 安装包里 | 运行时压后 13.5 MB | 估计 +3 MB 左右（exe 变大） |
+| 安装包（同一提交各打一个） | 76.9 MiB | **66.2 MiB（-10.7 MiB / -13.9%）** |
 | 窗口出现（连跑三次） | 195 / 108 / 94 ms | 252 / 156 / 157 ms |
 | 进程起到首帧画完（程序自报） | 未量 | 570 ms（冷）/ 295 ms（热） |
 | 稳定后 WorkingSet | 143 MB | **236 MB**（走 WARP 时 154 MB） |
@@ -36,7 +36,9 @@ egui 是现成 toolkit，不落在那条理由里；`design/candidate-ui.md` 排
 | 表单零件代码 | 208 行 | 208 行（另加开关 52 行） |
 | 字体 / 配色 / GPU 后端 | 框架白送 | 多写 188 行 |
 
-净账：**安装包小约 12 MB，安装目录小 50 MB，少装 118 个文件**；exe 自己大一倍。
+净账：**安装包小 10.7 MiB（-13.9%），安装目录小 50 MB，少装 118 个文件**；exe 自己大一倍。
+真机试装用 `powershell -File apps\windows\installer\build.ps1 -EguiSettings`：egui 版设置程序按正式名字装进去，
+Server 的齿轮、开始菜单、安装前 taskkill 都照常，成品是 `Zizai-<版本>-egui-Setup.exe`（与正式包不同名，不互相覆盖）。
 
 ## 四个问题的答案
 

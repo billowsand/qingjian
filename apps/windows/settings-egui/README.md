@@ -22,11 +22,27 @@ cargo run -p qingjian-windows-settings-egui --release
 控制台会打印首帧耗时与 wgpu 适配器。读写的是同一个 `%APPDATA%\Qingjian\config.toml`，
 可以和正式设置程序开着对比（两边都是改一项就原地写回、再重读）。
 
+缺省是 GUI 子系统（双击不弹黑窗），所以那两行 `println!` 要 `--features console` 才看得到：
+
+```bash
+cargo run -p qingjian-windows-settings-egui --release --features console
+```
+
 强制走软件适配器（模拟没有可用 GPU 的机器）：
 
 ```bash
-WGPU_ADAPTER_NAME="Microsoft Basic Render Driver" cargo run -p qingjian-windows-settings-egui --release
+QINGJIAN_SPIKE_SOFTWARE=1 cargo run -p qingjian-windows-settings-egui --release --features console
 ```
+
+## 打一个能装的包
+
+```bash
+powershell -ExecutionPolicy Bypass -File apps/windows/installer/build.ps1 -EguiSettings
+```
+
+egui 版按正式名字 `qingjian-settings.exe` 装进 `{app}`，不装那 118 项 Windows App Runtime；
+成品是 `target\installer\Zizai-<版本>-egui-Setup.exe`，与正式包不同名。同一提交实测 76.9 → 66.2 MiB。
+装上后 Server 的齿轮、开始菜单打开的都是它——**只有「通用」页是真的，另外四页是占位**，要改别的设置回去装正式包。
 
 ## 实现上与 WinUI 版的差别
 
