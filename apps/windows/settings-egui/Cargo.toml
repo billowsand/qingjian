@@ -1,0 +1,36 @@
+[package]
+name = "qingjian-windows-settings-egui"
+description = "设置界面的 egui spike：复刻「通用」页，量体积 / 启动 / 无障碍 / 无 GPU 回退，不随包发布"
+version = "0.0.0"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[[bin]]
+name = "qingjian-settings-egui"
+path = "src/main.rs"
+
+[dependencies]
+qingjian-platform.workspace = true
+toml_edit.workspace = true
+
+# UI 本体只在 Windows 编，与 apps/windows/settings 一致
+[target."cfg(windows)".dependencies]
+# wgpu 后端（D3D12，无独显时能退 WARP 软件适配器）+ accesskit（UIA 无障碍树）；
+# default_fonts 只为拿它的符号与 emoji 字体，中文字体在 fonts.rs 里从系统装
+eframe = { version = "0.33", default-features = false, features = [
+    "wgpu",
+    "accesskit",
+    "default_fonts",
+] }
+# eframe 不替你选 wgpu 的后端：不开这个 feature 运行时直接 panic「No wgpu backend feature…」。
+# 只开 dx12：Win10 1809+ 都有，没有可用 GPU 时能退 WARP 软件适配器（Vulkan 得看驱动装没装，不指望）。
+wgpu = { version = "27.0", default-features = false, features = ["dx12"] }
+# 复用它的 system_fonts（DirectWrite 按字族名找字体文件）与候选窗配色 Palette
+qingjian-render.workspace = true
+# 解 Logo 的 PNG（渲染器也用它），省得为一张图引 egui_extras 的图片加载器
+png.workspace = true
+
+[lints]
+workspace = true

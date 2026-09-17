@@ -10,7 +10,7 @@ members = [
     "crates/qingjian-format",
     "crates/qingjian-neural",
     "crates/qingjian-render",
-    "apps/cli", "apps/windows/server", "apps/windows/tsf", "apps/windows/settings", "tools/dict-convert", "tools/gloss-gen",
+    "apps/cli", "apps/windows/server", "apps/windows/tsf", "apps/windows/settings", "apps/windows/settings-egui", "tools/dict-convert", "tools/gloss-gen",
 ]
 
 [workspace.package]
