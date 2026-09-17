@@ -92,7 +92,8 @@ fn report_caret(shared: &Shared, engine: &SharedClient, context: &ITfContext, ec
     let Ok(range) = (unsafe { composition.GetRange() }) else {
         return;
     };
-    let rect = anchor_rect(context, ec, &range);
+    let rect = anchor_rect(context, ec, &range, shared.last_anchor());
+    shared.set_last_anchor(rect);
     // 引擎正被别处借着（罕见）就跳过这拍，Server 保持上次位置。
     if let Ok(mut guard) = engine.try_borrow_mut()
         && let Some(client) = guard.as_mut()

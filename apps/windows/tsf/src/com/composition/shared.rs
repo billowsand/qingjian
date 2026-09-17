@@ -3,6 +3,8 @@ use std::rc::Rc;
 
 use windows::Win32::UI::TextServices::{ITfComposition, ITfContext};
 
+use qingjian_platform::protocol::ScreenRect;
+
 use crate::com::service::SharedClient;
 
 /// `TextService`、编辑会话、组句 sink、轮询定时器之间共享的组句状态（STA 单线程，`Rc` 传递）。
@@ -15,6 +17,9 @@ pub(crate) struct Shared {
 
     /// 最近一次收键的文档上下文；失焦 / 停用回调不带上下文，落定拼音要用它。
     last_context: RefCell<Option<ITfContext>>,
+
+    /// 本段组句上次量到的光标矩形，量不出来时沿用（见 [`anchor_rect`](crate::com::edit::anchor_rect)）。
+    last_anchor: Cell<Option<ScreenRect>>,
 
     /// 组句被应用强行终止过：拼音已成普通文本，但 Server 的缓冲还在，下次说话前先让它清空。
     server_stale: Cell<bool>,
@@ -32,6 +37,7 @@ impl Shared {
             composition: RefCell::new(None),
             composing: Cell::new(false),
             last_context: RefCell::new(None),
+            last_anchor: Cell::new(None),
             server_stale: Cell::new(false),
             foreground: Cell::new(false),
             client,
@@ -52,6 +58,14 @@ impl Shared {
 
     pub(crate) fn set_last_context(&self, context: Option<ITfContext>) {
         *self.last_context.borrow_mut() = context;
+    }
+
+    pub(super) fn last_anchor(&self) -> Option<ScreenRect> {
+        self.last_anchor.get()
+    }
+
+    pub(super) fn set_last_anchor(&self, rect: ScreenRect) {
+        self.last_anchor.set(Some(rect));
     }
 
     pub(crate) fn take_server_stale(&self) -> bool {
@@ -84,11 +98,16 @@ impl Shared {
         self.composition.borrow().clone()
     }
 
+    /// 组句收了就忘掉光标矩形：下一段在别处，要重新量。
     pub(super) fn set_composition(&self, composition: Option<ITfComposition>) {
+        if composition.is_none() {
+            self.last_anchor.set(None);
+        }
         *self.composition.borrow_mut() = composition;
     }
 
     pub(super) fn take_composition(&self) -> Option<ITfComposition> {
+        self.last_anchor.set(None);
         self.composition.borrow_mut().take()
     }
 

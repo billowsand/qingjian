@@ -1,4 +1,4 @@
-//! 候选窗口的定位锚点：组句范围在屏幕上的矩形，拿不到时退到鼠标位置。
+//! 候选窗口的定位锚点：组句范围在屏幕上的矩形。
 
 use windows::Win32::Foundation::{POINT, RECT};
 use windows::Win32::UI::TextServices::{ITfContext, ITfRange};
@@ -7,9 +7,19 @@ use windows::core::BOOL;
 
 use qingjian_platform::protocol::ScreenRect;
 
-/// `range` 的屏幕矩形，拿不到（有些应用给全零 / 空矩形）退到鼠标处。
-pub(crate) fn anchor_rect(context: &ITfContext, ec: u32, range: &ITfRange) -> ScreenRect {
-    to_screen(range_rect(context, ec, range).unwrap_or_else(mouse_anchor))
+/// `range` 的屏幕矩形。有些应用偶尔量不出来（刚起组句还没排版、自绘输入框给全零），
+/// 这时沿用本段组句上次量到的 `previous`——跳到鼠标那儿去会让候选窗忽上忽下；
+/// 一次都没量到过才退到鼠标处。
+pub(crate) fn anchor_rect(
+    context: &ITfContext,
+    ec: u32,
+    range: &ITfRange,
+    previous: Option<ScreenRect>,
+) -> ScreenRect {
+    match range_rect(context, ec, range) {
+        Some(rect) => to_screen(rect),
+        None => previous.unwrap_or_else(|| to_screen(mouse_anchor())),
+    }
 }
 
 fn range_rect(context: &ITfContext, ec: u32, range: &ITfRange) -> Option<RECT> {

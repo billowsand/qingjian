@@ -1,7 +1,9 @@
 //! 候选窗口：不抢焦点、置顶的分层窗口，跟随光标，画拼音行与候选列表，四周柔和阴影。
 //! 缺省交给青简渲染器出位图再贴（[`super::painter`]），配置 `renderer = "system"` 时走 GDI：绘制在 [`view`]，
-//! 配色 / 字体在 [`theme`]。绘制内容在 [`RenderData`]，一行的展示形态在 [`row`]。设计语言对齐 macOS 端。
+//! 配色 / 字体在 [`theme`]。绘制内容在 [`RenderData`]，一行的展示形态在 [`row`]，
+//! 贴光标上方还是下方在 [`placement`]。设计语言对齐 macOS 端。
 
+mod placement;
 mod render_data;
 pub(crate) mod row;
 pub(crate) mod theme;
@@ -10,7 +12,7 @@ pub(crate) mod view;
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
-use windows::Win32::Foundation::{E_INVALIDARG, HWND, LPARAM, LRESULT, POINT, RECT, WPARAM};
+use windows::Win32::Foundation::{E_INVALIDARG, HWND, LPARAM, LRESULT, RECT, WPARAM};
 use windows::Win32::Graphics::Gdi::{GetDC, ReleaseDC};
 use windows::Win32::UI::HiDpi::{GetDpiForSystem, GetDpiForWindow};
 use windows::Win32::UI::WindowsAndMessaging::{
@@ -23,18 +25,15 @@ use windows::core::{Error, PCWSTR, Result, w};
 use qingjian_platform::ThemeMode;
 use qingjian_platform::protocol::Frame;
 
+use self::placement::{LastPlacement, place};
 pub(crate) use self::render_data::RenderData;
 use self::theme::Theme;
 use super::layered::{self, Layered};
-use super::monitor;
 use super::painter::SharedPainter;
 use super::window_class::WindowClass;
 
 const CLASS_NAME: PCWSTR = w!("QingjianCandidateWindow");
 static CLASS: WindowClass = WindowClass::new();
-
-/// 光标行与候选窗之间的间隙（逻辑像素）。
-const CARET_GAP: i32 = 2;
 
 /// 按外观模式解析深浅；`System` 读系统主题。
 pub(super) fn resolve_dark(mode: ThemeMode) -> bool {
@@ -65,6 +64,9 @@ pub(crate) struct CandidateWindow {
 
     /// 上次解析出的深浅，变了重建配色。
     dark: Cell<bool>,
+
+    /// 上次贴在光标的哪一边；同一行里不因窗口高矮改边。
+    placement: LastPlacement,
 
     /// 青简渲染器；`None` 走 GDI。
     painter: SharedPainter,
@@ -105,6 +107,7 @@ impl CandidateWindow {
             data,
             dpi: Cell::new(dpi),
             dark: Cell::new(dark),
+            placement: Cell::new(None),
             painter,
         })
     }
@@ -114,7 +117,7 @@ impl CandidateWindow {
         self.data.borrow_mut().set(frame);
     }
 
-    /// 按光标矩形定位并显示：贴光标下方（放不下放上方），四周留出阴影。
+    /// 按光标矩形定位并显示：贴光标下方（放不下放上方，同一行里不改边），四周留出阴影。
     pub(crate) fn show(&self, anchor: RECT) {
         self.sync_theme();
         let rendered = {
@@ -138,7 +141,7 @@ impl CandidateWindow {
                     self.hide();
                     return;
                 }
-                let (content_x, content_y) = place(anchor, content);
+                let (content_x, content_y) = place(&self.placement, anchor, content);
                 layered::present(
                     self.hwnd,
                     &rendered.pixmap,
@@ -165,7 +168,7 @@ impl CandidateWindow {
         if content.0 <= 0 || content.1 <= 0 {
             return Err(Error::from(E_INVALIDARG));
         }
-        let (content_x, content_y) = place(anchor, content);
+        let (content_x, content_y) = place(&self.placement, anchor, content);
         let data = self.data.borrow();
         layered::composite(
             self.hwnd,
@@ -212,27 +215,6 @@ impl Drop for CandidateWindow {
     fn drop(&mut self) {
         let _ = unsafe { DestroyWindow(self.hwnd) };
     }
-}
-
-/// 内容左上角：贴光标下方，放不下放上方，再放不下贴屏幕内；都夹在所在显示器工作区里。
-fn place(anchor: RECT, content: (i32, i32)) -> (i32, i32) {
-    let work = monitor::work_area_near(POINT {
-        x: anchor.left,
-        y: anchor.top,
-    });
-    let x = anchor
-        .left
-        .clamp(work.left, (work.right - content.0).max(work.left));
-    let below = anchor.bottom + CARET_GAP;
-    let above = anchor.top - CARET_GAP - content.1;
-    let y = if below + content.1 <= work.bottom {
-        below
-    } else if above >= work.top {
-        above
-    } else {
-        (work.bottom - content.1).max(work.top)
-    };
-    (x, y)
 }
 
 /// 分层窗口无需 `WM_PAINT`，全交默认处理。
