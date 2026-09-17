@@ -63,9 +63,6 @@ pub struct GeneralConfig {
     /// 组句中末尾敲的大写字母当辅码键，严格过滤候选。
     pub fuma: String,
 
-    /// 注音模式开关，大千键盘。
-    pub zhuyin: bool,
-
     /// 日志级别，缺省 info（不含用户敲的内容）。
     pub log_level: LogLevel,
 
@@ -93,7 +90,6 @@ impl Default for GeneralConfig {
             english_full_width_punctuation: false,
             shuangpin: String::new(),
             fuma: String::new(),
-            zhuyin: false,
             log_level: LogLevel::default(),
             input_log: true,
             learning: true,

@@ -34,9 +34,6 @@ pub struct RouterConfig {
     /// 英文模式的那一份（`[general] english_full_width_punctuation`）。
     pub english_full_width: bool,
 
-    /// 大千注音（[general] zhuyin）。
-    pub zhuyin: bool,
-
     /// 删候选的修饰键（`[shortcut] delete_candidate`）。
     pub delete_keys: KeyModifiers,
 
@@ -72,7 +69,6 @@ impl From<&Config> for RouterConfig {
             page_keys: config.general.page_keys(),
             full_width: config.general.full_width_punctuation,
             english_full_width: config.general.english_full_width_punctuation,
-            zhuyin: config.general.zhuyin,
             delete_keys: config.shortcut.delete_keys().into(),
             status_enabled: config.status_bar.enabled,
             status_pos: config.status_bar.x.zip(config.status_bar.y),

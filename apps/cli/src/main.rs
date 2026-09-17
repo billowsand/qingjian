@@ -240,11 +240,7 @@ fn build_engine(args: &Args) -> Result<Engine, CliError> {
     if let Some(scheme) = config.general.shuangpin() {
         tracing::info!(%scheme, "双拼已启用");
     }
-    if config.general.zhuyin {
-        tracing::info!("大千注音已启用");
-    }
     engine.set_shuangpin(config.general.shuangpin());
-    engine.set_zhuyin_mode(config.general.zhuyin);
     Ok(engine)
 }
 

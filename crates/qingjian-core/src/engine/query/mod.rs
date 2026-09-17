@@ -35,7 +35,7 @@ impl Engine {
                 Query::custom_only(
                     self.composition.text(),
                     self.composition.cursor(),
-                    self.shuangpin.is_some() || self.zhuyin,
+                    self.shuangpin.is_some(),
                     self.composition.scope(),
                     self.marked_rest(self.composition.rest()),
                 )
@@ -70,7 +70,7 @@ impl Engine {
         if self.english_mode {
             return Ok(self.query_english(keys, rest, start));
         }
-        if is_raw(keys, self.shuangpin, self.fuma_enabled(), self.zhuyin) {
+        if is_raw(keys, self.shuangpin, self.fuma_enabled()) {
             return Ok(self.query_raw(keys, rest, start));
         }
         // 双拼先解成全拼（音节间已用 `'` 连好，切分没有歧义），之后与全拼同路；解不动的键当尾巴。
@@ -118,7 +118,7 @@ impl Engine {
                     text: self.composition.text().to_owned(),
                     cursor: self.composition.cursor(),
                     rest,
-                    decoded_keys: self.shuangpin.is_some() || self.zhuyin,
+                    decoded_keys: self.shuangpin.is_some(),
                     typed_display: decoded.as_ref().map(|d| d.marked()),
                     // 连第一个字母都切不动，辅码不可能激活
                     fuma: None,
@@ -321,7 +321,7 @@ impl Engine {
             text: self.composition.text().to_owned(),
             cursor: self.composition.cursor(),
             rest,
-            decoded_keys: self.shuangpin.is_some() || self.zhuyin,
+            decoded_keys: self.shuangpin.is_some(),
             typed_display,
             // 拼音行单独画出敲的那两个辅码键（解码已把它们剥掉，不画就一点痕迹都没有）
             fuma: self.fuma_keys().map(str::to_owned),
@@ -351,7 +351,7 @@ impl Engine {
             text: self.composition.text().to_owned(),
             cursor: self.composition.cursor(),
             rest,
-            decoded_keys: self.shuangpin.is_some() || self.zhuyin,
+            decoded_keys: self.shuangpin.is_some(),
             typed_display: None,
             // 这些模式下辅码不激活（辅码要求前缀是完整双拼）
             fuma: None,
@@ -392,7 +392,7 @@ impl Engine {
             text: self.composition.text().to_owned(),
             cursor: self.composition.cursor(),
             rest,
-            decoded_keys: self.shuangpin.is_some() || self.zhuyin,
+            decoded_keys: self.shuangpin.is_some(),
             typed_display: None,
             // 这些模式下辅码不激活（辅码要求前缀是完整双拼）
             fuma: None,

@@ -159,17 +159,14 @@ impl StatusBar {
         }
     }
 
-    /// 模式格的文字：中 / A / 注，开着双拼时跟方案名。
+    /// 模式格的文字：中 / A，开着双拼时跟方案名。
     fn mode_text(view: &StatusView) -> String {
         if view.english {
-            "A".to_owned()
-        } else if view.zhuyin {
-            "注".to_owned()
-        } else {
-            match &view.scheme {
-                Some(scheme) => format!("中 · {scheme}"),
-                None => "中".to_owned(),
-            }
+            return "A".to_owned();
+        }
+        match &view.scheme {
+            Some(scheme) => format!("中 · {scheme}"),
+            None => "中".to_owned(),
         }
     }
 

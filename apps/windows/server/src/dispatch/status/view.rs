@@ -6,9 +6,6 @@ pub struct StatusView {
     /// 英文模式（`false` 中文）。
     pub english: bool,
 
-    /// 是否啟用大千注音。
-    pub zhuyin: bool,
-
     /// 开着双拼时的方案名，中文格里跟在「中」后面。
     pub scheme: Option<String>,
 

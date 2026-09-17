@@ -49,13 +49,9 @@ pub(super) struct FumaInput<'a> {
 }
 
 impl Engine {
-    /// 辅码生效所需的双拼方案：要有表、在双拼下、且不在注音模式
-    /// （注音走自己的解码，末尾的键不是双拼键，辅码无从算起）。
+    /// 辅码生效所需的双拼方案：要有表且在双拼下。
     fn fuma_scheme(&self) -> Option<Scheme> {
         self.fuma.as_ref()?;
-        if self.zhuyin {
-            return None;
-        }
         self.shuangpin
     }
 

@@ -2,9 +2,6 @@
 
 pub(super) mod about;
 pub(super) mod advanced;
-pub(super) mod candidates;
-pub(super) mod cloud;
+pub(super) mod appearance;
 pub(super) mod dictionaries;
 pub(super) mod general;
-pub(super) mod shortcut;
-pub(super) mod usage;

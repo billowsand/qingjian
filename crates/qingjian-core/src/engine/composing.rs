@@ -87,14 +87,10 @@ impl Engine {
         });
     }
 
-    /// 键盘方案的键（双拼方案如 `xiaohe`、注音为 `zhuyin`），全拼为空；输入日志用。
+    /// 键盘方案的键（双拼方案如 `xiaohe`），全拼为空；输入日志用。
     pub(super) fn scheme_key(&self) -> String {
-        if self.zhuyin {
-            "zhuyin".to_owned()
-        } else {
-            self.shuangpin
-                .map_or_else(String::new, |s| s.key().to_owned())
-        }
+        self.shuangpin
+            .map_or_else(String::new, |s| s.key().to_owned())
     }
 
     /// 组句里要删东西了：第一次删之前把缓冲区留个快照，上屏时对比最终键串，不同就是一次重打（`retype`）。
@@ -177,7 +173,7 @@ impl Engine {
         self.note_edit();
         let cursor = self.composition.cursor();
         let before = &self.composition.text()[..cursor];
-        let plain = self.raw_mode() || self.zhuyin;
+        let plain = self.raw_mode();
         let len = unit_len_before(before, self.shuangpin.is_some(), self.fuma_enabled(), plain);
         self.composition.delete_before_cursor(len)
     }
@@ -186,7 +182,7 @@ impl Engine {
     pub fn move_cursor_syllable_left(&mut self) -> bool {
         let cursor = self.composition.cursor();
         let before = &self.composition.text()[..cursor];
-        let plain = self.raw_mode() || self.zhuyin;
+        let plain = self.raw_mode();
         let len = unit_len_before(before, self.shuangpin.is_some(), self.fuma_enabled(), plain);
         len > 0 && (0..len).all(|_| self.composition.move_left())
     }
@@ -195,7 +191,7 @@ impl Engine {
     pub fn move_cursor_syllable_right(&mut self) -> bool {
         let cursor = self.composition.cursor();
         let after = &self.composition.text()[cursor..];
-        let plain = self.raw_mode() || self.zhuyin;
+        let plain = self.raw_mode();
         let len = unit_len_after(after, self.shuangpin.is_some(), self.fuma_enabled(), plain);
         len > 0 && (0..len).all(|_| self.composition.move_right())
     }
@@ -226,12 +222,7 @@ impl Engine {
     /// 英文直输段：缓冲区里有拼音以外的字符（`no-way`），整段原样上屏、不解析拼音。
     /// 辅码开着时大写也是拼音键（末尾辅码段由解码层处理）。
     pub fn raw_mode(&self) -> bool {
-        is_raw(
-            self.composition.text(),
-            self.shuangpin,
-            self.fuma_enabled(),
-            self.zhuyin,
-        )
+        is_raw(self.composition.text(), self.shuangpin, self.fuma_enabled())
     }
 
     /// 用一段完整拼音替换当前缓冲区，供 CLI 和测试一次性喂入。
@@ -251,16 +242,10 @@ impl Engine {
             // 缓存里还是「要纠」，清掉让下次重算
             *self.correction_cache.borrow_mut() = None;
         }
-        let raw = if self.is_zhuyin_mode() && !self.english_mode {
-            self.decode(self.composition.text())
-                .map(|d| d.marked())
-                .unwrap_or_else(|| self.composition.text().to_owned())
-        } else {
-            // 辅码激活时上屏的字母不含辅码段：它不是要打的内容
-            let text = self.composition.text();
-            let fuma_len = self.fuma_bytes(text);
-            text[..text.len() - fuma_len].to_owned()
-        };
+        // 辅码激活时上屏的字母不含辅码段：它不是要打的内容
+        let text = self.composition.text();
+        let fuma_len = self.fuma_bytes(text);
+        let raw = text[..text.len() - fuma_len].to_owned();
         if raw.is_empty() {
             // 壳在回车 / 失焦时不管有没有在组句都会来一趟：空的不记日志、不计统计
             self.clear();

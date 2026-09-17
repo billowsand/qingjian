@@ -233,16 +233,6 @@ fn fuma_shows_up_in_the_pinyin_line() {
 }
 
 #[test]
-fn fuma_stays_out_of_zhuyin() {
-    let mut engine = fuma_engine();
-    engine.set_zhuyin_mode(true);
-    // 注音走自己的解码，末 2 键不是双拼键：辅码整套不介入
-    assert!(!engine.fuma_enabled());
-    engine.set_input("kdfafX");
-    assert!(!engine.query().unwrap().candidates.items.is_empty());
-}
-
-#[test]
 fn fuma_raw_commit_drops_the_codes() {
     let mut engine = fuma_engine();
     engine.set_input("kdfafY");

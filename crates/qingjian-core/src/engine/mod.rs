@@ -8,7 +8,6 @@ mod annotation;
 mod commit;
 mod composing;
 mod correcting;
-mod decoded;
 mod extras;
 mod fuma;
 mod input_log;
@@ -203,9 +202,6 @@ pub struct Engine {
     /// 表有几千条且只读，与壳共用同一份。
     fuma: Option<Arc<crate::FumaTable>>,
 
-    /// 注音模式开关，開著時緩衝區裡是注音大千鍵位，查詞前先解成拼音（見 [`crate::zhuyin`]）。
-    zhuyin: bool,
-
     /// emoji 表，没有就不出 emoji 候选。
     emoji: Option<EmojiTable>,
 }
@@ -321,7 +317,6 @@ impl Engine {
             chain: CommitChain::default(),
             shuangpin: None,
             fuma: None,
-            zhuyin: false,
             emoji: None,
         }
     }
@@ -329,16 +324,10 @@ impl Engine {
 
 /// 缓冲区是否是英文直输段：含拼音键与 `'` 以外的字符（`no-way`、`a.b`）。
 /// 微软 / 搜狗双拼下 `;` 也是拼音键；辅码开着时大写字母也是拼音键（末尾的辅码段由解码层处理）。
-fn is_raw(text: &str, shuangpin: Option<Scheme>, fuma: bool, zhuyin: bool) -> bool {
-    let is_key = |c: char| {
-        if zhuyin {
-            crate::zhuyin::layout::map_key(c).is_some() || c == ' '
-        } else {
-            match shuangpin {
-                Some(scheme) => scheme.is_key(c) || (fuma && c.is_ascii_uppercase()),
-                None => c.is_ascii_lowercase(),
-            }
-        }
+fn is_raw(text: &str, shuangpin: Option<Scheme>, fuma: bool) -> bool {
+    let is_key = |c: char| match shuangpin {
+        Some(scheme) => scheme.is_key(c) || (fuma && c.is_ascii_uppercase()),
+        None => c.is_ascii_lowercase(),
     };
     !text.is_empty() && text.chars().any(|c| !(is_key(c) || c == '\''))
 }

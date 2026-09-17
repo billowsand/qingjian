@@ -984,18 +984,6 @@ fn fuma_preedit_downgrades_for_old_dlls() {
     assert_eq!(kinds, vec![PreeditKind::Typed, PreeditKind::Rest]);
 }
 
-/// 辅码开着、但注音也开着时辅码整套不介入（注音走自己的解码）。
-#[test]
-fn fuma_stays_out_of_zhuyin() {
-    let mut router = fuma_router();
-    router.engine_mut().set_zhuyin_mode(true);
-    type_letters(&mut router, "kdfa");
-    let (outcome, commit, _) = press(&mut router, letter_with('X', SHIFT));
-    // 照旧是临时打英文：注音串原样上屏 + 大写直通
-    assert_eq!(outcome, KeyOutcome::Consumed);
-    assert!(commit.is_some_and(|text| text.ends_with('X')));
-}
-
 /// 随包辅码表（样例数据上跑）：开=fk、发=xa，「开发」期望（f, x）、单字「开」期望 (f, k)。
 fn fuma_router() -> Router {
     let mut router = router_with(RouterConfig {

@@ -1,7 +1,9 @@
 //! 设置窗口根组件：左侧导航 + 右侧当前分节页。每改一项就原地写回 `config.toml`（保留注释）再重读，
 //! 界面始终反映文件内容；Server 每秒看 mtime 热加载。
-//! 状态在这里，消息在 [`message`]，生命周期在 [`component`]，表单零件在 [`controls`]，各页在 [`pages`]。
+//! 状态在这里，消息在 [`message`]，生命周期在 [`component`]，表单零件在 [`controls`]，
+//! Logo 与版本在 [`brand`]，各页在 [`pages`]。
 
+mod brand;
 mod component;
 mod controls;
 mod message;
@@ -13,10 +15,7 @@ use qingjian_platform::Config;
 use windows_reactor::*;
 
 pub(crate) use self::message::Message;
-use self::pages::{about, advanced, candidates, cloud, dictionaries, general, shortcut, usage};
-
-/// 左侧标签固定宽度，让各行控件对齐。
-const LABEL_WIDTH: f64 = 220.0;
+use self::pages::{about, advanced, appearance, dictionaries, general};
 
 /// 设置窗口状态。
 pub(crate) struct Settings {
@@ -70,11 +69,8 @@ impl Settings {
 
     fn page_content(&self, context: &mut ViewContext<Self>) -> View {
         match self.page.as_str() {
-            "candidates" => candidates::view(self, context),
-            "shortcut" => shortcut::view(self, context),
-            "cloud" => cloud::view(self, context),
+            "appearance" => appearance::view(self, context),
             "dictionaries" => dictionaries::view(self, context),
-            "usage" => usage::view(self, context),
             "advanced" => advanced::view(self, context),
             "about" => about::view(self, context),
             _ => general::view(self, context),

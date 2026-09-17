@@ -1,11 +1,14 @@
-//! 根组件的 Reactor 生命周期：建状态、按消息落盘、画左侧导航 + 当前页。
+//! 根组件的 Reactor 生命周期：建状态、按消息落盘、画品牌头 + 左侧导航 + 当前页。
 
 use qingjian_platform::{CandidateRenderer, Config, LayoutMode, LogLevel, PreeditMode, ThemeMode};
 use windows_reactor::*;
 
 use super::controls::{export_logs, log_dir, open_in_editor, open_with_explorer};
-use super::pages::{about, dictionaries, general, shortcut};
-use super::{Message, Settings};
+use super::pages::{about, dictionaries, general};
+use super::{Message, Settings, brand};
+
+/// 左侧导航栏宽度。
+const PANE_WIDTH: f64 = 200.0;
 
 impl Component for Settings {
     type Input = ();
@@ -27,19 +30,27 @@ impl Component for Settings {
             Message::Navigate(Some(tag)) => self.page = tag,
             Message::Navigate(None) => {}
 
-            // 通用页
-            Message::PageSize(Some(value)) => {
-                let size = (value.round() as i64).clamp(1, 9);
-                self.save("general", "page_size", size);
-            }
+            // 通用页 · 输入方案
             Message::Shuangpin(Some(i)) if i < general::SHUANGPIN.len() => {
                 self.save("general", "shuangpin", general::SHUANGPIN[i].1);
             }
             Message::Fuma(Some(i)) if i < general::FUMA.len() => {
                 self.save("general", "fuma", general::FUMA[i].1);
             }
-            Message::Zhuyin(on) => self.save("general", "zhuyin", on),
-            Message::ChineseFirst(on) => self.save("general", "chinese_first", on),
+
+            // 通用页 · 按键
+            Message::PageSize(Some(value)) => {
+                let size = (value.round() as i64).clamp(1, 9);
+                self.save("general", "page_size", size);
+            }
+            Message::PageKeys(Some(i)) if i < general::PAGE_KEYS.len() => {
+                self.save("general", "page_keys", general::PAGE_KEYS[i].1);
+            }
+            Message::DeleteCandidate(Some(i)) if i < general::MODIFIERS.len() => {
+                self.save("shortcut", "delete_candidate", general::MODIFIERS[i].1);
+            }
+
+            // 通用页 · 标点
             Message::FullWidthPunctuation(on) => {
                 self.save("general", "full_width_punctuation", on);
             }
@@ -47,7 +58,11 @@ impl Component for Settings {
                 self.save("general", "english_full_width_punctuation", on);
             }
 
-            // 候选窗口页
+            // 通用页 · 候选质量
+            Message::LocalModel(on) => self.save("model", "enabled", on),
+            Message::ChineseFirst(on) => self.save("general", "chinese_first", on),
+
+            // 外观页
             Message::Theme(Some(i)) if i < ThemeMode::ALL.len() => {
                 self.save("general", "theme", ThemeMode::ALL[i].key());
             }
@@ -68,17 +83,6 @@ impl Component for Settings {
             // 最后那一项是配置里写了、但系统里没装的字体：保持原值，不动配置
             Message::Font(_) => {}
             Message::StatusBar(on) => self.save("status_bar", "enabled", on),
-
-            // 本地整句模型页
-            Message::LocalModel(on) => self.save("model", "enabled", on),
-
-            // 快捷键页
-            Message::PageKeys(Some(i)) if i < shortcut::PAGE_KEYS.len() => {
-                self.save("general", "page_keys", shortcut::PAGE_KEYS[i].1);
-            }
-            Message::DeleteCandidate(Some(i)) if i < shortcut::MODIFIERS.len() => {
-                self.save("shortcut", "delete_candidate", shortcut::MODIFIERS[i].1);
-            }
 
             // 词库页
             Message::ToggleDomain(name, on) => {
@@ -165,24 +169,22 @@ impl Component for Settings {
         };
         let items = [
             item("general", "通用", Symbol::Setting),
-            item("candidates", "候选窗口", Symbol::View),
-            item("shortcut", "快捷键", Symbol::Keyboard),
+            item("appearance", "外观", Symbol::View),
             item("dictionaries", "词库", Symbol::Library),
-            item("cloud", "本地整句模型", Symbol::World),
-            item("usage", "统计", Symbol::List),
             item("advanced", "高级", Symbol::Repair),
             item("about", "关于", Symbol::Help),
         ];
         NavigationView::new()
             .pane_display_mode(NavigationViewPaneDisplayMode::Left)
-            .pane_title("字在")
-            .open_pane_length(220.0)
+            .open_pane_length(PANE_WIDTH)
             .is_pane_open(true)
             .is_pane_toggle_button_visible(false)
             .is_back_button_visible(NavigationViewBackButtonVisible::Collapsed)
             .is_settings_visible(false)
+            .always_show_header(true)
             .on_selected_tag_changed(context.callback(Message::Navigate))
             .slots([
+                SlotView::new(NavigationViewSlot::Header, brand::header()),
                 SlotView::collection(NavigationViewSlot::MenuItems, items),
                 SlotView::new(NavigationViewSlot::Content, self.page_content(context)),
             ])

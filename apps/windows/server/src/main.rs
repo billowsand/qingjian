@@ -167,7 +167,6 @@ fn main() {
         .general
         .fuma()
         .and_then(|scheme| dispatch::load_fuma(&root, scheme));
-    engine.set_zhuyin_mode(config.general.zhuyin);
     engine.set_chinese_first(config.general.chinese_first);
     engine.log_session(env!("CARGO_PKG_VERSION"), "windows");
     let router_config = RouterConfig::from(&config);

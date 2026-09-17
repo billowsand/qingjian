@@ -1,4 +1,4 @@
-//! 「统计」页：输入量（今天 / 7 天 / 累计）、折成几本书。
+//! 「关于」页里的输入统计：输入量（今天 / 7 天 / 累计）、折成几本书。
 //! 直读 `%APPDATA%\Qingjian` 下的 `usage.tsv`，不经 Server；打开这页时读一次。
 
 use jiff::Zoned;
@@ -7,7 +7,7 @@ use qingjian_learning::UsageStats;
 use windows_reactor::*;
 
 use crate::panel::Settings;
-use crate::panel::controls::{note, page};
+use crate::panel::controls::{block, note};
 
 const COLUMNS: [&str; 4] = ["汉字", "中文词", "英文词", "上屏次数"];
 
@@ -47,21 +47,19 @@ fn columns(usage: &Usage) -> [String; 4] {
     ]
 }
 
-pub(crate) fn view(settings: &Settings, _context: &mut ViewContext<Settings>) -> View {
+/// 「关于」页里的统计块。
+pub(super) fn view(settings: &Settings) -> View {
     let today = Zoned::now().date();
-    let dir = settings.data_dir();
+    let usage = UsageStats::open(settings.data_dir().join("usage.tsv")).summary_on(today);
 
-    let usage = UsageStats::open(dir.join("usage.tsv")).summary_on(today);
-
-    let header = table_row("", COLUMNS.map(str::to_owned), true);
     let rows = [
-        header,
+        table_row("", COLUMNS.map(str::to_owned), true),
         table_row("今天", columns(&usage.today), false),
         table_row("最近 7 天", columns(&usage.week), false),
         table_row("累计", columns(&usage.total), false),
     ];
 
-    let body = StackPanel::new().spacing(12.0).children([
+    let body = StackPanel::new().spacing(10.0).children([
         StackPanel::new().spacing(6.0).children(rows),
         TextBlock::new()
             .text(scale_line(usage.total.hanzi))
@@ -70,7 +68,7 @@ pub(crate) fn view(settings: &Settings, _context: &mut ViewContext<Settings>) ->
         note(&since_line(&usage)),
         note("数的是上屏的文字：选一个词算一个中文词，整句按词切开数；英文候选、回车原样上屏的英文词算英文词。只在这台电脑上数，与输入日志无关。"),
     ]);
-    page("统计", body)
+    block(Symbol::Calculator, "输入统计", body)
 }
 
 fn since_line(summary: &UsageSummary) -> String {

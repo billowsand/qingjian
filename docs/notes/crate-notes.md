@@ -13,7 +13,7 @@ TSV 解析、查询与生成工具把 `lue` / `nue` 统一成 `lve` / `nve`。
 ## crates/qingjian-core
 
 模块：`composition` / `parser` / `correction`（拼写纠错：整段一处编辑的候选纠正 + `typo` 音节级敲错变体表，后者进整句词图当带代价的边）/
-`candidate` / `ranking` / `shortcut` / `sentence` / `shuangpin`（双拼：四套方案键位表、键 → 全拼解码与消耗换算）/ `zhuyin`（大千注音：键 → 注音符号 → 拼音，`[general] zhuyin` 开关，声调只判音节完整不进查询）/ `emoji` /
+`candidate` / `ranking` / `shortcut` / `sentence` / `shuangpin`（双拼：四套方案键位表、键 → 全拼解码与消耗换算）/ `emoji` /
 `english`（英文词候选：精确词 / 前缀补全 / 一处编辑纠正，给中文模式下的中英混输用；英文模式本身是纯直通，不出候选）/
 `fuma`（辅码：字级形码表 `FumaTable`，每行 `字=两码`，表在 `assets/fuma/xiaohe.txt`；
   词组辅码不存表，`expected_codes` 运行时按「单字两码、多字首字第 1 码 + 末字第 1 码」现算，`matches` 严格过滤，首末字不在表里即不匹配；
@@ -21,7 +21,7 @@ TSV 解析、查询与生成工具把 `lue` / `nue` 统一成 `lve` / `nve`。
   `engine/fuma.rs`（辅码键判定 `fuma_input`，两档：**一个小写键**（`ljm`）与「下一个字的声母」有歧义，
   不从解码里剥掉（简拼词 蓝莓 照常出），匹配的候选靠 `Scored::fuma_hit` 顶到排序最前（`FumaCodes::First`）；
   **两个键**（切不成一个音节的一对小写键，或含大写）没有歧义，从解码里剥掉并只留匹配的候选（`FumaCodes::Both`），
-  第一键大写时两码反转。注音模式下整套不介入（`fuma_scheme` 一并挡掉）。判定挂在每次 `Engine::decode` 上，
+  第一键大写时两码反转。判定挂在每次 `Engine::decode` 上，
   所以写成零分配：末键按字节看，`decode_keys` 返回 `Cow`，辅码关着时原样借用键串。
   两码那档在 `query_inner` rank 前按 `expected_codes` 严格过滤，
   不出英文候选与 emoji，整句在 `plain_sentence` 里同规则过滤；首码那档只置顶，什么都不排除。
@@ -124,6 +124,8 @@ Engine 侧在 `engine/rescoring/`：接了打分器就取 Viterbi 前 `RESCORE_P
 
 用户可见品牌是「字在」，内部 crate、可执行文件、`Qingjian` 数据与安装目录、`.qj` 格式名暂不迁移。图标矢量源在 `assets/icon/logo.svg`，
 `assets/icon/generate.py` 生成主 PNG 与 TSF / 设置 / Server / 安装器共用的多尺寸 `qingjian.ico`。
+设置程序把 `assets/icon/logo.png` 用 `include_bytes!` 编进 exe（`panel/brand.rs`），导航栏品牌条与「关于」页共用，不依赖随包文件。
+它的分节页、卡片与排版取值见 `docs/design/candidate-ui.md`「设置程序」。
 
 TSF 原有数字 / OEM 标点 / 空格键码按当前布局用 `ToUnicodeEx` 解析（bit 2 避免改变键盘状态），
 仅接受单个非代理项 UTF-16 单元。字母、小键盘和 AltGr 处理不变，不保证组合音符输入。

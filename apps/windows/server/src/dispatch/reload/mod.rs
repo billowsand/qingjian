@@ -110,7 +110,6 @@ impl Router {
     fn apply_config(&mut self, config: &Config) {
         self.engine.set_shuangpin(config.general.shuangpin());
         self.apply_fuma(config);
-        self.engine.set_zhuyin_mode(config.general.zhuyin);
         self.engine.set_learning(config.general.learning);
         self.engine.set_chinese_first(config.general.chinese_first);
         let previous = self.config.render_settings();

@@ -93,7 +93,7 @@
     状态条自己一个窗口类 + 窗口过程（`ui/status/`）：`WM_NCHITTEST`→`HTCAPTION` 整块可拖、`WM_MOUSEACTIVATE`→`MA_NOACTIVATE` 不抢焦点、
     `WM_EXITSIZEMOVE` 把位置写回 `[status_bar] x/y`（`GWLP_USERDATA` 存自身指针）。新增协议 `ClientMessage::ModeChanged{english}`（fire-and-forget），
     DLL 在 `update_mode_indicator` 推模式；Server 据此刷、会话关就收起；双拼方案 Server 从 `[general] shuangpin` 知道。配置加 `[status_bar]` 分节（`enabled`/`x`/`y`），
-    设置「候选窗口」页加开关。参考水杉 FTB 形态（它用 D2D 且不记位置），我们沿用 GDI 分层窗保持视觉一致并加了记位置。
+    设置「外观」页加开关。参考水杉 FTB 形态（它用 D2D 且不记位置），我们沿用 GDI 分层窗保持视觉一致并加了记位置。
     mac 全绿（+3 状态条分派测试）+ windows-gnu 交叉编译 / clippy 过；拖动 / 记位置 / DPI / 深色 / 盖高 z-band 待真机验。
   - [~] **④ 删候选屏幕提示**（★☆☆ / 低 / 0.5 天）：**代码完成，待真机测**（2026-09-11）。
     `Frame` 加 `notice: Option<String>`（不参与 `is_empty`），`dispatch/shortcut.rs::forget_on_page` 填、`handle_key` 开头清（只活到下一次按键）；
@@ -104,7 +104,7 @@
   - [ ] 发版：换 **Certum 开源代码签名证书**重签（开发全程自签 + 本机受信任根，见 `installer/sign-local.ps1`）、
     `windows-v<版本>` 标签与 CI；打标签前先重传产品数据：`data` Release 上的 `qingjian-data.tar.gz` 还缺 `glossary-es.qj`（0.1.3 新增西语），
     先在生成机 `cargo run -p qingjian-dict-convert -- pack glossary --language es` 再跑 `tools/release/data-bundle.sh`，否则 `iscc` 报 `Source file ... does not exist`。
-  - [ ] **本地整句模型上 Windows**：Server 已接（`dispatch/rescore/`，CPU 推理，设置「云服务」页有开关，安装包带 `data\model`），待真机验：每次重排的耗时（前文 + 几条路径一次前向，CPU 上可能几十到一百多毫秒，超了就缩前文长度）、模型加载时间；
+  - [ ] **本地整句模型上 Windows**：Server 已接（`dispatch/rescore/`，CPU 推理，设置「通用 → 候选质量」有开关，安装包带 `data\model`），待真机验：每次重排的耗时（前文 + 几条路径一次前向，CPU 上可能几十到一百多毫秒，超了就缩前文长度）、模型加载时间；
     应用光标前文已接（DLL 起组句时读、密码框跳过；2026-09-12 真机验过记事本 / Edge / 终端都读得到，Edge 密码框按 `IS_PRIVATE` 识别），真机看沉浸式应用读不读得到；
     模型单文件 `.qjm` 已做（2026-09-12，复用 `.qj` 容器 `Kind::Model`，`find_model` 先 `.qjm` 再三件套目录，`pack model` / `tools/release/pack-model.sh`，
     data Release 传 `model.qjm`，bundle.sh / qingjian.iss 只带一个文件），待 mac 与 box 真机各装一次验加载与重排；

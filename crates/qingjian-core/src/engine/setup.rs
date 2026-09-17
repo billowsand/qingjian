@@ -1,10 +1,10 @@
-//! 注入与开关：词库、模糊音、双拼、翻译 / 学习 / 联想等 trait 实现的挂接，以及相应的只读访问。
+//! 注入与开关：词库、双拼、辅码、翻译 / 学习等 trait 实现的挂接，以及相应的只读访问。
 
 use std::borrow::Cow;
 
 use super::*;
-use crate::engine::decoded::EngineDecoded;
 use crate::engine::fuma;
+use crate::shuangpin::Decoded;
 
 impl Engine {
     /// 设置中文模式的标点转换。
@@ -35,39 +35,10 @@ impl Engine {
         self.shuangpin
     }
 
-    /// 設置是否啟用注音模式。開啟後鍵盤輸入按大千佈局解析。
     /// 学习开关（`[general] learning`）：关掉后不再记词频、用户词、个人 n-gram 与敲错表，已学的照常参与排序；
     /// 私密输入是另一个独立的开关（[`Self::set_private`]）。
     pub fn set_learning(&mut self, enabled: bool) {
         self.learner.set_disabled(!enabled);
-    }
-
-    pub fn set_zhuyin_mode(&mut self, on: bool) {
-        self.zhuyin = on;
-        self.forget_span_cache();
-    }
-
-    /// 目前是否處於注音模式。
-    pub fn is_zhuyin_mode(&self) -> bool {
-        self.zhuyin
-    }
-
-    /// 判斷注音模式下目前是否還需要輸入聲調。
-    /// 供殼（平台層）用來判斷空白鍵是應該進緩衝區作為聲調，還是直接用來選詞。
-    pub fn zhuyin_needs_tone(&self) -> bool {
-        if !self.zhuyin {
-            return false;
-        }
-        let raw = self.composition.text();
-        if raw.is_empty() {
-            return false;
-        }
-        let decoded = crate::zhuyin::decode(raw);
-        if let Some(last) = decoded.units().last() {
-            !last.complete && last.pinyin != "'"
-        } else {
-            false
-        }
     }
 
     /// 组句中敲 `;` 是否该进缓冲区：微软 / 搜狗双拼里它是 ing 的韵母键，只在末尾有落单的声母时收，
@@ -80,13 +51,9 @@ impl Engine {
 
     /// 双拼开着时把一段键解成全拼；全拼下为 `None`，调用方原样用键。
     /// 解码前先归一化：辅码激活时剥掉末 2 键，并整串小写化（辅码之外大写没有意义）。
-    pub(super) fn decode(&self, keys: &str) -> Option<EngineDecoded> {
-        if self.zhuyin {
-            Some(EngineDecoded::Zhuyin(crate::zhuyin::decode(keys)))
-        } else {
-            self.shuangpin
-                .map(|scheme| EngineDecoded::Shuangpin(scheme.decode(&self.decode_keys(keys))))
-        }
+    pub(super) fn decode(&self, keys: &str) -> Option<Decoded> {
+        self.shuangpin
+            .map(|scheme| scheme.decode(&self.decode_keys(keys)))
     }
 
     /// 双拼解码用的键串：辅码激活时剥掉末 2 键，再整串小写化。

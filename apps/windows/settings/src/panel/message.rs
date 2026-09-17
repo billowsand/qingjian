@@ -6,17 +6,26 @@ pub(crate) enum Message {
     /// 导航切换分节（`None` 是取消选中，忽略）。
     Navigate(Option<String>),
 
-    // 通用页
-    PageSize(Option<f64>),
+    // 通用页 · 输入方案
     Shuangpin(Option<usize>),
     /// 辅码方案下拉（关 / 小鹤辅码）。
     Fuma(Option<usize>),
-    Zhuyin(bool),
-    ChineseFirst(bool),
+
+    // 通用页 · 按键
+    PageSize(Option<f64>),
+    PageKeys(Option<usize>),
+    DeleteCandidate(Option<usize>),
+
+    // 通用页 · 标点
     FullWidthPunctuation(bool),
     EnglishFullWidthPunctuation(bool),
 
-    // 候选窗口页
+    // 通用页 · 候选质量
+    /// 本地整句模型开关（`[model] enabled`）。
+    LocalModel(bool),
+    ChineseFirst(bool),
+
+    // 外观页
     Theme(Option<usize>),
     Layout(Option<usize>),
     Preedit(Option<usize>),
@@ -24,13 +33,6 @@ pub(crate) enum Message {
     /// 从系统字体列表里选了一个：0 是「系统字体」，其后按 `Settings::families` 的下标。
     Font(Option<usize>),
     StatusBar(bool),
-
-    // 本地整句模型页
-    LocalModel(bool),
-
-    // 快捷键页
-    PageKeys(Option<usize>),
-    DeleteCandidate(Option<usize>),
 
     // 词库页
     ToggleDomain(String, bool),

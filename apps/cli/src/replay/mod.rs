@@ -81,7 +81,6 @@ fn replay_commit(
         if commit.source == InputSource::Raw && !commit.keys.is_empty() {
             engine.set_english_mode(commit.english);
             engine.set_shuangpin(commit.scheme.parse().ok());
-            engine.set_zhuyin_mode(commit.scheme == "zhuyin");
             engine.set_input(&commit.keys);
             engine.take_raw();
         }
@@ -99,7 +98,6 @@ fn replay_commit(
     };
     engine.set_english_mode(commit.english);
     engine.set_shuangpin(commit.scheme.parse().ok());
-    engine.set_zhuyin_mode(commit.scheme == "zhuyin");
     engine.set_input(scope);
     let query = match engine.query() {
         Ok(query) => query,

@@ -7,7 +7,7 @@ use qingjian_core::dictionary::Dictionary;
 use qingjian_platform::extra_dictionaries;
 use windows_reactor::*;
 
-use crate::panel::controls::{note, page, repo_resource};
+use crate::panel::controls::{block, note, page, repo_resource};
 use crate::panel::{Message, Settings};
 
 /// 用户词库目录 `%APPDATA%\Qingjian\dicts`。
@@ -129,29 +129,29 @@ fn user_list(settings: &Settings, context: &mut ViewContext<Settings>) -> View {
 }
 
 pub(crate) fn view(settings: &Settings, context: &mut ViewContext<Settings>) -> View {
-    let body = StackPanel::new().spacing(12.0).children([
-        note("随包的基础词库始终启用，不在这里。这里管随包领域词库的开关与导入词库的开关 / 移除。改完自动生效。"),
-        TextBlock::new()
-            .text("随包领域词库")
-            .font_weight(FontWeight::SEMI_BOLD)
-            .into(),
-        bundled_list(settings, context),
-        TextBlock::new()
-            .text("导入的词库")
-            .font_weight(FontWeight::SEMI_BOLD)
-            .into(),
-        user_list(settings, context),
-        StackPanel::new()
-            .orientation(Orientation::Horizontal)
-            .spacing(12.0)
-            .children((
-                Button::new()
-                    .on_click(context.message(Message::ImportDictionary))
-                    .content("导入词库…"),
-                note("接受字在 TSV、Rime .dict.yaml、.qj；导入即复制进上面的目录。"),
-            )),
-    ]);
-    page("词库", body)
+    let bundled = block(Symbol::Library, "随包领域词库", {
+        let list = bundled_list(settings, context);
+        StackPanel::new().spacing(8.0).children((
+            note("随包的基础词库始终启用，不在这里；这里只管领域词库的开关。改完自动生效。"),
+            list,
+        ))
+    });
+    let imported = block(Symbol::Import, "导入的词库", {
+        let list = user_list(settings, context);
+        StackPanel::new().spacing(8.0).children((
+            list,
+            StackPanel::new()
+                .orientation(Orientation::Horizontal)
+                .spacing(12.0)
+                .children((
+                    Button::new()
+                        .on_click(context.message(Message::ImportDictionary))
+                        .content("导入词库…"),
+                    note("接受字在 TSV、Rime .dict.yaml、.qj；导入即复制进用户词库目录。"),
+                )),
+        ))
+    });
+    page("词库", [bundled, imported])
 }
 
 /// 挪进 `dicts\removed`，不真删（与 macOS 一致）。

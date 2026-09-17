@@ -90,7 +90,6 @@ impl Router {
             Some(english) if self.config.status_enabled => {
                 self.status.show_status(StatusView {
                     english,
-                    zhuyin: self.config.zhuyin,
                     scheme: self
                         .config
                         .shuangpin
