@@ -1,6 +1,9 @@
 # 设置程序换 egui 的 spike（2026-09-18）
 
-分支 `egui-settings-spike`，代码在 `apps/windows/settings-egui`（不随包发布）。**只是量数字，还没有换的决定。**
+分支 `egui-settings-spike`，代码在 `apps/windows/settings-egui`。
+
+**2026-09-18 定了：打包缺省就用 egui 这份**（`build.ps1` 不加开关即是，WinUI 那份退到 `-WinUiSettings`）。
+下面是做决定前量的数字，留着当依据；界面上没做完的（图标码点没逐个核对之类）按普通待办接着做。
 
 ## 起因
 
@@ -37,8 +40,10 @@ egui 是现成 toolkit，不落在那条理由里；`design/candidate-ui.md` 排
 | 一屏能放几项设置 | 4 项 | **9 项**（一行 38 px，WinUI 版两行文字 76 px） |
 
 净账：**安装包小 10.7 MiB（-13.9%），安装目录小 50 MB，少装 118 个文件**；exe 自己大一倍。
-真机试装用 `powershell -File apps\windows\installer\build.ps1 -EguiSettings`：egui 版设置程序按正式名字装进去，
-Server 的齿轮、开始菜单、安装前 taskkill 都照常，成品是 `Zizai-<版本>-egui-Setup.exe`（与正式包不同名，不互相覆盖）。
+打包就是 `powershell -File apps\windows\installer\build.ps1`（缺省即 egui）：设置程序按正式名字装进去，
+Server 的齿轮、开始菜单、安装前 taskkill 都照常。从带 WinUI 的老版本升上来时，
+安装器会把 `{app}` 里上一版留下的那 118 项运行时删掉（见 `installer/README.md`）。
+要拿 WinUI 那份对比就加 `-WinUiSettings`，成品另起名 `Zizai-<版本>-winui-Setup.exe`。
 
 ## 四个问题的答案
 

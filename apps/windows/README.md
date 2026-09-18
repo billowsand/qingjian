@@ -73,7 +73,10 @@ regsvr32 /u target\debug\qingjian_tsf.dll
 
 ## 设置程序与 Windows App Runtime
 
-`settings/`（`qingjian-settings.exe`）用 Windows Reactor（WinUI 3）画界面，是三个产物里唯一依赖 Windows App Runtime 的。
+打包缺省装的是 `settings-egui/`（egui 自绘，按 `qingjian-settings.exe` 这个名字装进去，不要运行时；
+2026-09-18 定的，见 [egui-settings-spike.md](../../docs/notes/egui-settings-spike.md)）。下面这套只有 `build.ps1 -WinUiSettings` 才打。
+
+`settings/`（`qingjian-settings.exe`）用 Windows Reactor（WinUI 3）画界面，是几个产物里唯一依赖 Windows App Runtime 的。
 它的部署方式是**自包含**：`build.rs` 让 `windows-reactor-setup` 把 `Microsoft.WindowsAppSDK.Runtime` 的 MSIX 解到
 `target\release\` 并按自包含标记嵌清单，安装包把这些文件装到 exe 同级——不依赖机器上装没装框架包。
 Windows 10 上框架依赖的引导走不通（它要先调 Windows 11 才有的 `TryCreatePackageDependency`），

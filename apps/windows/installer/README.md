@@ -69,9 +69,12 @@ powershell -ExecutionPolicy Bypass -File apps\windows\installer\build.ps1
 成品在 `target\installer\Zizai-<版本>-Setup.exe`。改了数据 / 脚本但二进制没变时加 `-SkipBuild`；`-Sign` 用自签证书签产物
 （uiAccess 要求 Server 签名 + 装 Program Files）。
 
-`-EguiSettings`（只在分支 `egui-settings-spike` 上有用）把设置程序换成 egui spike：按正式名字装
-`qingjian-settings-egui.exe`，不装那 118 项 Windows App Runtime，成品另起名 `Zizai-<版本>-egui-Setup.exe`。
-同一提交实测 76.9 → 66.2 MiB。那个包里的设置程序五页都能用，但仍是 spike（说明改成了悬停提示、图标码点未逐个核对），只用于真机对比，别拿去发。
+**设置程序缺省用 egui 那份**（`qingjian-settings-egui.exe`，按正式名字装进去，Server 的齿轮、开始菜单、安装前 taskkill 都不用改），
+不装那 118 项 Windows App Runtime，同一提交实测 76.9 → 66.2 MiB。从带 WinUI 的老版本升上来时，
+`[InstallDelete]` 会把上一版留在 `{app}` 里的那 118 项删掉（片段由 `build.ps1` 按 `settings-runtime.txt` 生成成
+`target\installer\retire-runtime.iss`，`qingjian.iss` `#include` 它）——Inno 只管自己装过的文件，删不掉「这一版不再装」的。
+
+`-WinUiSettings` 换回 WinUI 3 那份（连同自包含运行时），成品另起名 `Zizai-<版本>-winui-Setup.exe`，不覆盖正式包；只在要对比时用。
 
 安装向导使用 `assets\icon\installer-wizard-light.png` 与 `installer-wizard-dark.png`，由 `assets\icon\generate.py` 和主图标一起生成；
 `WizardStyle=modern dynamic` 会在启动时按 Windows 明暗模式选对应画面。改了图标生成脚本后先重新生成资源再打包。

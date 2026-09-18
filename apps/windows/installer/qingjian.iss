@@ -29,9 +29,9 @@
 ; 按版本起名的 TSF DLL（见文件头「升级」）。
 #define TsfDll "qingjian_tsf-" + AppVersion + ".dll"
 #define TsfDll32 "qingjian_tsf-" + AppVersion + "-x86.dll"
-; egui spike 版的包另起名字，和正式包放在一起不会互相覆盖。
-#ifdef EguiSettings
-  #define SetupSuffix "-egui"
+; 设置程序缺省是 egui 那份；要 WinUI 那份得显式 /DWinUiSettings=1，包另起名字，和正式包放在一起不会互相覆盖。
+#ifdef WinUiSettings
+  #define SetupSuffix "-winui"
 #else
   #define SetupSuffix ""
 #endif
@@ -74,16 +74,16 @@ Name: "chs"; MessagesFile: "compiler:Languages\ChineseSimplified.isl"
 Source: "{#Repo}\target\release\qingjian_tsf.dll";      DestDir: "{app}"; DestName: "{#TsfDll}"; Flags: ignoreversion uninsrestartdelete
 Source: "{#Repo}\target\i686-pc-windows-msvc\release\qingjian_tsf.dll"; DestDir: "{app}"; DestName: "{#TsfDll32}"; Flags: ignoreversion uninsrestartdelete
 Source: "{#Repo}\target\release\qingjian-server.exe";   DestDir: "{app}"; Flags: ignoreversion
-#ifdef EguiSettings
-; egui spike 版设置程序（分支 egui-settings-spike，build.ps1 -EguiSettings）：按正式名字装，Server 的齿轮、
-; 开始菜单快捷方式与安装前 taskkill 都不用改。自绘 UI 不要 Windows App Runtime，那 118 项 / 56 MB 整段不装。
-; 五页都能用，但仍是 spike（说明改成悬停提示、图标码点未核对）——别拿这个包当正式版发。
-Source: "{#Repo}\target\release\qingjian-settings-egui.exe"; DestDir: "{app}"; DestName: "qingjian-settings.exe"; Flags: ignoreversion
-#else
-Source: "{#Repo}\target\release\qingjian-settings.exe"; DestDir: "{app}"; Flags: ignoreversion
-; 设置程序自带一份 Windows App Runtime（自包含部署：Windows 10 上机器装的框架包用不了，见 docs\notes\windows-win10.md）；
+#ifdef WinUiSettings
+; WinUI 3 那份设置程序（build.ps1 -WinUiSettings，只用于对比）：自带一份 Windows App Runtime
+; （自包含部署：Windows 10 上机器装的框架包用不了，见 docs\notes\windows-win10.md）；
 ; 文件由 build.ps1 按 settings-runtime.txt 从 target\release 挑进 target\installer\settings-runtime，必须与 exe 同级。
+Source: "{#Repo}\target\release\qingjian-settings.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#Repo}\target\installer\settings-runtime\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+#else
+; 缺省：egui 那份设置程序，按正式名字装，Server 的齿轮、开始菜单快捷方式与安装前 taskkill 都不用改。
+; 自绘 UI 不要 Windows App Runtime，那 118 项 / 56 MB 整段不装（同一提交实测 76.9 → 66.2 MiB）。
+Source: "{#Repo}\target\release\qingjian-settings-egui.exe"; DestDir: "{app}"; DestName: "qingjian-settings.exe"; Flags: ignoreversion
 #endif
 Source: "{#Repo}\apps\windows\tsf\resources\qingjian.ico"; DestDir: "{app}"; Flags: ignoreversion
 ; —— 随包生成数据（只装运行时要的 .qj / .tsv，不装 dev 中间产物）——
@@ -151,6 +151,12 @@ Type: files; Name: "{app}\data\model\vocab.json"
 ; 更早版本装的释义表与词汇等级表（现在不带译文功能）：留着白占 53 MB。
 Type: files; Name: "{app}\data\generated\glossary-*.qj"
 Type: filesandordirs; Name: "{app}\assets\levels"
+; 上一版 WinUI 设置程序带的那份 Windows App Runtime（118 项 / 56 MB）：egui 版不要它，升级时清掉。
+; 片段由 build.ps1 按 settings-runtime.txt 生成（打 -WinUiSettings 时是空的，那些文件正是要装的）。
+#define RetireRuntime Repo + "\target\installer\retire-runtime.iss"
+#if FileExists(RetireRuntime)
+  #include RetireRuntime
+#endif
 
 [UninstallDelete]
 ; 历次升级留下的旧版本 DLL（正常在升级时就删了；仍被占用的会留到这里）。
