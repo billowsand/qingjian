@@ -90,9 +90,9 @@ powershell -ExecutionPolicy Bypass -File apps\windows\installer\build.ps1
 
 - **Inno 版本**：开发机与 CI 统一用 Inno Setup **7.1.0**（CI 从 jrsoftware/issrc 的 GitHub Release 钉死下载）。它自带简体中文翻译；
   6.x 的安装包不带 `Languages\ChineseSimplified.isl`，Chocolatey 也只有 6.x，别用。`ArchitecturesAllowed=x64compatible` 需 6.3+。
-- **签名**：发版证书就绪后在这里加 `SignTool`（对应 mac 的 Developer ID）；开发期用 `-Sign` 的自签证书。
-- **不签名是缺省**：`build.ps1` 不加 `-Sign` 就不签名、不嵌 uiAccess（`server\build.rs` 只认 `QINGJIAN_UIACCESS=1`），
-  打出来的包任何机器都能起——没签名的 exe 带 uiAccess=true 会起不来（os error 740）。代价是候选窗在 UWP 宿主里可能被盖住。
-  `release.yml` 的 `windows` job 与手动 `cargo build` 都走这条路。
+- **签名**：对外分发走 `release.yml` 的 SignPath Foundation 免费签名（流程与配置见 `docs\design\code-signing.md`，不在本机签）；`-PreSigned` 是给 CI 的：产物已被 SignPath 签回时跳过剥离并逐个校验签名。开发期用 `-Sign` 的自签证书。
+- **不签名是缺省**：`build.ps1` 不加 `-Sign` / `-PreSigned` 就不签名、不嵌 uiAccess（`server\build.rs` 只认 `QINGJIAN_UIACCESS=1`），
+  打出来的包任何机器都能起——没签名的 exe 带 uiAccess=true 会起不来（os error 740）。代价是候选窗在 UWP 宿主里可能被盖住、TSF DLL 进不了系统应用。
+  `release.yml` 在 SignPath 配置缺省时仍走这条路，配齐后自动签名并开 uiAccess。
 - **两种包别串**：`-Sign` 会把签名留在 `target\` 里，代码没变时下次构建不重新链接、签名跟着留着。
   所以不带 `-Sign` 时 `build.ps1` 会先剥掉残留签名（要 Windows SDK 的 `signtool`），免得把「证书链不受信任」的文件打进对外分发的包。
