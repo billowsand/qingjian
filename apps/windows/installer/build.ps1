@@ -12,7 +12,15 @@
     确保打包前 data\generated 里的 .qj 是最新的（bundle 流程见仓库 CLAUDE.md）。
     **缺省不签名、不开 uiAccess**，打出来的包任何机器都能起；uiAccess 跟着 -Sign 走，不用手设 QINGJIAN_UIACCESS。
 .PARAMETER SkipBuild
-    跳过 cargo build（数据或 .iss 改了、二进制没变时重编安装包用）。
+    跳过 cargo build（数据或 .iss 改了、二进制没变时重编安装包用）。与 -PackageOnly 二选一即可。
+.PARAMETER NoPackage
+    只跑 cargo build，不打包。CI 签名流程用：构建 → 送 SignPath 签回 → -PackageOnly -PreSigned 打包。
+.PARAMETER PackageOnly
+    跳过 cargo build，直接用 target\ 里已有的产物打包（须先跑过一次构建）。与 -SkipBuild 的区别：
+    是「分段打包」语义，CI 用它；本地重编安装包继续用 -SkipBuild。
+.PARAMETER PreSigned
+    产物已被 SignPath 在 CI 里签回（docs/design/code-signing.md）：不剥签名、打包前逐个校验签名有效，
+    别让坏签名静默进安装包。与 -Sign（本地自签）互斥。
 .PARAMETER Sign
     自签产物（sign-local.ps1）并开 uiAccess（候选窗才能盖过商店 / 任务栏搜索）。uiAccess=true 的 exe 要本机受信任的签名
     才准启动，自签证书只有编译机信任——所以 -Sign 只用于本机真机测，对外分发的包不加此开关：不签名、关 uiAccess，
@@ -24,9 +32,12 @@
     成品另起名 Zizai-<版本>-winui-Setup.exe，不覆盖正式包。
 #>
 [CmdletBinding()]
-param([switch]$SkipBuild, [switch]$Sign, [switch]$WinUiSettings)
+param([switch]$SkipBuild, [switch]$Sign, [switch]$WinUiSettings, [switch]$NoPackage, [switch]$PackageOnly, [switch]$PreSigned)
 
 $ErrorActionPreference = 'Stop'
+
+if ($NoPackage -and $PackageOnly) { throw '-NoPackage 与 -PackageOnly 互斥（一个只构建、一个只打包）' }
+if ($PreSigned -and $Sign) { throw '-PreSigned 与 -Sign 互斥（签回产物与本地自签二选一）' }
 
 # 剥掉产物上残留的签名（见调用处）。没签名的文件一个都不动，所以不签名的构建可以每次无脑调。
 function Remove-Signatures {
@@ -60,8 +71,8 @@ if ($Sign) {
     Write-Host 'uiAccess=0（对外分发：Server 任何机器都能起；候选窗在商店 / 任务栏搜索里可能被盖）' -ForegroundColor Cyan
 }
 
-# 1) 构建三个产物。
-if (-not $SkipBuild) {
+# 1) 构建三个产物。-PackageOnly 假定产物已在 target\（CI 签名分段流程），跳过。
+if (-not $SkipBuild -and -not $PackageOnly) {
     Write-Host '构建 release 产物…' -ForegroundColor Cyan
     Push-Location $Repo
     try {
@@ -83,6 +94,12 @@ $targets = @(
 foreach ($t in $targets) {
     $p = Join-Path $Repo "target\$t"
     if (-not (Test-Path $p)) { throw "缺产物 $p，先跑一次不带 -SkipBuild 的构建" }
+}
+
+# -NoPackage：只构建，后面是打包段（CI 签名流程构建与打包之间要插 SignPath 签回）。
+if ($NoPackage) {
+    Write-Host '构建完成（-NoPackage：不打包）' -ForegroundColor Green
+    return
 }
 
 # 1.2) 自包含 Windows App Runtime（只有 -WinUiSettings 要）：WinUI 那份设置程序不依赖机器上装的
@@ -130,6 +147,13 @@ $binaries = $targets | ForEach-Object { Join-Path $Repo "target\$_" }
 if ($Sign) {
     Write-Host '自签产物（uiAccess 要求 Server 代码签名）…' -ForegroundColor Cyan
     & (Join-Path $PSScriptRoot 'sign-local.ps1') -Path $binaries
+} elseif ($PreSigned) {
+    # CI：产物刚从 SignPath 签回。不剥签名，但逐个校验有效，别静默把签坏的文件打进包。
+    foreach ($f in $binaries) {
+        $status = (Get-AuthenticodeSignature -LiteralPath $f).Status
+        if ($status -ne 'Valid') { throw "产物签名无效（$status）：$f（检查 SignPath 签回环节）" }
+    }
+    Write-Host "产物已由 SignPath 签回（-PreSigned，$($binaries.Count) 个签名有效）" -ForegroundColor Cyan
 } else {
     # 上一次 -Sign 留下的自签名还粘在 target\ 里（代码没变就不重新链接，签名跟着留着），
     # 会被原样打进包——到别人机器上是「证书链不受信任」，观感差也更容易触杀软。剥掉。
