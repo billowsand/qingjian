@@ -3736,7 +3736,7 @@ dependencies = [
 
 [[package]]
 name = "qingjian-windows-server"
-version = "0.1.7-dev"
+version = "0.1.7"
 dependencies = [
  "dotenvy",
  "embed-manifest",
@@ -3759,7 +3759,7 @@ dependencies = [
 
 [[package]]
 name = "qingjian-windows-settings"
-version = "0.1.7-dev"
+version = "0.1.7"
 dependencies = [
  "jiff",
  "qingjian-core",
@@ -3775,7 +3775,7 @@ dependencies = [
 
 [[package]]
 name = "qingjian-windows-settings-egui"
-version = "0.1.7-dev"
+version = "0.1.7"
 dependencies = [
  "eframe",
  "jiff",
@@ -3793,7 +3793,7 @@ dependencies = [
 
 [[package]]
 name = "qingjian-windows-tsf"
-version = "0.1.7-dev"
+version = "0.1.7"
 dependencies = [
  "qingjian-core",
  "qingjian-platform",
