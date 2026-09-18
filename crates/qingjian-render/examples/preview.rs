@@ -109,7 +109,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         StatusCell::Grip,
         StatusCell::mode("中", Some("鹤"), true),
         StatusCell::text("，。", true),
-        StatusCell::Gear,
+        StatusCell::Brand,
     ];
     for (theme_name, theme) in [("light", Theme::light()), ("dark", Theme::dark())] {
         let status = renderer.render_status(&cells, &theme, args.scale, shadow.as_ref())?;

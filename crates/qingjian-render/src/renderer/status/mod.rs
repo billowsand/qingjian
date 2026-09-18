@@ -1,4 +1,4 @@
-//! 悬浮状态条（Windows）：几格并排的小条 `[中 / 英][，。/ ,.][⚙]`，每格文字居中、格间一条细线，圆角背景加阴影。
+//! 悬浮状态条（Windows）：几格并排的小条 `[中 / 英][，。/ ,.][字在]`，每格内容居中、格间一条细线，圆角背景加阴影。
 
 mod cell;
 mod rendered;
@@ -7,14 +7,14 @@ pub use cell::{StatusCell, shuangpin_mark};
 pub use rendered::RenderedStatus;
 
 use super::{Metrics, Rendered, Renderer};
+use crate::brand_mark::draw_brand_mark;
 use crate::canvas::Canvas;
 use crate::error::RenderError;
-use crate::gear::draw_gear;
 use crate::shadow::Shadow;
 use crate::theme::Theme;
 
-/// 齿轮图标边长（点）。
-const GEAR_SIZE: f32 = 15.0;
+/// 设置入口的「字在」图标边长（点）。
+const BRAND_SIZE: f32 = 18.0;
 
 /// 点阵拖拽握柄占的宽度（点）。
 const GRIP_WIDTH: f32 = 9.0;
@@ -115,7 +115,7 @@ impl Renderer {
                 m.px(MODE_BADGE_SIZE) + scheme_width
             }
             StatusCell::Text { text, .. } => self.measure(text, &m.text_style()).width,
-            StatusCell::Gear => m.px(GEAR_SIZE),
+            StatusCell::Brand => m.px(BRAND_SIZE),
         }
     }
 
@@ -211,14 +211,14 @@ impl Renderer {
                 let top = y + (height - size.height) / 2.0;
                 self.draw_text(canvas, text, &style, left, top);
             }
-            StatusCell::Gear => {
-                let size = m.px(GEAR_SIZE);
-                draw_gear(
+            StatusCell::Brand => {
+                let size = m.px(BRAND_SIZE);
+                draw_brand_mark(
                     canvas,
                     x + (width - size) / 2.0,
                     y + (height - size) / 2.0,
                     size,
-                    m.theme.colors.gloss,
+                    m.theme,
                 );
             }
         }
@@ -244,7 +244,7 @@ mod tests {
             StatusCell::Grip,
             StatusCell::mode("中", Some("鹤"), true),
             StatusCell::text(",.", false),
-            StatusCell::Gear,
+            StatusCell::Brand,
         ];
         let out = renderer
             .render_status(&cells, &Theme::light(), 2.0, Some(&Shadow::mac_panel()))
@@ -257,5 +257,30 @@ mod tests {
         );
         assert!(out.rendered.pixmap.width() > out.rendered.content_width);
         assert!(out.rendered.content_x > 0);
+    }
+
+    #[test]
+    fn brand_mark_renders_in_every_theme_and_appearance() {
+        let Ok(library) = FontLibrary::system("zh-CN") else {
+            return;
+        };
+        let mut renderer = Renderer::new(library);
+        for theme in [
+            Theme::cream(false),
+            Theme::cream(true),
+            Theme::zizai(false),
+            Theme::zizai(true),
+            Theme::latte(false),
+            Theme::latte(true),
+            Theme::forest(false),
+            Theme::forest(true),
+        ] {
+            let out = renderer
+                .render_status(&[StatusCell::Brand], &theme, 2.0, None)
+                .unwrap();
+            assert_eq!(out.cell_edges.len(), 1);
+            assert!(out.rendered.content_width > 0);
+            assert!(out.rendered.content_height > 0);
+        }
     }
 }

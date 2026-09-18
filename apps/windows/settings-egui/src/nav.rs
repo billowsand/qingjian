@@ -8,7 +8,7 @@ use crate::fonts;
 use crate::theme;
 use crate::widgets::{BRAND_SIZE, LABEL_SIZE, LOGO_SIZE, NOTE_SIZE};
 
-/// Logo 编进二进制，不依赖随包文件（与 WinUI 版同一张图）。
+/// Logo 的原始遮罩编进二进制；显示时按当前色系与系统明暗实时换色。
 const LOGO: &[u8] = include_bytes!("../../../../assets/icon/logo.png");
 
 /// 导航项行高。
@@ -96,9 +96,11 @@ fn brand(ui: &mut egui::Ui) {
     });
 }
 
-/// 解码一次 Logo 存进 egui 的纹理缓存（`png` 解码，不引 egui_extras 的图片加载器）；「关于」页也用它。
+/// 以主图标为几何遮罩生成当前主题的 Logo，并按「色系 × 明暗」缓存；「关于」页也用它。
 pub(crate) fn logo(ctx: &egui::Context) -> Option<egui::TextureHandle> {
-    let id = egui::Id::new("brand-logo");
+    let scheme = theme::current_scheme(ctx);
+    let dark = theme::dark_mode(ctx);
+    let id = egui::Id::new(("brand-logo", scheme.key(), dark));
     if let Some(handle) = ctx.data(|data| data.get_temp::<egui::TextureHandle>(id)) {
         return Some(handle);
     }
@@ -109,11 +111,144 @@ pub(crate) fn logo(ctx: &egui::Context) -> Option<egui::TextureHandle> {
     if info.color_type != png::ColorType::Rgba || info.bit_depth != png::BitDepth::Eight {
         return None;
     }
-    let image = egui::ColorImage::from_rgba_unmultiplied(
-        [info.width as usize, info.height as usize],
+    let size = [info.width as usize, info.height as usize];
+    let pixels = themed_logo_pixels(
         &buffer[..info.buffer_size()],
+        size[0],
+        size[1],
+        theme::current_palette(ctx),
+        dark,
     );
-    let handle = ctx.load_texture("brand-logo", image, egui::TextureOptions::LINEAR);
+    let image = egui::ColorImage::from_rgba_unmultiplied(size, &pixels);
+    let handle = ctx.load_texture(
+        format!(
+            "brand-logo-{}-{}",
+            scheme.key(),
+            if dark { "dark" } else { "light" }
+        ),
+        image,
+        egui::TextureOptions::LINEAR,
+    );
     ctx.data_mut(|data| data.insert_temp(id, handle.clone()));
     Some(handle)
+}
+
+fn themed_logo_pixels(
+    source: &[u8],
+    width: usize,
+    height: usize,
+    palette: qingjian_render::Palette,
+    dark: bool,
+) -> Vec<u8> {
+    let mut output = Vec::with_capacity(source.len());
+    let warm_white = [247, 246, 242];
+    let mint = [85, 214, 194];
+    let blue_top = [49, 87, 216];
+    let blue_bottom = [36, 79, 219];
+    for (index, pixel) in source.chunks_exact(4).enumerate() {
+        let x = index % width;
+        let y = index / width;
+        let source_rgb = [pixel[0], pixel[1], pixel[2]];
+        let semantic = [warm_white, mint, blue_top, blue_bottom]
+            .into_iter()
+            .min_by_key(|candidate| color_distance(source_rgb, *candidate))
+            .unwrap_or(blue_top);
+        let color = if semantic == warm_white {
+            warm_white
+        } else if semantic == mint {
+            [palette.caret.r, palette.caret.g, palette.caret.b]
+        } else if dark && border_pixel(x, y, width, height) {
+            [palette.accent.r, palette.accent.g, palette.accent.b]
+        } else {
+            let top = if dark {
+                mix_rgb(palette.highlight, palette.accent, 0.16)
+            } else {
+                [palette.accent.r, palette.accent.g, palette.accent.b]
+            };
+            let bottom = if dark {
+                [
+                    palette.highlight.r,
+                    palette.highlight.g,
+                    palette.highlight.b,
+                ]
+            } else {
+                mix_rgb(palette.accent, palette.background, 0.12)
+            };
+            mix_array(top, bottom, y as f32 / height.max(1) as f32)
+        };
+        output.extend_from_slice(&[color[0], color[1], color[2], pixel[3]]);
+    }
+    output
+}
+
+fn color_distance(left: [u8; 3], right: [u8; 3]) -> u32 {
+    left.into_iter()
+        .zip(right)
+        .map(|(left, right)| {
+            let delta = i32::from(left) - i32::from(right);
+            (delta * delta) as u32
+        })
+        .sum()
+}
+
+fn mix_rgb(left: qingjian_render::Color, right: qingjian_render::Color, amount: f32) -> [u8; 3] {
+    mix_array(
+        [left.r, left.g, left.b],
+        [right.r, right.g, right.b],
+        amount,
+    )
+}
+
+fn mix_array(left: [u8; 3], right: [u8; 3], amount: f32) -> [u8; 3] {
+    let amount = amount.clamp(0.0, 1.0);
+    std::array::from_fn(|index| {
+        (f32::from(left[index]) * (1.0 - amount) + f32::from(right[index]) * amount).round() as u8
+    })
+}
+
+fn border_pixel(x: usize, y: usize, width: usize, height: usize) -> bool {
+    let scale_x = width as f32 / 1024.0;
+    let scale_y = height as f32 / 1024.0;
+    let x = x as f32 / scale_x;
+    let y = y as f32 / scale_y;
+    rounded_rect_contains(x, y, 64.0, 64.0, 960.0, 960.0, 208.0)
+        && !rounded_rect_contains(x, y, 120.0, 120.0, 904.0, 904.0, 152.0)
+}
+
+fn rounded_rect_contains(
+    x: f32,
+    y: f32,
+    left: f32,
+    top: f32,
+    right: f32,
+    bottom: f32,
+    radius: f32,
+) -> bool {
+    if x < left || x > right || y < top || y > bottom {
+        return false;
+    }
+    let nearest_x = x.clamp(left + radius, right - radius);
+    let nearest_y = y.clamp(top + radius, bottom - radius);
+    let dx = x - nearest_x;
+    let dy = y - nearest_y;
+    dx * dx + dy * dy <= radius * radius
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{border_pixel, color_distance, mix_array};
+
+    #[test]
+    fn dark_logo_border_follows_the_original_rounded_square() {
+        assert!(border_pixel(72, 512, 1024, 1024));
+        assert!(border_pixel(112, 512, 1024, 1024));
+        assert!(!border_pixel(140, 512, 1024, 1024));
+        assert!(!border_pixel(10, 10, 1024, 1024));
+    }
+
+    #[test]
+    fn source_colors_map_to_their_semantic_roles() {
+        assert_eq!(color_distance([247, 246, 242], [247, 246, 242]), 0);
+        assert_eq!(mix_array([0, 100, 200], [100, 200, 0], 0.5), [50, 150, 100]);
+    }
 }

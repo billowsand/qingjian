@@ -12,6 +12,6 @@ pub(crate) enum StatusAction {
     /// 「，。/ ,.」：切全角标点。
     TogglePunctuation,
 
-    /// 齿轮：打开设置程序（UI 线程直接起进程，不经 Router）。
+    /// 「字在」图标：打开设置程序（UI 线程直接起进程，不经 Router）。
     OpenSettings,
 }

@@ -1,7 +1,8 @@
 //! 位图画布：tiny-skia `Pixmap` 之上的几个填充原语，加字形位图的逐像素 source-over 混合。坐标一律是像素、左上角原点。
 
 use tiny_skia::{
-    BlendMode, FillRule, Paint, Path, PathBuilder, Pixmap, PremultipliedColorU8, Rect, Transform,
+    BlendMode, FillRule, Paint, Path, PathBuilder, Pixmap, PremultipliedColorU8, Rect, Stroke,
+    Transform,
 };
 
 use crate::color::{Color, mul_u8, premultiply};
@@ -66,6 +67,16 @@ impl Canvas {
             path,
             &paint(color, blend),
             FillRule::Winding,
+            Transform::identity(),
+            None,
+        );
+    }
+
+    pub(crate) fn stroke_path(&mut self, path: &Path, color: Color, stroke: &Stroke) {
+        self.pixmap.stroke_path(
+            path,
+            &paint(color, BlendMode::SourceOver),
+            stroke,
             Transform::identity(),
             None,
         );

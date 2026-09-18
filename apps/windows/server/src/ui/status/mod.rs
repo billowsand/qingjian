@@ -1,4 +1,4 @@
-//! 悬浮状态条：桌面上常驻、可拖动的四格浮窗 `[握柄][中 / A][，。/ ,.][⚙]`，由字在渲染器绘制。
+//! 悬浮状态条：桌面上常驻、可拖动的四格浮窗 `[握柄][中 / A][，。/ ,.][字在]`，由字在渲染器绘制。
 //!
 //! 按下鼠标先 `DragDetect`：挪出拖动阈值就交给系统的移动循环（`WM_NCLBUTTONDOWN` + `HTCAPTION`），
 //! 结束时 `WM_EXITSIZEMOVE` 报新位置；没挪就是点击，按 x 落进哪格。`WM_MOUSEACTIVATE` 回 `MA_NOACTIVATE` 不抢焦点。
@@ -137,7 +137,7 @@ impl StatusBar {
         self.dark.set(dark);
     }
 
-    /// 渲染器要的四格：握柄、模式（品牌色）、标点（生效时品牌色，否则灰）、齿轮。
+    /// 渲染器要的四格：握柄、模式（品牌色）、标点（生效时品牌色，否则灰）、设置入口品牌图标。
     fn status_cells(view: &StatusView) -> Vec<StatusCell> {
         let scheme = if view.english {
             None
@@ -148,7 +148,7 @@ impl StatusBar {
             StatusCell::Grip,
             StatusCell::mode(if view.english { "A" } else { "中" }, scheme, !view.english),
             StatusCell::text(if view.full_width { "，。" } else { ",." }, view.full_width),
-            StatusCell::Gear,
+            StatusCell::Brand,
         ]
     }
 

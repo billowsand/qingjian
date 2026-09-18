@@ -98,7 +98,7 @@ pub(crate) fn palette_for(scheme: ColorScheme, dark: bool) -> Palette {
     }
 }
 
-fn current_scheme(ctx: &egui::Context) -> ColorScheme {
+pub(crate) fn current_scheme(ctx: &egui::Context) -> ColorScheme {
     ctx.data(|data| {
         data.get_temp::<ColorScheme>(egui::Id::new("color-scheme"))
             .unwrap_or_default()
@@ -152,7 +152,7 @@ fn visuals(base: egui::Visuals, dark: bool, scheme: ColorScheme) -> egui::Visual
     visuals
 }
 
-fn dark_mode(ctx: &egui::Context) -> bool {
+pub(crate) fn dark_mode(ctx: &egui::Context) -> bool {
     ctx.style().visuals.dark_mode
 }
 

@@ -6,13 +6,13 @@
 //!
 //! 设计与验收见 `docs/design/rendering.md`。
 
+mod brand_mark;
 mod canvas;
 mod cloud;
 mod color;
 mod error;
 mod fonts;
 mod frame;
-mod gear;
 mod renderer;
 mod shadow;
 mod text;

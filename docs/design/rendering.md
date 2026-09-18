@@ -116,14 +116,14 @@
 ## Windows 半边（2026-09-15，真机已验）
 
 - **壳**：`apps/windows/server/src/ui/painter/`，候选窗口与悬浮状态条共用一份渲染器（字体库与字形缓存一份）；`layered::present` 把渲染器出的预乘 RGBA 位图换成 BGRA 后 `UpdateLayeredWindow` 贴上，阴影由渲染器画（`Shadow::mac_panel()`，参数与 macOS 面板一致；分层窗口没有系统阴影）。倍数取 DPI / 96。渲染器或字体库初始化失败时不显示候选窗口与状态条并记错误日志。
-- **状态条**：渲染器的 `render_status` 接收 `StatusCell::{Grip, Mode, Text, Gear}`，返回位图与各格右边界供点击命中；`Mode` 把「中 / A」画成钴蓝方章，中文态有薄荷点，双拼在右侧只留「鹤 / 自 / 微 / 搜」。齿轮用矢量画，避免 Segoe UI Emoji 把 U+2699 画成彩色。
+- **状态条**：渲染器的 `render_status` 接收 `StatusCell::{Grip, Mode, Text, Brand}`，返回位图与各格右边界供点击命中；`Mode` 把「中 / A」画成当前色系方章，中文态有输入色圆点，双拼在右侧只留「鹤 / 自 / 微 / 搜」。设置入口用当前色系的矢量「字在」标记。
 - **配置**：`[general] font` 经 `CandidateSink::set_font` 送到 UI 线程，装上时与热加载变了时各送一次；字族名按 DirectWrite 的系统字体集合找文件（`qingjian_render::system_fonts`），设置程序的「字体」框也从它列字族。
 - **候选行类型**：Windows 壳直接用渲染器的 `Row` / `Tone`，不再有自己的一份。
 - **删候选的提示**：渲染器画在拼音行右侧。
 - **同步主题（2026-09-18）**：奶油 / 字在蓝 / 紫藤拿铁 / 森林各有浅色与深色；明暗始终跟随系统。品牌强调、输入光标、云服务、生词、纠错仍是独立颜色字段，
   当前候选保留强调色前导线。设置程序、候选窗口与悬浮状态条读取同一个 `[general] theme`，热加载同步更新。具体值与使用边界见 `docs/design/brand.md`。
 
-真机结果（Windows 11 26200，2026-09-15）：候选窗口深色 / 浅色、Segoe UI Emoji（COLRv0）彩色、阴影，悬浮状态条与矢量齿轮，字体设置与热切换（换成 Maple Mono NF CN 立即生效），均通过。灰度抗锯齿与微软雅黑回退观感通过；Yu Gothic 回退与首帧耗时没有单独测。2026-09-18 删除完成过渡使命的 Windows GDI 绘制路径与 `renderer` 配置项，同时删除竖排路径与 `layout` 配置项，候选固定横排。
+真机结果（Windows 11 26200，2026-09-15）：候选窗口深色 / 浅色、Segoe UI Emoji（COLRv0）彩色、阴影，悬浮状态条、字体设置与热切换（换成 Maple Mono NF CN 立即生效），均通过。灰度抗锯齿与微软雅黑回退观感通过；Yu Gothic 回退与首帧耗时没有单独测。2026-09-18 删除完成过渡使命的 Windows GDI 绘制路径与 `renderer` 配置项，同时删除竖排路径与 `layout` 配置项，候选固定横排。
 排查中顺带发现并修掉的与渲染器无关的问题：TSF DLL 动态链 `vcruntime140.dll`，AppContainer 进程（任务栏搜索等）读不到系统里那份时整个 DLL 加载失败、系统切回上一个输入法，已改成静态 CRT（仓库根 `.cargo/config.toml`）。
 
 ## 不做的事
