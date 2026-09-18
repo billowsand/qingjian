@@ -182,7 +182,6 @@ fn main() {
         dict = %dict.display(),
         page_size = router_config.page_size,
         page_keys = %format!("{}{}", router_config.page_keys.0, router_config.page_keys.1),
-        layout = router_config.layout.key(),
         theme = router_config.theme.key(),
         shuangpin = config.general.shuangpin().map(|s| s.key()).unwrap_or("全拼"),
         fuma = config.general.fuma().map(|s| s.key()).unwrap_or("关"),

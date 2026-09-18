@@ -1,10 +1,11 @@
-//! 「候选窗口」页：明暗、排布、渲染引擎、字体、拼音显示、悬浮状态条。
+//! 「候选窗口」页：明暗、每页候选数、字体、拼音显示、悬浮状态条。
 //! 候选窗长什么样打字时就看见了，这里不再摆一份预览图。
 
 use eframe::egui;
-use qingjian_platform::{CandidateRenderer, LayoutMode, PreeditMode, ThemeMode};
+use qingjian_platform::{MAX_PAGE_SIZE, PreeditMode, ThemeMode};
 
 use crate::app::Settings;
+use crate::fonts;
 use crate::widgets::{CONTROL_WIDTH, LABEL_SIZE, list, page, toggle};
 
 /// 「系统字体」项的下标：列表第 0 项，对应配置里的空串。
@@ -27,46 +28,30 @@ pub(crate) fn view(settings: &mut Settings, ui: &mut egui::Ui) {
                     response
                 },
             );
-            let layout = settings.config.general.layout;
-            list.row("\u{EA37}", "排布", "", |ui| {
-                let (response, picked) =
-                    mode_combo(ui, "layout", &LayoutMode::ALL, layout, LayoutMode::label);
-                if let Some(mode) = picked {
-                    settings.save("general", "layout", mode.key());
+            let page_size = settings.config.general.page_size;
+            list.row("\u{EA37}", "每页候选数", "", |ui| {
+                let (response, picked) = page_size_combo(ui, page_size);
+                if let Some(size) = picked {
+                    settings.save("general", "page_size", size as i64);
                 }
                 response
             });
-            let renderer = settings.config.general.renderer;
-            list.row(
-                "\u{EB9F}",
-                "渲染引擎",
-                "字在渲染器使用统一的品牌主题，并让候选窗口在各平台保持一致。",
-                |ui| {
-                    let (response, picked) = mode_combo(
-                        ui,
-                        "renderer",
-                        &CandidateRenderer::ALL,
-                        renderer,
-                        CandidateRenderer::label,
-                    );
-                    if let Some(mode) = picked {
-                        settings.save("general", "renderer", mode.key());
-                    }
-                    response
-                },
-            );
             let (options, selected) = font_options(settings);
             list.row(
                 "\u{E8D2}",
                 "字体",
-                "只对字在渲染器生效；配置里的字体没装时自动回到系统字体。设置界面本身用 Windows 的界面字体，不跟这里走。",
+                "候选窗口与设置界面共用此字体；没安装时自动回到系统字体。",
                 |ui| {
                     let (response, picked) = font_combo(ui, &options, selected);
                     match picked {
-                        Some(SYSTEM_FONT) => settings.save("general", "font", ""),
+                        Some(SYSTEM_FONT) => {
+                            settings.save("general", "font", "");
+                            fonts::install(ui.ctx(), &settings.config.general.font);
+                        }
                         Some(index) => {
                             let family = options[index].clone();
                             settings.save("general", "font", family);
+                            fonts::install(ui.ctx(), &settings.config.general.font);
                         }
                         None => {}
                     }
@@ -102,6 +87,27 @@ pub(crate) fn view(settings: &mut Settings, ui: &mut egui::Ui) {
             );
         });
     });
+}
+
+/// 每页候选数下拉：1–9。
+fn page_size_combo(ui: &mut egui::Ui, current: usize) -> (egui::Response, Option<usize>) {
+    let mut picked = None;
+    let response = egui::ComboBox::from_id_salt("page-size")
+        .width(CONTROL_WIDTH)
+        .selected_text(egui::RichText::new(format!("{current} 个")).size(LABEL_SIZE))
+        .show_ui(ui, |ui| {
+            for size in 1..=MAX_PAGE_SIZE {
+                if ui
+                    .selectable_label(size == current, format!("{size} 个"))
+                    .clicked()
+                    && size != current
+                {
+                    picked = Some(size);
+                }
+            }
+        })
+        .response;
+    (response, picked)
 }
 
 /// 枚举下拉：按 `label()` 列项，选中 `current`；返回控件 `Response` 与新选的枚举值。

@@ -98,9 +98,9 @@ Engine 侧在 `engine/rescoring/`：接了打分器就取 Viterbi 前 `RESCORE_P
 
 自绘渲染器：候选窗一帧 + 主题 → 预乘 RGBA 位图，tiny-skia 栅格 + cosmic-text 文字（fontdb 按平台清单只加载几个字体文件、不扫系统），
 自己解析 `trak` 字距表、按主题 gamma 加深笔画；cosmic-text 打了 `opsz` 光学字号补丁（qingjian-team/cosmic-text 分支 `qingjian-opsz`，workspace `[patch.crates-io]` 钉 rev）。
-`examples/preview.rs` 出 PNG 与真机截图并排比、`--measure` 量宽度。Windows 壳 `server/src/ui/painter/` 贴位图，`[general] renderer = "system"` 切回 GDI 绘制
-（过渡期退路，「设置 → 候选窗口」页可选）；`[general] font` 是候选窗字族名（空为系统字体，壳按字族名找出字体文件交给渲染器只加载那几个，没装就回系统字体）。
-主题颜色按角色拆开：品牌强调 / 输入光标 / 云服务 / 生词 / 纠错各有独立字段，Windows 的自绘与 GDI 退路必须使用相同语义；值见 `docs/design/brand.md`。
+`examples/preview.rs` 出 PNG 与真机截图并排比、`--measure` 量宽度。Windows 壳 `server/src/ui/painter/` 贴位图；
+`[general] font` 是候选窗字族名（空为系统字体，壳按字族名找出字体文件交给渲染器只加载那几个，没装就回系统字体）。
+主题颜色按角色拆开：品牌强调 / 输入光标 / 云服务 / 生词 / 纠错各有独立字段；值见 `docs/design/brand.md`。
 设计与验收见 `docs/design/rendering.md`。
 
 ## apps/cli

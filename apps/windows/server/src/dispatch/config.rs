@@ -1,8 +1,6 @@
 use qingjian_core::ShuangpinScheme;
 use qingjian_platform::protocol::KeyModifiers;
-use qingjian_platform::{CandidateRenderer, Config, LayoutMode, PreeditMode, ThemeMode};
-
-use super::RenderSettings;
+use qingjian_platform::{Config, PreeditMode, ThemeMode};
 
 /// Router 要用的配置项，与 macOS 壳的 `Host` 字段对齐。
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -10,19 +8,13 @@ pub struct RouterConfig {
     /// 每页候选数（`[general] page_size`）。
     pub page_size: usize,
 
-    /// 候选排布（`[general] layout`）。
-    pub layout: LayoutMode,
-
     /// 候选窗口外观（`[general] theme`）。
     pub theme: ThemeMode,
 
     /// 组句拼音显示在行内还是候选窗口（`[general] preedit`）。
     pub preedit: PreeditMode,
 
-    /// 候选窗口 / 状态条由青简渲染器还是 GDI 画（`[general] renderer`）。
-    pub renderer: CandidateRenderer,
-
-    /// 候选窗口字体的字族名（`[general] font`），空为系统字体；只对青简渲染器生效。
+    /// 候选窗口字体的字族名（`[general] font`），空为系统字体。
     pub font: String,
 
     /// 翻页键对（`[general] page_keys`，上一页 / 下一页）。
@@ -47,24 +39,12 @@ pub struct RouterConfig {
     pub shuangpin: Option<ShuangpinScheme>,
 }
 
-impl RouterConfig {
-    /// 交给 UI 线程的画法。
-    pub fn render_settings(&self) -> RenderSettings {
-        RenderSettings {
-            renderer: self.renderer,
-            font: self.font.clone(),
-        }
-    }
-}
-
 impl From<&Config> for RouterConfig {
     fn from(config: &Config) -> Self {
         Self {
             page_size: config.general.page_size(),
-            layout: config.general.layout,
             theme: config.general.theme,
             preedit: config.general.preedit,
-            renderer: config.general.renderer,
             font: config.general.font.trim().to_owned(),
             page_keys: config.general.page_keys(),
             full_width: config.general.full_width_punctuation,

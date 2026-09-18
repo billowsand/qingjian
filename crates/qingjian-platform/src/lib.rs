@@ -11,8 +11,8 @@ pub mod protocol;
 pub mod resources;
 
 pub use config::{
-    CandidateRenderer, Config, DEFAULT_DOMAINS, DEFAULT_PAGE_KEYS, DictionariesConfig,
-    GeneralConfig, LEARNING_LANGUAGE_OFF, LayoutMode, LocalModelConfig, LogLevel, MAX_PAGE_SIZE,
-    Modifiers, PAGE_KEY_OPTIONS, PreeditMode, ShortcutConfig, ThemeMode,
+    Config, DEFAULT_DOMAINS, DEFAULT_PAGE_KEYS, DictionariesConfig, GeneralConfig,
+    LEARNING_LANGUAGE_OFF, LocalModelConfig, LogLevel, MAX_PAGE_SIZE, Modifiers, PAGE_KEY_OPTIONS,
+    PreeditMode, ShortcutConfig, ThemeMode,
 };
 pub use error::ConfigError;

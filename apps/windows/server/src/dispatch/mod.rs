@@ -22,7 +22,7 @@ use qingjian_core::{Engine, FumaTable};
 use qingjian_platform::LocalModelConfig;
 use qingjian_platform::protocol::{ClientMessage, Frame, ScreenRect, ServerMessage, SessionId};
 
-pub use self::candidates::{CandidateSink, NoopSink, RenderSettings};
+pub use self::candidates::{CandidateSink, NoopSink};
 use self::composed::Composed;
 pub use self::config::RouterConfig;
 use self::reload::ConfigReload;
@@ -44,7 +44,7 @@ pub struct Router {
     /// 与 Engine 共用同一份（表有几千条，重接只克隆指针）。
     fuma_table: Option<Arc<FumaTable>>,
 
-    /// 每页候选数 / 云端槽位 / 排布 / 外观 / 翻页键等。
+    /// 每页候选数 / 外观 / 翻页键等。
     config: RouterConfig,
 
     /// 活跃会话及各自的宿主应用。
@@ -134,7 +134,7 @@ impl Router {
     }
 
     pub fn set_candidate_sink(&mut self, sink: Box<dyn CandidateSink>) {
-        sink.configure(self.config.render_settings());
+        sink.set_font(self.config.font.clone());
         self.candidates = sink;
     }
 

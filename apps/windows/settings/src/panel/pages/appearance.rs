@@ -1,6 +1,6 @@
-//! 「候选窗口」页：主题预览、明暗、排布、渲染引擎、字体、拼音显示位置、悬浮状态条。
+//! 「候选窗口」页：主题预览、明暗、每页候选数、字体、拼音显示位置、悬浮状态条。
 
-use qingjian_platform::{CandidateRenderer, LayoutMode, PreeditMode, ThemeMode};
+use qingjian_platform::{MAX_PAGE_SIZE, PreeditMode, ThemeMode};
 use qingjian_render::{Color as RenderColor, Palette, shuangpin_mark};
 use windows_reactor::*;
 
@@ -242,31 +242,19 @@ fn window_group(settings: &Settings, context: &mut ViewContext<Settings>) -> Vie
                 ),
             ),
             field(
-                Symbol::ViewAll,
-                "排布",
+                Symbol::List,
+                "每页候选数",
                 "",
-                mode_combo(
-                    &LayoutMode::ALL,
-                    g.layout,
-                    LayoutMode::label,
-                    context.callback(Message::Layout),
-                ),
-            ),
-            field(
-                Symbol::Pictures,
-                "渲染引擎",
-                "字在渲染器使用统一的品牌主题，并让候选窗口在各平台保持一致。",
-                mode_combo(
-                    &CandidateRenderer::ALL,
-                    g.renderer,
-                    CandidateRenderer::label,
-                    context.callback(Message::Renderer),
-                ),
+                NumberBox::new()
+                    .minimum(1.0)
+                    .maximum(MAX_PAGE_SIZE as f64)
+                    .value(g.page_size as f64)
+                    .on_value_changed(context.callback(Message::PageSize)),
             ),
             field(
                 Symbol::Font,
                 "字体",
-                "只对字在渲染器生效；下拉列表是系统里装的字体，选「系统字体」用默认；配置里的字体没装时自动回到系统字体。设置界面本身用 Windows 的界面字体，不跟这里走。",
+                "下拉列表是系统里装的字体，选「系统字体」用默认；配置里的字体没装时自动回到系统字体。",
                 ComboBox::new()
                     .items_source(font_options)
                     .selected_index(font_selected)

@@ -35,7 +35,7 @@ use self::candidates::CandidateWindow;
 use self::command::UiCommand;
 use self::painter::{Painter, SharedPainter};
 use self::status::StatusBar;
-use crate::dispatch::{CandidateSink, RenderSettings, StatusEvent, StatusSink, StatusView};
+use crate::dispatch::{CandidateSink, StatusEvent, StatusSink, StatusView};
 
 /// 状态条上的操作（点格子 / 拖动结束）回给 Router 的回调，UI 线程上调。
 pub type StatusEvents = Box<dyn Fn(StatusEvent) + Send>;
@@ -89,8 +89,8 @@ impl CandidateSink for UiHandle {
         self.post(UiCommand::Hide);
     }
 
-    fn configure(&self, settings: RenderSettings) {
-        self.post(UiCommand::Configure(settings));
+    fn set_font(&self, font: String) {
+        self.post(UiCommand::SetFont(font));
     }
 }
 
@@ -132,8 +132,12 @@ fn run(commands: Receiver<UiCommand>, ready: &Sender<Option<u32>>, on_status: St
     // 按物理像素定位，与应用报来的组句屏幕矩形对齐；已设过会失败，忽略。
     let _ = unsafe { SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2) };
     let thread_id = unsafe { GetCurrentThreadId() };
-    // 装上时随 Configure 命令建。
-    let painter: SharedPainter = Rc::new(RefCell::new(None));
+    let Some(painter) = Painter::new("") else {
+        tracing::error!("初始化候选窗口渲染器失败，Server 将不显示候选框与状态条");
+        let _ = ready.send(None);
+        return;
+    };
+    let painter: SharedPainter = Rc::new(RefCell::new(painter));
     // 先建窗口再报 id：建窗口顺带建起本线程的消息队列，之后 PostThreadMessageW 才有处可投。
     let window = match CandidateWindow::new(painter.clone()) {
         Ok(window) => window,
@@ -196,7 +200,7 @@ fn apply(
                 status.hide();
             }
         }
-        UiCommand::Configure(settings) => Painter::configure(painter, &settings),
+        UiCommand::SetFont(font) => Painter::set_font(painter, &font),
     }
 }
 

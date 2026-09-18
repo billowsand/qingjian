@@ -1,19 +1,13 @@
 //! 候选窗口一次绘制要用的全部内容，由帧换算而来；渲染器要的帧由 [`RenderData::render_frame`] 再换一次。
 
-use std::rc::Rc;
-
+use qingjian_platform::ThemeMode;
 use qingjian_platform::protocol::{Frame, PreeditKind};
-use qingjian_platform::{LayoutMode, ThemeMode};
 use qingjian_render::{Preedit, PreeditSegment, PreeditStyle, Row};
 
 use super::row;
-use super::theme::Theme;
 
 /// 一次绘制要用的全部内容。
 pub(crate) struct RenderData {
-    /// 配色与字体（随 DPI / 深浅重建）。
-    pub(super) theme: Rc<Theme>,
-
     /// 顶部拼音行的各段。
     pub(super) preedit: Vec<(String, PreeditKind)>,
 
@@ -36,17 +30,13 @@ pub(crate) struct RenderData {
     /// 屏幕提示（删候选后的「已删除…」），画在拼音行下方。
     pub(super) notice: Option<String>,
 
-    /// 候选排布。
-    pub(super) layout: LayoutMode,
-
     /// 外观模式；`System` 由窗口按系统主题解析。
     pub(super) theme_mode: ThemeMode,
 }
 
 impl RenderData {
-    pub(super) fn empty(theme: Rc<Theme>) -> Self {
+    pub(super) fn empty() -> Self {
         Self {
-            theme,
             preedit: Vec::new(),
             cursor: 0,
             rows: Vec::new(),
@@ -54,13 +44,11 @@ impl RenderData {
             footer: None,
             fuma_hint: None,
             notice: None,
-            layout: LayoutMode::default(),
             theme_mode: ThemeMode::default(),
         }
     }
 
     pub(super) fn set(&mut self, frame: &Frame) {
-        self.layout = frame.layout;
         self.theme_mode = frame.theme;
         self.preedit = frame
             .preedit

@@ -1,5 +1,4 @@
-//! 候选窗口的一行：[`Candidate`] → 渲染器的 [`Row`]（序号、候选词、annotation 片段），与 macOS 端 `candidates/row.rs` 一致。
-//! GDI 画法也用同一个类型。
+//! 候选窗口的一行：[`Candidate`] → 渲染器的 [`Row`]（序号、候选词、annotation 片段）。
 
 use qingjian_core::Candidate;
 use qingjian_render::{Row, Tone};

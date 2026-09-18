@@ -1,7 +1,7 @@
-//! 「通用」页：输入方案（双拼 / 辅码）、按键（候选数 / 翻页 / 删候选）、标点、候选质量。
+//! 「通用」页：输入方案（双拼 / 辅码）、按键、标点、候选质量与学习。
 //! 原先各占一页的「快捷键」与「本地整句模型」项数太少，并到这里当分组。
 
-use qingjian_platform::{MAX_PAGE_SIZE, Modifiers};
+use qingjian_platform::Modifiers;
 use windows_reactor::*;
 
 use crate::panel::controls::{field, group, index_of, page};
@@ -94,16 +94,6 @@ fn keys_group(settings: &Settings, context: &mut ViewContext<Settings>) -> View 
         "按键",
         [
             field(
-                Symbol::List,
-                "每页候选数",
-                "",
-                NumberBox::new()
-                    .minimum(1.0)
-                    .maximum(MAX_PAGE_SIZE as f64)
-                    .value(g.page_size as f64)
-                    .on_value_changed(context.callback(Message::PageSize)),
-            ),
-            field(
                 Symbol::TwoPage,
                 "翻页键",
                 "选「, .」或「- =」时组句中敲对应符号是翻页，不再是上屏加标点。",
@@ -171,6 +161,14 @@ fn quality_group(settings: &Settings, context: &mut ViewContext<Settings>) -> Vi
                 ToggleSwitch::new()
                     .is_on(settings.config.general.chinese_first)
                     .on_toggled(context.callback(Message::ChineseFirst)),
+            ),
+            field(
+                Symbol::Favorite,
+                "学习输入习惯",
+                "按你的选择调整候选顺序、记新词与敲错纠正。关掉后不再学，已学的仍参与排序；学习数据在数据目录里。",
+                ToggleSwitch::new()
+                    .is_on(settings.config.general.learning)
+                    .on_toggled(context.callback(Message::Learning)),
             ),
         ],
     )

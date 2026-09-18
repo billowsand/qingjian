@@ -1,7 +1,7 @@
 use qingjian_core::{FumaScheme, ShuangpinScheme};
 use serde::{Deserialize, Serialize};
 
-use super::{CandidateRenderer, LayoutMode, LogLevel, PreeditMode, ThemeMode};
+use super::{LogLevel, PreeditMode, ThemeMode};
 
 /// 每页最多几个候选：数字键只有 1–9。
 pub const MAX_PAGE_SIZE: usize = 9;
@@ -33,13 +33,7 @@ pub struct GeneralConfig {
     /// 候选窗口外观。
     pub theme: ThemeMode,
 
-    /// 候选窗口竖排 / 横排。
-    pub layout: LayoutMode,
-
-    /// 候选窗口由字在渲染器还是系统原生绘制。
-    pub renderer: CandidateRenderer,
-
-    /// 候选窗口字体的字族名；空为系统字体。只对字在渲染器生效，没装这个字体时回到系统字体。
+    /// 候选窗口字体的字族名；空为系统字体，没装这个字体时回到系统字体。
     pub font: String,
 
     /// 组句中的拼音显示在行内、候选窗口还是两处都显示。
@@ -81,8 +75,6 @@ impl Default for GeneralConfig {
             page_size: MAX_PAGE_SIZE,
             page_keys: PAGE_KEY_OPTIONS[0].to_owned(),
             theme: ThemeMode::default(),
-            layout: LayoutMode::default(),
-            renderer: CandidateRenderer::default(),
             font: String::new(),
             preedit: PreeditMode::default(),
             chinese_first: false,

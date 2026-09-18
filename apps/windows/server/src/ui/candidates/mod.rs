@@ -1,34 +1,28 @@
 //! 候选窗口：不抢焦点、置顶的分层窗口，跟随光标，画拼音行与候选列表，四周柔和阴影。
-//! 缺省交给字在渲染器出位图再贴（[`super::painter`]），配置 `renderer = "system"` 时走 GDI：绘制在 [`view`]，
-//! 配色 / 字体在 [`theme`]。绘制内容在 [`RenderData`]，一行的展示形态在 [`row`]，
+//! 字在渲染器出位图后由 Windows 壳贴上。绘制内容在 [`RenderData`]，一行的展示形态在 [`row`]，
 //! 贴光标上方还是下方在 [`placement`]。设计语言对齐 macOS 端。
 
 mod placement;
 mod render_data;
 pub(crate) mod row;
-pub(crate) mod theme;
-pub(crate) mod view;
 
 use std::cell::{Cell, RefCell};
-use std::rc::Rc;
 
-use windows::Win32::Foundation::{E_INVALIDARG, HWND, LPARAM, LRESULT, RECT, WPARAM};
-use windows::Win32::Graphics::Gdi::{GetDC, ReleaseDC};
+use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, RECT, WPARAM};
 use windows::Win32::UI::HiDpi::{GetDpiForSystem, GetDpiForWindow};
 use windows::Win32::UI::WindowsAndMessaging::{
     CreateWindowExW, DefWindowProcW, DestroyWindow, IDC_ARROW, LoadCursorW, SW_HIDE, SW_SHOWNA,
     ShowWindow, WNDCLASSEXW, WS_EX_LAYERED, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST,
     WS_POPUP,
 };
-use windows::core::{Error, PCWSTR, Result, w};
+use windows::core::{PCWSTR, Result, w};
 
 use qingjian_platform::ThemeMode;
 use qingjian_platform::protocol::Frame;
 
 use self::placement::{LastPlacement, place};
 pub(crate) use self::render_data::RenderData;
-use self::theme::Theme;
-use super::layered::{self, Layered};
+use super::layered;
 use super::painter::SharedPainter;
 use super::window_class::WindowClass;
 
@@ -59,16 +53,16 @@ pub(crate) struct CandidateWindow {
     /// 绘制内容。
     data: RefCell<RenderData>,
 
-    /// 上次用的 DPI，变了重建字体。
+    /// 上次用的 DPI。
     dpi: Cell<u32>,
 
-    /// 上次解析出的深浅，变了重建配色。
+    /// 上次解析出的深浅。
     dark: Cell<bool>,
 
     /// 上次贴在光标的哪一边；同一行里不因窗口高矮改边。
     placement: LastPlacement,
 
-    /// 字在渲染器；`None` 走 GDI。
+    /// 字在渲染器。
     painter: SharedPainter,
 }
 
@@ -84,7 +78,7 @@ impl CandidateWindow {
         })?;
         let dpi = unsafe { GetDpiForSystem() }.max(96);
         let dark = resolve_dark(ThemeMode::default());
-        let data = RefCell::new(RenderData::empty(Rc::new(Theme::new(dpi, dark))));
+        let data = RefCell::new(RenderData::empty());
         // NOACTIVATE：显示时不抢应用焦点。
         let hwnd = unsafe {
             CreateWindowExW(
@@ -119,40 +113,36 @@ impl CandidateWindow {
 
     /// 按光标矩形定位并显示：贴光标下方（放不下放上方，同一行里不改边），四周留出阴影。
     pub(crate) fn show(&self, anchor: RECT) {
-        self.sync_theme();
+        self.sync_environment();
         let rendered = {
             let data = self.data.borrow();
-            self.painter.borrow_mut().as_mut().and_then(|painter| {
-                painter.render_frame(
-                    &data.render_frame(),
-                    data.layout,
-                    self.dark.get(),
-                    self.dpi.get(),
-                )
-            })
+            self.painter.borrow_mut().render_frame(
+                &data.render_frame(),
+                self.dark.get(),
+                self.dpi.get(),
+            )
         };
-        let updated = match rendered {
-            Some(rendered) => {
-                let content = (
-                    rendered.content_width as i32,
-                    rendered.content_height as i32,
-                );
-                if content.0 <= 0 || content.1 <= 0 {
-                    self.hide();
-                    return;
-                }
-                let (content_x, content_y) = place(&self.placement, anchor, content);
-                layered::present(
-                    self.hwnd,
-                    &rendered.pixmap,
-                    (
-                        content_x - rendered.content_x as i32,
-                        content_y - rendered.content_y as i32,
-                    ),
-                )
-            }
-            None => self.show_gdi(anchor),
+        let Some(rendered) = rendered else {
+            self.hide();
+            return;
         };
+        let content = (
+            rendered.content_width as i32,
+            rendered.content_height as i32,
+        );
+        if content.0 <= 0 || content.1 <= 0 {
+            self.hide();
+            return;
+        }
+        let (content_x, content_y) = place(&self.placement, anchor, content);
+        let updated = layered::present(
+            self.hwnd,
+            &rendered.pixmap,
+            (
+                content_x - rendered.content_x as i32,
+                content_y - rendered.content_y as i32,
+            ),
+        );
         if updated.is_ok() {
             super::raise_topmost(self.hwnd);
             let _ = unsafe { ShowWindow(self.hwnd, SW_SHOWNA) };
@@ -161,53 +151,19 @@ impl CandidateWindow {
         }
     }
 
-    /// GDI 画法：量尺寸、定位、合成。
-    fn show_gdi(&self, anchor: RECT) -> Result<()> {
-        let margin = layered::shadow_margin(self.dpi.get());
-        let content = self.preferred_size();
-        if content.0 <= 0 || content.1 <= 0 {
-            return Err(Error::from(E_INVALIDARG));
-        }
-        let (content_x, content_y) = place(&self.placement, anchor, content);
-        let data = self.data.borrow();
-        layered::composite(
-            self.hwnd,
-            &Layered {
-                content,
-                margin,
-                win_pos: (content_x - margin, content_y - margin),
-                win_size: (content.0 + margin * 2, content.1 + margin * 2),
-                background: data.theme.background,
-                corner_radius: data.theme.corner_radius,
-                paint: &|hdc, client| view::paint(hdc, &data, client),
-            },
-        )
-    }
-
     pub(crate) fn hide(&self) {
         let _ = unsafe { ShowWindow(self.hwnd, SW_HIDE) };
     }
 
-    /// DPI 或深浅变了就重建主题；每次 `show` 前调。
-    fn sync_theme(&self) {
+    /// 每次 `show` 前同步 DPI 与深浅模式。
+    fn sync_environment(&self) {
         let dpi = match unsafe { GetDpiForWindow(self.hwnd) } {
             0 => self.dpi.get(),
             dpi => dpi,
         };
         let dark = resolve_dark(self.data.borrow().theme_mode);
-        if dpi != self.dpi.get() || dark != self.dark.get() {
-            self.data.borrow_mut().theme = Rc::new(Theme::new(dpi, dark));
-            self.dpi.set(dpi);
-            self.dark.set(dark);
-        }
-    }
-
-    /// 内容需要的大小（不含阴影留白）。
-    fn preferred_size(&self) -> (i32, i32) {
-        let hdc = unsafe { GetDC(Some(self.hwnd)) };
-        let size = view::preferred_size(hdc, &self.data.borrow());
-        unsafe { ReleaseDC(Some(self.hwnd), hdc) };
-        (size.cx, size.cy)
+        self.dpi.set(dpi);
+        self.dark.set(dark);
     }
 }
 

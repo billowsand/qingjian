@@ -4,7 +4,8 @@
 use std::path::PathBuf;
 
 use ::windows::Win32::Graphics::DirectWrite::{
-    DWRITE_FACTORY_TYPE_SHARED, DWriteCreateFactory, IDWriteFactory, IDWriteFontCollection,
+    DWRITE_FACTORY_TYPE_SHARED, DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_NORMAL,
+    DWRITE_FONT_WEIGHT_NORMAL, DWriteCreateFactory, IDWriteFactory, IDWriteFontCollection,
     IDWriteFontFile, IDWriteLocalFontFileLoader, IDWriteLocalizedStrings,
 };
 use ::windows::core::{BOOL, HSTRING, Interface};
@@ -67,6 +68,43 @@ pub fn family_files(family: &str) -> Vec<PathBuf> {
         }
     }
     files
+}
+
+/// 某字族最接近常规字重的字体文件与 TTC 面下标；系统里没有这个字族返回 `None`。
+/// egui 不能像 fontdb 一样按字族名从 TTC 里选面，设置程序用这个结果与候选窗口保持同一字族。
+pub fn regular_family_face(family_name: &str) -> Option<(PathBuf, u32)> {
+    let collection = system_collection()?;
+    unsafe {
+        let mut index = 0u32;
+        let mut exists = BOOL(0);
+        collection
+            .FindFamilyName(&HSTRING::from(family_name), &mut index, &mut exists)
+            .ok()?;
+        if !exists.as_bool() {
+            return None;
+        }
+        let family = collection.GetFontFamily(index).ok()?;
+        let font = family
+            .GetFirstMatchingFont(
+                DWRITE_FONT_WEIGHT_NORMAL,
+                DWRITE_FONT_STRETCH_NORMAL,
+                DWRITE_FONT_STYLE_NORMAL,
+            )
+            .ok()?;
+        let face = font.CreateFontFace().ok()?;
+        let face_index = face.GetIndex();
+        let mut count = 0u32;
+        face.GetFiles(&mut count, None).ok()?;
+        if count == 0 {
+            return None;
+        }
+        let mut handles: Vec<Option<IDWriteFontFile>> = vec![None; count as usize];
+        face.GetFiles(&mut count, Some(handles.as_mut_ptr())).ok()?;
+        handles
+            .into_iter()
+            .flatten()
+            .find_map(|file| file_path(&file).map(|path| (path, face_index)))
+    }
 }
 
 /// 本机字体文件的路径；网络 / 内存字体（不是本地加载器）返回 `None`。

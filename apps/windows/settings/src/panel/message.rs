@@ -12,7 +12,6 @@ pub(crate) enum Message {
     Fuma(Option<usize>),
 
     // 通用页 · 按键
-    PageSize(Option<f64>),
     PageKeys(Option<usize>),
     DeleteCandidate(Option<usize>),
 
@@ -24,12 +23,13 @@ pub(crate) enum Message {
     /// 本地整句模型开关（`[model] enabled`）。
     LocalModel(bool),
     ChineseFirst(bool),
+    /// 学习输入习惯开关。
+    Learning(bool),
 
     // 候选窗口页
     Theme(Option<usize>),
-    Layout(Option<usize>),
+    PageSize(Option<f64>),
     Preedit(Option<usize>),
-    Renderer(Option<usize>),
     /// 从系统字体列表里选了一个：0 是「系统字体」，其后按 `Settings::families` 的下标。
     Font(Option<usize>),
     StatusBar(bool),
@@ -44,8 +44,6 @@ pub(crate) enum Message {
     // 高级页
     VerboseLog(bool),
     InputLog(bool),
-    /// 学习输入习惯开关。
-    Learning(bool),
     OpenConfigFile,
     OpenDataDir,
     OpenLogDir,

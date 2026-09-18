@@ -1,21 +1,16 @@
-//! 悬浮状态条：桌面上常驻、可拖动的四格浮窗 `[握柄][中 / A][，。/ ,.][⚙]`。缺省由字在渲染器画（[`super::painter`]），
-//! `renderer = "system"` 时复用分层窗口合成器与候选窗口的 GDI 主题。
+//! 悬浮状态条：桌面上常驻、可拖动的四格浮窗 `[握柄][中 / A][，。/ ,.][⚙]`，由字在渲染器绘制。
 //!
 //! 按下鼠标先 `DragDetect`：挪出拖动阈值就交给系统的移动循环（`WM_NCLBUTTONDOWN` + `HTCAPTION`），
 //! 结束时 `WM_EXITSIZEMOVE` 报新位置；没挪就是点击，按 x 落进哪格。`WM_MOUSEACTIVATE` 回 `MA_NOACTIVATE` 不抢焦点。
 //! 一格的规格在 [`cell`]，摆放与点击在 [`placement`]。
 
-mod cell;
 mod placement;
 
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::rc::Rc;
 
-use windows::Win32::Foundation::{
-    COLORREF, E_INVALIDARG, HWND, LPARAM, LRESULT, POINT, RECT, SIZE, WPARAM,
-};
-use windows::Win32::Graphics::Gdi::{GetDC, HDC, ReleaseDC, SetBkMode, TRANSPARENT};
+use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, POINT, WPARAM};
 use windows::Win32::UI::HiDpi::{GetDpiForSystem, GetDpiForWindow};
 use windows::Win32::UI::Input::KeyboardAndMouse::{DragDetect, ReleaseCapture};
 use windows::Win32::UI::WindowsAndMessaging::{
@@ -24,18 +19,15 @@ use windows::Win32::UI::WindowsAndMessaging::{
     WM_LBUTTONDOWN, WM_MOUSEACTIVATE, WM_NCHITTEST, WM_NCLBUTTONDOWN, WNDCLASSEXW, WS_EX_LAYERED,
     WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_POPUP,
 };
-use windows::core::{Error, PCWSTR, Result, w};
+use windows::core::{PCWSTR, Result, w};
 
 use qingjian_platform::ThemeMode;
 use qingjian_render::{StatusCell, shuangpin_mark};
 
-use self::cell::CellSpec;
 use self::placement::{Placement, StatusAction};
 use super::StatusEvents;
 use super::candidates::resolve_dark;
-use super::candidates::theme::Theme;
-use super::candidates::view;
-use super::layered::{self, Layered};
+use super::layered;
 use super::monitor;
 use super::painter::SharedPainter;
 use super::window_class::WindowClass;
@@ -59,19 +51,16 @@ pub(super) struct StatusBar {
     /// 最近一次要显示的内容；还没显示过时为 `None`。
     data: RefCell<Option<StatusView>>,
 
-    /// 按 DPI / 深浅造好的主题（复用候选窗口那套）。
-    theme: RefCell<Rc<Theme>>,
-
-    /// 上次用的 DPI，变了重建主题。
+    /// 上次用的 DPI。
     dpi: Cell<u32>,
 
-    /// 上次解析出的深浅，变了重建配色。
+    /// 上次解析出的深浅。
     dark: Cell<bool>,
 
     /// 摆放状态，与窗口过程共享。
     placement: Rc<Placement>,
 
-    /// 字在渲染器；`None` 走 GDI。
+    /// 字在渲染器。
     painter: SharedPainter,
 }
 
@@ -112,12 +101,11 @@ impl StatusBar {
                 None,
             )?
         };
-        let placement = Rc::new(Placement::new(hwnd, layered::shadow_margin(dpi), events));
+        let placement = Rc::new(Placement::new(hwnd, 0, events));
         PLACEMENTS.with(|map| map.borrow_mut().insert(hwnd.0 as isize, placement.clone()));
         Ok(Self {
             hwnd,
             data: RefCell::new(None),
-            theme: RefCell::new(Rc::new(Theme::new(dpi, dark))),
             dpi: Cell::new(dpi),
             dark: Cell::new(dark),
             placement,
@@ -131,7 +119,7 @@ impl StatusBar {
             self.placement.pos.set(view.anchor);
         }
         *self.data.borrow_mut() = Some(view);
-        self.sync_theme();
+        self.sync_environment();
         self.render();
     }
 
@@ -139,8 +127,8 @@ impl StatusBar {
         let _ = unsafe { ShowWindow(self.hwnd, SW_HIDE) };
     }
 
-    /// DPI 或深浅变了就重建主题。
-    fn sync_theme(&self) {
+    /// 同步 DPI 与深浅模式。
+    fn sync_environment(&self) {
         let dpi = match unsafe { GetDpiForWindow(self.hwnd) } {
             0 => self.dpi.get(),
             dpi => dpi,
@@ -152,22 +140,8 @@ impl StatusBar {
             .map(|view| view.theme)
             .unwrap_or_default();
         let dark = resolve_dark(mode);
-        if dpi != self.dpi.get() || dark != self.dark.get() {
-            *self.theme.borrow_mut() = Rc::new(Theme::new(dpi, dark));
-            self.dpi.set(dpi);
-            self.dark.set(dark);
-        }
-    }
-
-    /// GDI 退路的模式文字；默认渲染器把「中」画成品牌方章、方案标记放在右边。
-    fn mode_text(view: &StatusView) -> String {
-        if view.english {
-            return "A".to_owned();
-        }
-        match view.scheme.as_deref().and_then(shuangpin_mark) {
-            Some(mark) => format!("中 · {mark}"),
-            None => "中".to_owned(),
-        }
+        self.dpi.set(dpi);
+        self.dark.set(dark);
     }
 
     /// 渲染器要的四格：握柄、模式（品牌色）、标点（生效时品牌色，否则灰）、齿轮。
@@ -185,84 +159,44 @@ impl StatusBar {
         ]
     }
 
-    /// GDI 画法的四格，顺序同 [`ACTIONS`]。
-    fn cells(&self, theme: &Theme) -> Vec<CellSpec> {
-        let data = self.data.borrow();
-        let Some(view) = data.as_ref() else {
-            return Vec::new();
-        };
-        let punctuation_active = view.full_width;
-        vec![
-            CellSpec {
-                text: "⠿".to_owned(),
-                font: theme.symbol_font,
-                color: theme.pos_color,
-                action: StatusAction::Drag,
-            },
-            CellSpec {
-                text: Self::mode_text(view),
-                font: theme.text_font,
-                color: theme.accent_color,
-                action: StatusAction::ToggleMode,
-            },
-            CellSpec {
-                text: if punctuation_active { "，。" } else { ",." }.to_owned(),
-                font: theme.text_font,
-                color: if punctuation_active {
-                    theme.accent_color
-                } else {
-                    theme.gloss_color
-                },
-                action: StatusAction::TogglePunctuation,
-            },
-            CellSpec {
-                text: "\u{2699}".to_owned(),
-                font: theme.symbol_font,
-                color: theme.gloss_color,
-                action: StatusAction::OpenSettings,
-            },
-        ]
-    }
-
-    /// 画好贴上并显示；顺带记下各格边界给点击用。渲染器画不成就走 GDI。
+    /// 画好贴上并显示；顺带记下各格边界给点击用。
     fn render(&self) {
         let rendered = {
             let data = self.data.borrow();
             let mut painter = self.painter.borrow_mut();
-            match (data.as_ref(), painter.as_mut()) {
-                (Some(view), Some(painter)) => painter.render_status(
+            match data.as_ref() {
+                Some(view) => painter.render_status(
                     &Self::status_cells(view),
                     self.dark.get(),
                     self.dpi.get(),
                 ),
-                _ => None,
+                None => None,
             }
         };
-        let updated = match rendered {
-            Some(rendered) => {
-                let bitmap = &rendered.rendered;
-                let content = (bitmap.content_width as i32, bitmap.content_height as i32);
-                if content.0 <= 0 || content.1 <= 0 {
-                    self.hide();
-                    return;
-                }
-                let margin = bitmap.content_x as i32;
-                self.placement.margin.set(margin);
-                *self.placement.cells.borrow_mut() = rendered
-                    .cell_edges
-                    .iter()
-                    .zip(ACTIONS)
-                    .map(|(edge, action)| (edge.round() as i32, action))
-                    .collect();
-                let anchor = self.anchor(content, margin);
-                layered::present(
-                    self.hwnd,
-                    &bitmap.pixmap,
-                    (anchor.0 - margin, anchor.1 - margin),
-                )
-            }
-            None => self.render_gdi(),
+        let Some(rendered) = rendered else {
+            self.hide();
+            return;
         };
+        let bitmap = &rendered.rendered;
+        let content = (bitmap.content_width as i32, bitmap.content_height as i32);
+        if content.0 <= 0 || content.1 <= 0 {
+            self.hide();
+            return;
+        }
+        let margin = bitmap.content_x as i32;
+        self.placement.margin.set(margin);
+        *self.placement.cells.borrow_mut() = rendered
+            .cell_edges
+            .iter()
+            .zip(ACTIONS)
+            .map(|(edge, action)| (edge.round() as i32, action))
+            .collect();
+        let anchor = self.anchor(content, margin);
+        let updated = layered::present(
+            self.hwnd,
+            &bitmap.pixmap,
+            (anchor.0 - margin, anchor.1 - margin),
+        );
         if updated.is_ok() {
             super::raise_topmost(self.hwnd);
             let _ = unsafe { ShowWindow(self.hwnd, SW_SHOWNA) };
@@ -281,90 +215,6 @@ impl StatusBar {
         let anchor = clamp_anchor(anchor, content, margin);
         self.placement.pos.set(Some(anchor));
         anchor
-    }
-
-    /// GDI 画法：量各格、算内容尺寸、摆位置、合成贴上。
-    fn render_gdi(&self) -> Result<()> {
-        let theme = self.theme.borrow().clone();
-        let margin = layered::shadow_margin(self.dpi.get());
-        self.placement.margin.set(margin);
-        let cells = self.cells(&theme);
-        let hdc = unsafe { GetDC(Some(self.hwnd)) };
-        let sizes: Vec<SIZE> = cells
-            .iter()
-            .map(|cell| view::measure(hdc, cell.font, &cell.text))
-            .collect();
-        unsafe { ReleaseDC(Some(self.hwnd), hdc) };
-        let line = sizes.iter().map(|size| size.cy).max().unwrap_or(0);
-        // 每格：左右各一个 padding；格间一条细线。
-        let widths: Vec<i32> = sizes
-            .iter()
-            .map(|size| size.cx + theme.padding * 2)
-            .collect();
-        let content = (widths.iter().sum::<i32>(), line + theme.padding);
-        if content.0 <= 0 || content.1 <= 0 || cells.is_empty() {
-            return Err(Error::from(E_INVALIDARG));
-        }
-        let mut right = 0;
-        let bounds: Vec<(i32, StatusAction)> = cells
-            .iter()
-            .zip(&widths)
-            .map(|(cell, width)| {
-                right += width;
-                (right, cell.action)
-            })
-            .collect();
-        *self.placement.cells.borrow_mut() = bounds;
-        let anchor = self.anchor(content, margin);
-
-        let separator = theme.pos_color;
-        let inset = theme.padding / 2;
-        layered::composite(
-            self.hwnd,
-            &Layered {
-                content,
-                margin,
-                win_pos: (anchor.0 - margin, anchor.1 - margin),
-                win_size: (content.0 + margin * 2, content.1 + margin * 2),
-                background: theme.background,
-                corner_radius: theme.corner_radius,
-                paint: &|hdc, client| {
-                    unsafe { SetBkMode(hdc, TRANSPARENT) };
-                    paint_cells(hdc, client, &cells, &sizes, &widths, separator, inset);
-                },
-            },
-        )
-    }
-}
-
-/// 每格文字居中；格与格之间一条上下留 `inset` 的细线。
-fn paint_cells(
-    hdc: HDC,
-    client: RECT,
-    cells: &[CellSpec],
-    sizes: &[SIZE],
-    widths: &[i32],
-    separator: COLORREF,
-    inset: i32,
-) {
-    let mut x = 0;
-    for (index, ((cell, size), width)) in cells.iter().zip(sizes).zip(widths).enumerate() {
-        if index > 0 {
-            view::fill_rect(
-                hdc,
-                RECT {
-                    left: x,
-                    top: inset,
-                    right: x + 1,
-                    bottom: client.bottom - inset,
-                },
-                separator,
-            );
-        }
-        let ox = x + (width - size.cx) / 2;
-        let oy = (client.bottom - size.cy) / 2;
-        view::draw_text(hdc, cell.font, cell.color, ox, oy, &cell.text);
-        x += width;
     }
 }
 
@@ -466,14 +316,12 @@ mod tests {
     #[test]
     fn shuangpin_uses_compact_scheme_marks() {
         let xiaohe = view(false, Some("xiaohe"));
-        assert_eq!(StatusBar::mode_text(&xiaohe), "中 · 鹤");
         assert_eq!(
             StatusBar::status_cells(&xiaohe)[1],
             StatusCell::mode("中", Some("鹤"), true)
         );
 
         let english = view(true, Some("xiaohe"));
-        assert_eq!(StatusBar::mode_text(&english), "A");
         assert_eq!(
             StatusBar::status_cells(&english)[1],
             StatusCell::mode("A", None::<&str>, false)

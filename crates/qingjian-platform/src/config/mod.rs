@@ -1,7 +1,5 @@
-mod candidate_renderer;
 mod dictionaries;
 mod general;
-mod layout_mode;
 mod log_level;
 mod model;
 mod modifiers;
@@ -17,12 +15,10 @@ use toml_edit::DocumentMut;
 
 use crate::error::ConfigError;
 
-pub use candidate_renderer::CandidateRenderer;
 pub use dictionaries::{DEFAULT_DOMAINS, DictionariesConfig};
 pub use general::{
     DEFAULT_PAGE_KEYS, GeneralConfig, LEARNING_LANGUAGE_OFF, MAX_PAGE_SIZE, PAGE_KEY_OPTIONS,
 };
-pub use layout_mode::LayoutMode;
 pub use log_level::LogLevel;
 pub use model::LocalModelConfig;
 pub use modifiers::Modifiers;
@@ -88,11 +84,7 @@ page_size = 9
 page_keys = "[]"
 # 候选窗口外观：system 跟随系统 / light 浅色 / dark 深色
 theme = "system"
-# 候选窗口排布：vertical 竖排 / horizontal 横排
-layout = "vertical"
-# 候选窗口由谁绘制：qingjian 字在渲染器（各平台一致，主题走它）/ system 系统原生绘制（渲染器有问题时的退路）
-renderer = "qingjian"
-# 候选窗口字体（字族名，如 "LXGW WenKai"）；空为系统字体。只对字在渲染器生效，没装这个字体时自动回到系统字体
+# 候选窗口字体（字族名，如 "LXGW WenKai"）；空为系统字体，没装这个字体时自动回到系统字体
 font = ""
 # 组句中的拼音显示在哪：both 行内和候选窗口 / inline 只在行内 / window 只在候选窗口（应用里不放 marked text）
 preedit = "both"
@@ -362,6 +354,22 @@ mod tests {
         assert_eq!(config, Config::default());
     }
 
+    /// 0.1.6 及以前可切换 GDI 绘制；升级后旧键不影响其余配置加载。
+    #[test]
+    fn retired_renderer_key_is_ignored() {
+        let config: Config =
+            toml::from_str("[general]\nrenderer = \"system\"\nfont = \"LXGW WenKai\"\n").unwrap();
+        assert_eq!(config.general.font, "LXGW WenKai");
+    }
+
+    /// 0.1.6 及以前可切换候选排布；升级后旧键不影响其余配置加载。
+    #[test]
+    fn retired_layout_key_is_ignored() {
+        let config: Config =
+            toml::from_str("[general]\nlayout = \"vertical\"\npage_size = 5\n").unwrap();
+        assert_eq!(config.general.page_size(), 5);
+    }
+
     #[test]
     fn partial_file_keeps_other_defaults() {
         let config: Config = toml::from_str("[model]\nenabled = false\n").unwrap();
@@ -374,13 +382,12 @@ mod tests {
     #[test]
     fn general_and_shortcut_sections_parse() {
         let config: Config = toml::from_str(
-            "[general]\npage_size = 5\npage_keys = \"[]\"\ntheme = \"dark\"\nlayout = \"horizontal\"\npreedit = \"window\"\n[shortcut]\ndelete_candidate = \"ctrl\"\n",
+            "[general]\npage_size = 5\npage_keys = \"[]\"\ntheme = \"dark\"\npreedit = \"window\"\n[shortcut]\ndelete_candidate = \"ctrl\"\n",
         )
         .unwrap();
         assert_eq!(config.general.page_size(), 5);
         assert_eq!(config.general.page_keys(), ('[', ']'));
         assert_eq!(config.general.theme, ThemeMode::Dark);
-        assert_eq!(config.general.layout, LayoutMode::Horizontal);
         assert_eq!(config.general.preedit, PreeditMode::Window);
         assert_eq!(config.general.learning_language, "en");
         assert_eq!(config.general.shuangpin(), None);

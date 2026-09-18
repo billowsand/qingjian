@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 
 use qingjian_core::CandidateList;
 
-use crate::{LayoutMode, ThemeMode};
+use crate::ThemeMode;
 
 /// 老 Server 发来的帧没有 `inline_preedit` 字段，按「放行内」算（那时的行为）。
 fn inline_preedit_default() -> bool {
@@ -37,9 +37,6 @@ pub struct Frame {
     /// 总页数；翻页键是否可用看它。
     pub page_count: usize,
 
-    /// 候选排布（竖排 / 横排）。DLL 是纯渲染端，布局由 Server 按 `[general] layout` 配置随帧下发。
-    pub layout: LayoutMode,
-
     /// 候选窗口外观（跟随系统 / 浅色 / 深色）。`System` 由 DLL 侧按当前系统主题解析。
     pub theme: ThemeMode,
 
@@ -63,7 +60,6 @@ impl Default for Frame {
             highlight: 0,
             page: 0,
             page_count: 0,
-            layout: LayoutMode::default(),
             theme: ThemeMode::default(),
             notice: None,
             inline_preedit: inline_preedit_default(),

@@ -10,9 +10,7 @@ use qingjian_platform::protocol::{
     ClientMessage, FUMA_PREEDIT_PROTOCOL, Frame, KeyEvent, KeyModifiers, KeyOutcome,
     PROTOCOL_VERSION, PreeditKind, ScreenRect, ServerMessage, SessionId,
 };
-use qingjian_windows_server::dispatch::{
-    CandidateSink, RenderSettings, StatusEvent, StatusSink, StatusView,
-};
+use qingjian_windows_server::dispatch::{CandidateSink, StatusEvent, StatusSink, StatusView};
 use qingjian_windows_server::{AssemblySpec, Router, RouterConfig, assembly};
 
 const SESSION: SessionId = SessionId(1);
@@ -1030,7 +1028,7 @@ impl CandidateSink for RecordingCandidates {
         self.0.lock().unwrap().push(None);
     }
 
-    fn configure(&self, _settings: RenderSettings) {}
+    fn set_font(&self, _font: String) {}
 }
 
 /// 按 `[general] preedit` 敲一串拼音，返回（发给 DLL 的帧，候选窗口画的那帧）。

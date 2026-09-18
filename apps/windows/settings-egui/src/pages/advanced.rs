@@ -1,4 +1,4 @@
-//! 「高级」页：文件与目录、学习与诊断开关，一张卡七行。
+//! 「高级」页：文件与目录、日志与诊断开关。
 
 use eframe::egui;
 use qingjian_platform::LogLevel;
@@ -50,19 +50,6 @@ pub(crate) fn view(settings: &mut Settings, ui: &mut egui::Ui) {
                         files::open_with_explorer(&logs.to_string_lossy());
                     }
                     open | export
-                },
-            );
-            let mut learning = settings.config.general.learning;
-            list.row(
-                "\u{E734}",
-                "学习输入习惯",
-                "按你的选择调整候选顺序、记新词与敲错纠正。关掉后不再学，已学的仍参与排序。",
-                |ui| {
-                    let response = toggle(ui, &mut learning, "学习输入习惯");
-                    if response.changed() {
-                        settings.save("general", "learning", learning);
-                    }
-                    response
                 },
             );
             let mut input_log = settings.config.general.input_log;

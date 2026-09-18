@@ -1,6 +1,6 @@
 //! 根组件的 Reactor 生命周期：建状态、按消息落盘、画品牌头 + 左侧导航 + 当前页。
 
-use qingjian_platform::{CandidateRenderer, Config, LayoutMode, LogLevel, PreeditMode, ThemeMode};
+use qingjian_platform::{Config, LogLevel, PreeditMode, ThemeMode};
 use windows_reactor::*;
 
 use super::controls::{export_logs, log_dir, open_in_editor, open_with_explorer};
@@ -39,10 +39,6 @@ impl Component for Settings {
             }
 
             // 通用页 · 按键
-            Message::PageSize(Some(value)) => {
-                let size = (value.round() as i64).clamp(1, 9);
-                self.save("general", "page_size", size);
-            }
             Message::PageKeys(Some(i)) if i < general::PAGE_KEYS.len() => {
                 self.save("general", "page_keys", general::PAGE_KEYS[i].1);
             }
@@ -61,19 +57,18 @@ impl Component for Settings {
             // 通用页 · 候选质量
             Message::LocalModel(on) => self.save("model", "enabled", on),
             Message::ChineseFirst(on) => self.save("general", "chinese_first", on),
+            Message::Learning(on) => self.save("general", "learning", on),
 
             // 候选窗口页
             Message::Theme(Some(i)) if i < ThemeMode::ALL.len() => {
                 self.save("general", "theme", ThemeMode::ALL[i].key());
             }
-            Message::Layout(Some(i)) if i < LayoutMode::ALL.len() => {
-                self.save("general", "layout", LayoutMode::ALL[i].key());
+            Message::PageSize(Some(value)) => {
+                let size = (value.round() as i64).clamp(1, 9);
+                self.save("general", "page_size", size);
             }
             Message::Preedit(Some(i)) if i < PreeditMode::ALL.len() => {
                 self.save("general", "preedit", PreeditMode::ALL[i].key());
-            }
-            Message::Renderer(Some(i)) if i < CandidateRenderer::ALL.len() => {
-                self.save("general", "renderer", CandidateRenderer::ALL[i].key());
             }
             Message::Font(Some(0)) => self.save("general", "font", ""),
             Message::Font(Some(index)) if index <= self.families.len() => {
@@ -121,7 +116,6 @@ impl Component for Settings {
                 self.save("general", "log_level", level.key());
             }
             Message::InputLog(on) => self.save("general", "input_log", on),
-            Message::Learning(on) => self.save("general", "learning", on),
             Message::OpenConfigFile => open_in_editor(&self.path),
             Message::OpenDataDir => {
                 open_with_explorer(&self.data_dir().to_string_lossy());

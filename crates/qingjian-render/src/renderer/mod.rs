@@ -1,14 +1,12 @@
-//! 渲染器：一帧 + 排布 + 主题 → 位图。排版逻辑与 macOS 壳的 `CandidateView` 一致：顶部拼音行，竖排一行一个候选、横排排成一行。
+//! 渲染器：一帧 + 主题 → 横排候选位图。顶部是拼音行，候选排成一行。
 //!
 //! 内部全用像素：主题里的点数进来先乘缩放倍数。文字的 y 都指行框顶边，字形在行高里垂直居中。
 
-mod columns;
 mod horizontal;
 mod item;
 mod rendered;
 mod status;
 mod top_line;
-mod vertical;
 
 use crate::canvas::Canvas;
 use crate::cloud::draw_cloud;
@@ -16,7 +14,6 @@ use crate::color::Color;
 use crate::error::RenderError;
 use crate::fonts::FontLibrary;
 use crate::frame::{Frame, Row, Tone};
-use crate::layout::Layout;
 use crate::shadow::Shadow;
 use crate::text::{TextPainter, TextSize, TextStyle};
 use crate::theme::{FontSpec, Theme};
@@ -128,13 +125,12 @@ impl Renderer {
     pub fn render(
         &mut self,
         frame: &Frame,
-        layout: Layout,
         theme: &Theme,
         scale: f32,
         shadow: Option<&Shadow>,
     ) -> Result<Rendered, RenderError> {
         let metrics = Metrics { theme, scale };
-        let (content_width, content_height) = self.preferred_size(frame, layout, &metrics);
+        let (content_width, content_height) = self.preferred_size(frame, &metrics);
         let margin = shadow.map_or(0.0, |s| metrics.px(s.margin()));
         let width = (content_width + margin * 2.0).ceil();
         let height = (content_height + margin * 2.0).ceil();
@@ -156,14 +152,7 @@ impl Renderer {
         );
         let mut y = margin + metrics.padding();
         y += self.draw_top_line(&mut canvas, frame, &metrics, margin, y);
-        match layout {
-            Layout::Vertical => {
-                self.draw_vertical(&mut canvas, frame, &metrics, margin, y, content_width);
-            }
-            Layout::Horizontal => {
-                self.draw_horizontal(&mut canvas, frame, &metrics, margin, y, content_width);
-            }
-        }
+        self.draw_horizontal(&mut canvas, frame, &metrics, margin, y, content_width);
         Ok(Rendered {
             pixmap: canvas.into_pixmap(),
             content_x: margin as u32,
@@ -187,12 +176,9 @@ impl Renderer {
     }
 
     /// 内容需要的像素宽高（不含阴影边）。
-    fn preferred_size(&mut self, frame: &Frame, layout: Layout, m: &Metrics) -> (f32, f32) {
+    fn preferred_size(&mut self, frame: &Frame, m: &Metrics) -> (f32, f32) {
         let (top_width, top_height) = self.top_line_size(frame, m);
-        let (body_width, body_height) = match layout {
-            Layout::Vertical => self.vertical_size(frame, m),
-            Layout::Horizontal => self.horizontal_size(frame, m),
-        };
+        let (body_width, body_height) = self.horizontal_size(frame, m);
         let width = top_width.max(body_width);
         (
             width + m.padding() * 2.0,

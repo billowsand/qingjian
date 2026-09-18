@@ -108,7 +108,7 @@
 - [x] 崩溃不丢（2026-09-06）：学习数据六张表、`config.toml`、`.env` 原子写（临时文件 + fsync + 改名）；学习数据坏行跳过、
   编码坏了按替换字符读、真读不了退回内存学习不覆盖文件，输入法照常启动；IMK 回调与定时器边界 `catch_unwind`，panic 后缓冲区字母原样上屏；
   激活期间每 60 秒落一次盘。设计见 `architecture.md`「崩溃不丢」
-- [x] 候选窗口收尾：竖排 / 横排（`[general] layout`）、拼音行分段样式（Core `MarkedSegment`，纠错删除线的位置已留好）、
+- [x] 候选窗口收尾：候选固定横排（早期的竖排与 `[general] layout` 已移除）、拼音行分段样式（Core `MarkedSegment`，纠错删除线的位置已留好）、
   拼音显示位置 行内 / 窗口 / 两处（`[general] preedit`）、按光标所在屏幕定位并处理屏幕边缘
 - [x] 日志按天分文件、只留 7 天；文件被删后下一条日志重建（`app/logging/`，自己的 `LogFile` 写入端按 nlink 判断）
 - [x] 偏好设置窗口（原生 AppKit，改完即写回 `config.toml`；密钥写 `.env`）

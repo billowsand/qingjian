@@ -45,10 +45,10 @@ pub(crate) struct Settings {
 
 impl Settings {
     pub(crate) fn new(cc: &eframe::CreationContext<'_>, started: Instant) -> Self {
-        fonts::install(&cc.egui_ctx);
-        theme::install(&cc.egui_ctx);
         let path = Self::config_path();
         let config = Config::load(&path).unwrap_or_default();
+        fonts::install(&cc.egui_ctx, &config.general.font);
+        theme::install(&cc.egui_ctx);
         Self {
             config,
             path,

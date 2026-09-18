@@ -49,7 +49,7 @@ egui 版按正式名字 `qingjian-settings.exe` 装进 `{app}`，不装那 118 �
 - **一页一张列表卡**：页内没有小节标题（分节在左侧导航里），行与行之间只有一条淡分隔线；窗口 700×560。
 - **说明不常驻**：每项一行，说明挂成悬停提示（停在标签或它后面的 ⓘ 上），一行 38 px，一屏放 9 项（WinUI 版 4 项）。
 - **图标由 painter 按字形外框居中画**，不跟字体基线走——否则私用区图标一定比汉字高一线。
-- 中文字体自己装（`src/fonts.rs`）：走渲染器已有的 `system_fonts::family_files` 找系统字体文件，不打包字体。
+- 字体自己装（`src/fonts.rs`）：跟随候选窗口的字体选择；选「系统字体」时两者共同使用 Segoe UI / Arial，并以 Microsoft YaHei、Yu Gothic 回退，不打包字体。
 - 配色取候选窗渲染器的 `Palette`（`src/theme.rs`），设置界面与候选窗同一套色。
 - 明暗自己读注册表跟随系统（`AppsUseLightTheme`，与 Server 判断候选窗深浅同一个键）：
   egui 的 `ThemePreference::System` 在 Windows 上收不到 winit 的主题变化，不能用。

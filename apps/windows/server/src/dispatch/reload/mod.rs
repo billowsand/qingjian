@@ -112,11 +112,10 @@ impl Router {
         self.apply_fuma(config);
         self.engine.set_learning(config.general.learning);
         self.engine.set_chinese_first(config.general.chinese_first);
-        let previous = self.config.render_settings();
+        let previous_font = self.config.font.clone();
         self.config = RouterConfig::from(config);
-        let settings = self.config.render_settings();
-        if settings != previous {
-            self.candidates.configure(settings);
+        if self.config.font != previous_font {
+            self.candidates.set_font(self.config.font.clone());
         }
         self.reconcile_status();
         self.apply_model_config(&config.model);

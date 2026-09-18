@@ -2,7 +2,7 @@
 //! 分节在左侧导航里，这里不再套「输入方案 / 按键 / 标点」的小节标题。
 
 use eframe::egui;
-use qingjian_platform::{MAX_PAGE_SIZE, Modifiers};
+use qingjian_platform::Modifiers;
 
 use crate::app::Settings;
 use crate::widgets::{CONTROL_WIDTH, LABEL_SIZE, list, page, toggle};
@@ -69,14 +69,6 @@ pub(crate) fn view(settings: &mut Settings, ui: &mut egui::Ui) {
                     .inner
                 },
             );
-            let page_size = settings.config.general.page_size;
-            list.row("\u{EA37}", "每页候选数", "", |ui| {
-                let (response, picked) = page_size_combo(ui, page_size);
-                if let Some(size) = picked {
-                    settings.save("general", "page_size", size as i64);
-                }
-                response
-            });
             let page_keys = settings.config.general.page_keys.clone();
             list.row(
                 "\u{E736}",
@@ -155,29 +147,21 @@ pub(crate) fn view(settings: &mut Settings, ui: &mut egui::Ui) {
                     response
                 },
             );
+            let mut learning = settings.config.general.learning;
+            list.row(
+                "\u{E734}",
+                "学习输入习惯",
+                "按你的选择调整候选顺序、记新词与敲错纠正。关掉后不再学，已学的仍参与排序。",
+                |ui| {
+                    let response = toggle(ui, &mut learning, "学习输入习惯");
+                    if response.changed() {
+                        settings.save("general", "learning", learning);
+                    }
+                    response
+                },
+            );
         });
     });
-}
-
-/// 每页候选数下拉：1–9，与其他行一样是个下拉框，不用拖数字。
-fn page_size_combo(ui: &mut egui::Ui, current: usize) -> (egui::Response, Option<usize>) {
-    let mut picked = None;
-    let response = egui::ComboBox::from_id_salt("page-size")
-        .width(CONTROL_WIDTH)
-        .selected_text(egui::RichText::new(format!("{current} 个")).size(LABEL_SIZE))
-        .show_ui(ui, |ui| {
-            for size in 1..=MAX_PAGE_SIZE {
-                if ui
-                    .selectable_label(size == current, format!("{size} 个"))
-                    .clicked()
-                    && size != current
-                {
-                    picked = Some(size);
-                }
-            }
-        })
-        .response;
-    (response, picked)
 }
 
 /// 字符串下拉：返回控件的 `Response` 与「选了新项」时它的配置写法。

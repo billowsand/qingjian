@@ -56,7 +56,7 @@ Server 的齿轮、开始菜单、安装前 taskkill 都照常，成品是 `Ziza
 
 ## 顺带发现
 
-- 中文字体不用打包：`system_fonts::family_files("Microsoft YaHei")` 拿到 `msyh.ttc`，`egui::FontData` 有 `index` 字段能指 ttc 里的 face。
+- 字体不用打包：设置程序读取 `[general] font`，通过 DirectWrite 取与候选窗口相同的字族及常规字重；未指定时共同使用 Segoe UI / Arial，并以 Microsoft YaHei、Yu Gothic 作文字回退。`egui::FontData` 的 `index` 字段能指向 TTC 里的具体 face。
   代价是整份字体读进内存（雅黑 19 MB），也是上面内存差的一部分。
 - 配色可以和候选窗同源（`Palette::light()/dark()`）——WinUI 版只能跟系统的 `ThemeBrush` 走，品牌色对不上，
   现在 `controls/mod.rs` 里那些「与候选窗口的 `Theme::corner_radius` 一致」的注释就是在手工对齐这件事。

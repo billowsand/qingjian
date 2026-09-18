@@ -1,5 +1,5 @@
 //! 离线预览：`cargo run --release -p qingjian-render --example preview -- --out target/render-preview`
-//! 把样例帧按浅 / 深色、竖 / 横排画成 PNG，与各平台原生候选窗截图并排比；`--measure` 只量几段文字的宽度与原生对数；
+//! 把样例帧按浅 / 深色画成横排 PNG，与候选窗截图并排比；`--measure` 只量几段文字的宽度与原生对数；
 //! 末尾列出验收行每个字形落到了哪家字体。不是日常工具，改渲染器时拿来核对。
 
 use std::path::PathBuf;
@@ -7,8 +7,8 @@ use std::time::Instant;
 
 use clap::Parser;
 use qingjian_render::{
-    FontLibrary, Frame, Layout, Preedit, PreeditSegment, PreeditStyle, Renderer, Row, Shadow,
-    StatusCell, Theme, Tone,
+    FontLibrary, Frame, Preedit, PreeditSegment, PreeditStyle, Renderer, Row, Shadow, StatusCell,
+    Theme, Tone,
 };
 
 #[derive(Parser)]
@@ -78,26 +78,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     let shadow = (!args.no_shadow).then_some(Shadow::mac_panel());
 
-    let scenes: [(&str, Frame, Layout); 6] = [
-        ("nihao-vertical", nihao(), Layout::Vertical),
-        (
-            "nihao-horizontal",
-            nihao_with_sentence(),
-            Layout::Horizontal,
-        ),
-        ("cloud-vertical", cloud(), Layout::Vertical),
-        ("corrected-vertical", corrected_japanese(), Layout::Vertical),
-        (
-            "corrected-horizontal",
-            corrected_japanese(),
-            Layout::Horizontal,
-        ),
-        ("probe", probe(), Layout::Vertical),
+    let scenes: [(&str, Frame); 5] = [
+        ("nihao", nihao()),
+        ("nihao-sentence", nihao_with_sentence()),
+        ("cloud", cloud()),
+        ("corrected", corrected_japanese()),
+        ("probe", probe()),
     ];
     for (theme_name, theme) in [("light", Theme::light()), ("dark", Theme::dark())] {
-        for (scene, frame, layout) in &scenes {
+        for (scene, frame) in &scenes {
             let started = Instant::now();
-            let rendered = renderer.render(frame, *layout, &theme, args.scale, shadow.as_ref())?;
+            let rendered = renderer.render(frame, &theme, args.scale, shadow.as_ref())?;
             let elapsed = started.elapsed();
             let path = args.out.join(format!("{scene}-{theme_name}.png"));
             rendered.pixmap.save_png(&path)?;

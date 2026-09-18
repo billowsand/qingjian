@@ -6,7 +6,7 @@ use std::borrow::Cow;
 
 use qingjian_platform::protocol::{Frame, ScreenRect, SessionId};
 
-pub use self::sink::{CandidateSink, NoopSink, RenderSettings};
+pub use self::sink::{CandidateSink, NoopSink};
 use super::Router;
 
 impl Router {

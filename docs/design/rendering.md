@@ -76,7 +76,7 @@
 
 ## spike 结果（2026-09-13 晚，macOS）
 
-代码：`crates/qingjian-render`（渲染器）、`examples/preview.rs`（离线出 PNG + 量宽度）、`apps/macos/src/candidates/bitmap/`（壳侧贴位图；`[general] renderer = "system"` 切回 AppKit 绘制，偏好设置「候选窗口」页可选，是过渡期退路，稳定一个版本后删）。
+代码：`crates/qingjian-render`（渲染器）、`examples/preview.rs`（离线出 PNG + 量宽度）。spike 期间曾保留平台原生绘制作为过渡退路，渲染器稳定后已删除。
 对比方法：TextEdit 里敲 `nihao`，`screencapture -l` 抓真实候选窗；同一帧人工抄进样例，渲染成 PNG 并排；再把渲染器装进壳抓真机。
 
 | 验收 | 结果 |
@@ -103,28 +103,27 @@
 - 假名 CoreText 用 `.CJKSymbolsFallbackSC`，我们用 PingFang HK。
 - 云朵是矢量描边近似 SF Symbol `cloud`，比原生略粗。
 
-真机再过了一遍：纠错后的拼音行（删除线 + 淡色剩余）、候选行里的云端词、开着候选窗切系统深浅色、配置 `renderer` 热切换两个方向；1 倍外接屏没设备没验。
+真机再过了一遍：纠错后的拼音行（删除线 + 淡色剩余）、候选行里的云端词、开着候选窗切系统深浅色，以及当时保留的过渡绘制路径双向热切换；1 倍外接屏没设备没验。
 假名原先落到 PingFang HK，原因是 ヒラギノ角ゴシック W3 字重 300 被 cosmic-text 的字重匹配筛掉，换 W4 后落 Hiragino Sans。
 笔画加深用极性相关的覆盖率 gamma 不是我们独创：[muri #71](https://github.com/MattJackson/muri/issues/71) 得出同样结论（macOS 的字体平滑按前景 / 背景极性调），
 [skip.house](https://skip.house/blog/macos-font-rendering) 提到 Patrick Walton 逆向出了 macOS 的膨胀公式（pathfinder），以后想逐像素对齐可以查它。
 
 字体可选：`[general] font` 指定字族名，mac 壳用 CoreText 按字族名查出文件（`CTFontDescriptorCreateMatchingFontDescriptors` → `kCTFontURLAttribute`）交给渲染器只加载那几个文件，系统字体仍在后面当回退；没装就退回系统字体并记日志。真机验过 Kaiti SC 与不存在的字体名。
 
-**结论**：四条都过，mac 上位图渲染器可以替换 AppKit 绘制；Windows 半边见下节。下一步做主题 TOML，稳定一版后删 AppKit / GDI 旧路径。
+**结论**：四条都过，位图渲染器可以替换平台旧绘制路径；Windows 半边见下节。过渡路径在渲染器稳定后删除。
 主题以后要放图片 / 动图 / 花边：渲染器输出就是一张位图，装饰只是多叠几层，不用换底子。
 
 ## Windows 半边（2026-09-15，真机已验）
 
-- **壳**：`apps/windows/server/src/ui/painter/`，候选窗口与悬浮状态条共用一份渲染器（字体库与字形缓存一份）；`layered::present` 把渲染器出的预乘 RGBA 位图换成 BGRA 后 `UpdateLayeredWindow` 贴上，阴影由渲染器画（`Shadow::mac_panel()`，参数与 macOS 面板一致；分层窗口没有系统阴影）。倍数取 DPI / 96。
-  `[general] renderer = "system"` 时两个窗口走原来的 GDI 画法，与 macOS 一样是过渡期退路；渲染器建不起来（字体库加载失败）也自动退回。
+- **壳**：`apps/windows/server/src/ui/painter/`，候选窗口与悬浮状态条共用一份渲染器（字体库与字形缓存一份）；`layered::present` 把渲染器出的预乘 RGBA 位图换成 BGRA 后 `UpdateLayeredWindow` 贴上，阴影由渲染器画（`Shadow::mac_panel()`，参数与 macOS 面板一致；分层窗口没有系统阴影）。倍数取 DPI / 96。渲染器或字体库初始化失败时不显示候选窗口与状态条并记错误日志。
 - **状态条**：渲染器的 `render_status` 接收 `StatusCell::{Grip, Mode, Text, Gear}`，返回位图与各格右边界供点击命中；`Mode` 把「中 / A」画成钴蓝方章，中文态有薄荷点，双拼在右侧只留「鹤 / 自 / 微 / 搜」。齿轮用矢量画，避免 Segoe UI Emoji 把 U+2699 画成彩色。
-- **配置**：`[general] renderer` / `[general] font` 经 `CandidateSink::configure` 送到 UI 线程，装上时与热加载变了时各送一次；字族名按 DirectWrite 的系统字体集合找文件（`qingjian_render::system_fonts`），设置程序的「字体」框也从它列字族。
+- **配置**：`[general] font` 经 `CandidateSink::set_font` 送到 UI 线程，装上时与热加载变了时各送一次；字族名按 DirectWrite 的系统字体集合找文件（`qingjian_render::system_fonts`），设置程序的「字体」框也从它列字族。
 - **候选行类型**：Windows 壳直接用渲染器的 `Row` / `Tone`，不再有自己的一份；macOS 壳还留着 `convert.rs`，spike 定型后一起去掉。
-- **删候选的提示**：渲染器画在拼音行右侧（与 macOS 一致）；GDI 画法仍在拼音行下方。
+- **删候选的提示**：渲染器画在拼音行右侧。
 - **品牌主题（2026-09-17）**：浅色 / 深色从系统语义色改为「字在」配色；品牌强调、输入光标、云服务、生词、纠错拆成独立颜色字段，
-  当前候选增加钴蓝前导线。Windows 自绘与 GDI 退路共用同一组颜色语义，具体值与使用边界见 `docs/design/brand.md`。
+  当前候选增加钴蓝前导线。具体值与使用边界见 `docs/design/brand.md`。
 
-真机结果（Windows 11 26200，2026-09-15）：候选窗口深色 / 浅色、竖排 / 横排、Segoe UI Emoji（COLRv0）彩色、阴影，悬浮状态条与矢量齿轮，「渲染引擎 / 字体」设置项与热切换（换成 Maple Mono NF CN 立即生效），`renderer = "system"` 退回 GDI，均通过。灰度抗锯齿与微软雅黑回退看着与 GDI 版没有可感差异；Yu Gothic 回退与首帧耗时没有单独测。
+真机结果（Windows 11 26200，2026-09-15）：候选窗口深色 / 浅色、Segoe UI Emoji（COLRv0）彩色、阴影，悬浮状态条与矢量齿轮，字体设置与热切换（换成 Maple Mono NF CN 立即生效），均通过。灰度抗锯齿与微软雅黑回退观感通过；Yu Gothic 回退与首帧耗时没有单独测。2026-09-18 删除完成过渡使命的 Windows GDI 绘制路径与 `renderer` 配置项，同时删除竖排路径与 `layout` 配置项，候选固定横排。
 排查中顺带发现并修掉的与渲染器无关的问题：TSF DLL 动态链 `vcruntime140.dll`，AppContainer 进程（任务栏搜索等）读不到系统里那份时整个 DLL 加载失败、系统切回上一个输入法，已改成静态 CRT（仓库根 `.cargo/config.toml`）。
 
 ## 不做的事

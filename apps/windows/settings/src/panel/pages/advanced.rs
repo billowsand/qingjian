@@ -1,4 +1,4 @@
-//! 「高级」页：打开配置文件 / 数据目录 / 日志目录、详细日志、学习开关、输入日志。
+//! 「高级」页：打开配置文件 / 数据目录 / 日志目录、详细日志与输入日志。
 
 use qingjian_platform::LogLevel;
 use windows_reactor::*;
@@ -51,16 +51,8 @@ fn diagnostics_group(settings: &Settings, context: &mut ViewContext<Settings>) -
     let g = &settings.config.general;
     group(
         Symbol::Repair,
-        "学习与诊断",
+        "日志与诊断",
         [
-            field(
-                Symbol::Favorite,
-                "学习输入习惯",
-                "按你的选择调整候选顺序、记新词与敲错纠正。关掉后不再学，已学的仍参与排序；学习数据在数据目录里。",
-                ToggleSwitch::new()
-                    .is_on(g.learning)
-                    .on_toggled(context.callback(Message::Learning)),
-            ),
             field(
                 Symbol::Bullets,
                 "详细日志",
