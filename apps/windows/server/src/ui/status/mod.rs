@@ -21,12 +21,11 @@ use windows::Win32::UI::WindowsAndMessaging::{
 };
 use windows::core::{PCWSTR, Result, w};
 
-use qingjian_platform::ThemeMode;
 use qingjian_render::{StatusCell, shuangpin_mark};
 
 use self::placement::{Placement, StatusAction};
 use super::StatusEvents;
-use super::candidates::resolve_dark;
+use super::candidates::system_prefers_dark;
 use super::layered;
 use super::monitor;
 use super::painter::SharedPainter;
@@ -83,7 +82,7 @@ impl StatusBar {
             ..Default::default()
         })?;
         let dpi = unsafe { GetDpiForSystem() }.max(96);
-        let dark = resolve_dark(ThemeMode::default());
+        let dark = system_prefers_dark();
         // NOACTIVATE：显示时不抢应用焦点。
         let hwnd = unsafe {
             CreateWindowExW(
@@ -133,13 +132,7 @@ impl StatusBar {
             0 => self.dpi.get(),
             dpi => dpi,
         };
-        let mode = self
-            .data
-            .borrow()
-            .as_ref()
-            .map(|view| view.theme)
-            .unwrap_or_default();
-        let dark = resolve_dark(mode);
+        let dark = system_prefers_dark();
         self.dpi.set(dpi);
         self.dark.set(dark);
     }
@@ -167,6 +160,7 @@ impl StatusBar {
             match data.as_ref() {
                 Some(view) => painter.render_status(
                     &Self::status_cells(view),
+                    view.color_scheme,
                     self.dark.get(),
                     self.dpi.get(),
                 ),
@@ -298,7 +292,7 @@ unsafe extern "system" fn wndproc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: 
 
 #[cfg(test)]
 mod tests {
-    use qingjian_platform::ThemeMode;
+    use qingjian_platform::ColorScheme;
     use qingjian_render::StatusCell;
 
     use super::{StatusBar, StatusView};
@@ -308,7 +302,7 @@ mod tests {
             english,
             scheme: scheme.map(str::to_owned),
             full_width: false,
-            theme: ThemeMode::System,
+            color_scheme: ColorScheme::Zizai,
             anchor: None,
         }
     }

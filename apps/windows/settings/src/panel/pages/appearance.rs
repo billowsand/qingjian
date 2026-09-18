@@ -1,6 +1,6 @@
-//! 「候选窗口」页：主题预览、明暗、每页候选数、字体、拼音显示位置、悬浮状态条。
+//! 「候选窗口」页：色系预览、每页候选数、字体、拼音显示位置、悬浮状态条。
 
-use qingjian_platform::{MAX_PAGE_SIZE, PreeditMode, ThemeMode};
+use qingjian_platform::{ColorScheme, MAX_PAGE_SIZE, PreeditMode};
 use qingjian_render::{Color as RenderColor, Palette, shuangpin_mark};
 use windows_reactor::*;
 
@@ -99,24 +99,33 @@ fn preview_card(label: &str, palette: Palette) -> View {
     ))
 }
 
-fn theme_preview(mode: ThemeMode) -> View {
-    let cards = match mode {
-        ThemeMode::System => StackPanel::new()
-            .orientation(Orientation::Horizontal)
-            .spacing(12.0)
-            .children((
-                preview_card("浅色", Palette::light()),
-                preview_card("深色", Palette::dark()),
-            )),
-        ThemeMode::Light => StackPanel::new().children([preview_card("浅色", Palette::light())]),
-        ThemeMode::Dark => StackPanel::new().children([preview_card("深色", Palette::dark())]),
-    };
+fn palette(scheme: ColorScheme, dark: bool) -> Palette {
+    match (scheme, dark) {
+        (ColorScheme::Cream, false) => Palette::cream_light(),
+        (ColorScheme::Cream, true) => Palette::cream_dark(),
+        (ColorScheme::Zizai, false) => Palette::zizai_light(),
+        (ColorScheme::Zizai, true) => Palette::zizai_dark(),
+        (ColorScheme::Latte, false) => Palette::latte_light(),
+        (ColorScheme::Latte, true) => Palette::latte_dark(),
+        (ColorScheme::Forest, false) => Palette::forest_light(),
+        (ColorScheme::Forest, true) => Palette::forest_dark(),
+    }
+}
+
+fn theme_preview(scheme: ColorScheme) -> View {
+    let cards = StackPanel::new()
+        .orientation(Orientation::Horizontal)
+        .spacing(12.0)
+        .children((
+            preview_card("浅色", palette(scheme, false)),
+            preview_card("深色", palette(scheme, true)),
+        ));
     StackPanel::new().spacing(6.0).children((
         TextBlock::new()
-            .text("字在 · 钴蓝薄荷")
+            .text(scheme.label())
             .font_size(16.0)
             .font_weight(FontWeight::SEMI_BOLD),
-        note("预览与候选窗、输入光标共用同一套语义色；“跟随系统”同时展示两种外观。"),
+        note("预览与候选窗、输入光标共用同一套语义色；明暗随系统，并同时展示两种外观。"),
         cards,
     ))
 }
@@ -206,21 +215,14 @@ fn status_preview_variant(label: &str, settings: &Settings, palette: Palette) ->
 }
 
 fn status_preview(settings: &Settings) -> View {
-    match settings.config.general.theme {
-        ThemeMode::System => StackPanel::new()
-            .orientation(Orientation::Horizontal)
-            .spacing(12.0)
-            .children((
-                status_preview_variant("浅色", settings, Palette::light()),
-                status_preview_variant("深色", settings, Palette::dark()),
-            )),
-        ThemeMode::Light => {
-            StackPanel::new().children([status_preview_variant("浅色", settings, Palette::light())])
-        }
-        ThemeMode::Dark => {
-            StackPanel::new().children([status_preview_variant("深色", settings, Palette::dark())])
-        }
-    }
+    let scheme = settings.config.general.theme;
+    StackPanel::new()
+        .orientation(Orientation::Horizontal)
+        .spacing(12.0)
+        .children((
+            status_preview_variant("浅色", settings, palette(scheme, false)),
+            status_preview_variant("深色", settings, palette(scheme, true)),
+        ))
 }
 
 fn window_group(settings: &Settings, context: &mut ViewContext<Settings>) -> View {
@@ -232,12 +234,12 @@ fn window_group(settings: &Settings, context: &mut ViewContext<Settings>) -> Vie
         [
             field(
                 Symbol::Highlight,
-                "明暗模式",
-                "跟随系统会在 Windows 切换浅色或深色后自动使用相应的字在主题。",
+                "配色",
+                "明暗始终跟随 Windows，每套配色都包含浅色与深色。",
                 mode_combo(
-                    &ThemeMode::ALL,
+                    &ColorScheme::ALL,
                     g.theme,
-                    ThemeMode::label,
+                    ColorScheme::label,
                     context.callback(Message::Theme),
                 ),
             ),

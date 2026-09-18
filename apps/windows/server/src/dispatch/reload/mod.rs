@@ -113,9 +113,15 @@ impl Router {
         self.engine.set_learning(config.general.learning);
         self.engine.set_chinese_first(config.general.chinese_first);
         let previous_font = self.config.font.clone();
+        let previous_scheme = self.config.color_scheme;
         self.config = RouterConfig::from(config);
         if self.config.font != previous_font {
             self.candidates.set_font(self.config.font.clone());
+        }
+        if self.config.font != previous_font || self.config.color_scheme != previous_scheme {
+            self.last_shown = None;
+            let frame = self.current_frame();
+            self.reconcile_candidates(&frame);
         }
         self.reconcile_status();
         self.apply_model_config(&config.model);

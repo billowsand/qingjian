@@ -1,6 +1,6 @@
 //! 根组件的 Reactor 生命周期：建状态、按消息落盘、画品牌头 + 左侧导航 + 当前页。
 
-use qingjian_platform::{Config, LogLevel, PreeditMode, ThemeMode};
+use qingjian_platform::{ColorScheme, Config, LogLevel, PreeditMode};
 use windows_reactor::*;
 
 use super::controls::{export_logs, log_dir, open_in_editor, open_with_explorer};
@@ -60,8 +60,8 @@ impl Component for Settings {
             Message::Learning(on) => self.save("general", "learning", on),
 
             // 候选窗口页
-            Message::Theme(Some(i)) if i < ThemeMode::ALL.len() => {
-                self.save("general", "theme", ThemeMode::ALL[i].key());
+            Message::Theme(Some(i)) if i < ColorScheme::ALL.len() => {
+                self.save("general", "theme", ColorScheme::ALL[i].key());
             }
             Message::PageSize(Some(value)) => {
                 let size = (value.round() as i64).clamp(1, 9);

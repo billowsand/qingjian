@@ -1,6 +1,6 @@
 use qingjian_core::ShuangpinScheme;
 use qingjian_platform::protocol::KeyModifiers;
-use qingjian_platform::{Config, PreeditMode, ThemeMode};
+use qingjian_platform::{ColorScheme, Config, PreeditMode};
 
 /// Router 要用的配置项，与 macOS 壳的 `Host` 字段对齐。
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -8,8 +8,8 @@ pub struct RouterConfig {
     /// 每页候选数（`[general] page_size`）。
     pub page_size: usize,
 
-    /// 候选窗口外观（`[general] theme`）。
-    pub theme: ThemeMode,
+    /// 候选窗口、状态条与设置程序共用的色系（`[general] theme`）。
+    pub color_scheme: ColorScheme,
 
     /// 组句拼音显示在行内还是候选窗口（`[general] preedit`）。
     pub preedit: PreeditMode,
@@ -43,7 +43,7 @@ impl From<&Config> for RouterConfig {
     fn from(config: &Config) -> Self {
         Self {
             page_size: config.general.page_size(),
-            theme: config.general.theme,
+            color_scheme: config.general.theme,
             preedit: config.general.preedit,
             font: config.general.font.trim().to_owned(),
             page_keys: config.general.page_keys(),

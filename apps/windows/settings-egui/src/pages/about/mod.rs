@@ -59,7 +59,7 @@ fn identity(ui: &mut egui::Ui) {
                 .and_then(|build| build.split_once('@').map(|(_, rest)| rest))
                 .unwrap_or("本地构建");
             ui.label(
-                egui::RichText::new(format!("egui spike · {build}"))
+                egui::RichText::new(format!("字在 Windows · {build}"))
                     .size(NOTE_SIZE)
                     .color(theme::note_color(ui.ctx()).gamma_multiply(0.8)),
             );

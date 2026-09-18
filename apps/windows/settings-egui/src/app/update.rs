@@ -8,7 +8,14 @@ use crate::widgets::NAV_WIDTH;
 
 impl eframe::App for Settings {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
-        crate::theme::follow_system(ctx, &mut self.dark);
+        crate::theme::follow_system(
+            ctx,
+            &mut self.dark,
+            &mut self.applied_scheme,
+            self.config.general.theme,
+        );
+
+        crate::title_bar::view(ctx);
 
         egui::SidePanel::left("nav")
             .exact_width(NAV_WIDTH)

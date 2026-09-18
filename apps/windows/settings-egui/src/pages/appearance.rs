@@ -1,33 +1,22 @@
-//! 「候选窗口」页：明暗、每页候选数、字体、拼音显示、悬浮状态条。
-//! 候选窗长什么样打字时就看见了，这里不再摆一份预览图。
+//! 「候选窗口」页：四套同步色系、每页候选数、字体、拼音显示、悬浮状态条。
 
 use eframe::egui;
-use qingjian_platform::{MAX_PAGE_SIZE, PreeditMode, ThemeMode};
+use qingjian_platform::{ColorScheme, MAX_PAGE_SIZE, PreeditMode};
+use qingjian_render::{Color as RenderColor, Palette};
 
 use crate::app::Settings;
 use crate::fonts;
-use crate::widgets::{CONTROL_WIDTH, LABEL_SIZE, list, page, toggle};
+use crate::theme;
+use crate::widgets::{CONTROL_WIDTH, LABEL_SIZE, list, note, page, toggle};
 
 /// 「系统字体」项的下标：列表第 0 项，对应配置里的空串。
 const SYSTEM_FONT: usize = 0;
 
 pub(crate) fn view(settings: &mut Settings, ui: &mut egui::Ui) {
     page(ui, "候选窗口", |ui| {
+        theme_picker(settings, ui);
+        ui.add_space(10.0);
         list(ui, |list| {
-            let theme = settings.config.general.theme;
-            list.row(
-                "\u{E793}",
-                "明暗",
-                "跟随系统会在 Windows 切换浅色或深色后自动换成相应的字在主题。",
-                |ui| {
-                    let (response, picked) =
-                        mode_combo(ui, "theme", &ThemeMode::ALL, theme, ThemeMode::label);
-                    if let Some(mode) = picked {
-                        settings.save("general", "theme", mode.key());
-                    }
-                    response
-                },
-            );
             let page_size = settings.config.general.page_size;
             list.row("\u{EA37}", "每页候选数", "", |ui| {
                 let (response, picked) = page_size_combo(ui, page_size);
@@ -87,6 +76,150 @@ pub(crate) fn view(settings: &mut Settings, ui: &mut egui::Ui) {
             );
         });
     });
+}
+
+fn theme_picker(settings: &mut Settings, ui: &mut egui::Ui) {
+    ui.horizontal(|ui| {
+        ui.label(egui::RichText::new("配色").size(LABEL_SIZE).strong());
+        note(ui, "明暗跟随 Windows");
+    });
+    ui.add_space(4.0);
+
+    let current = settings.config.general.theme;
+    let mut picked = None;
+    for row in ColorScheme::ALL.chunks(2) {
+        ui.columns(2, |columns| {
+            for (column, scheme) in columns.iter_mut().zip(row.iter().copied()) {
+                if theme_card(column, scheme, scheme == current).clicked() {
+                    picked = Some(scheme);
+                }
+            }
+        });
+        ui.add_space(6.0);
+    }
+    if let Some(scheme) = picked {
+        settings.save("general", "theme", scheme.key());
+    }
+}
+
+fn theme_card(ui: &mut egui::Ui, scheme: ColorScheme, selected: bool) -> egui::Response {
+    let base = theme::card_frame(ui.ctx());
+    let stroke = if selected {
+        egui::Stroke::new(1.5, theme::accent(ui.ctx()))
+    } else {
+        base.stroke
+    };
+    let shown = egui::Frame::NONE
+        .fill(base.fill)
+        .stroke(stroke)
+        .corner_radius(8.0)
+        .inner_margin(egui::Margin::symmetric(9, 7))
+        .show(ui, |ui| {
+            ui.set_min_width(ui.available_width());
+            ui.horizontal(|ui| {
+                ui.label(
+                    egui::RichText::new(scheme.label())
+                        .size(LABEL_SIZE)
+                        .strong(),
+                );
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    radio_mark(ui, selected);
+                });
+            });
+            ui.add_space(3.0);
+            preview_strip(ui, "浅", theme::palette_for(scheme, false));
+            ui.add_space(3.0);
+            preview_strip(ui, "深", theme::palette_for(scheme, true));
+        });
+    let response = ui.interact(
+        shown.response.rect,
+        ui.id().with(("theme-card", scheme.key())),
+        egui::Sense::click(),
+    );
+    response.widget_info(|| {
+        egui::WidgetInfo::selected(
+            egui::WidgetType::RadioButton,
+            ui.is_enabled(),
+            selected,
+            scheme.label(),
+        )
+    });
+    response
+}
+
+fn radio_mark(ui: &mut egui::Ui, selected: bool) {
+    let (rect, _) = ui.allocate_exact_size(egui::vec2(15.0, 15.0), egui::Sense::hover());
+    let color = if selected {
+        theme::accent(ui.ctx())
+    } else {
+        theme::icon_color(ui.ctx())
+    };
+    ui.painter()
+        .circle_stroke(rect.center(), 6.0, egui::Stroke::new(1.3, color));
+    if selected {
+        ui.painter().circle_filled(rect.center(), 3.0, color);
+    }
+}
+
+/// 两条预览都由当前 egui 字体现场绘制；换字体后这里与真实候选窗一起更新。
+fn preview_strip(ui: &mut egui::Ui, label: &str, palette: Palette) {
+    let width = ui.available_width();
+    let (rect, _) = ui.allocate_exact_size(egui::vec2(width, 25.0), egui::Sense::hover());
+    let label_width = 18.0;
+    let panel = egui::Rect::from_min_max(
+        egui::pos2(rect.left() + label_width, rect.top()),
+        rect.right_bottom(),
+    );
+    let painter = ui.painter();
+    painter.text(
+        egui::pos2(rect.left(), rect.center().y),
+        egui::Align2::LEFT_CENTER,
+        label,
+        egui::FontId::proportional(10.5),
+        color32(palette.gloss),
+    );
+    painter.rect_filled(panel, 5.0, color32(palette.background));
+    painter.rect_stroke(
+        panel,
+        5.0,
+        egui::Stroke::new(1.0, color32(palette.pos).gamma_multiply(0.38)),
+        egui::StrokeKind::Inside,
+    );
+    let preedit_x = panel.left() + 8.0;
+    painter.text(
+        egui::pos2(preedit_x, panel.center().y),
+        egui::Align2::LEFT_CENTER,
+        "ni'hao",
+        egui::FontId::proportional(10.5),
+        color32(palette.text),
+    );
+    let caret_x = preedit_x + 36.0;
+    painter.vline(
+        caret_x,
+        (panel.top() + 5.0)..=(panel.bottom() - 5.0),
+        egui::Stroke::new(1.5, color32(palette.caret)),
+    );
+    let candidate = egui::Rect::from_min_size(
+        egui::pos2(caret_x + 7.0, panel.top() + 3.0),
+        egui::vec2((panel.width() - 61.0).min(57.0), panel.height() - 6.0),
+    );
+    painter.rect_filled(candidate, 4.0, color32(palette.highlight));
+    painter.rect_filled(
+        egui::Rect::from_min_size(candidate.min, egui::vec2(2.0, candidate.height())),
+        1.0,
+        color32(palette.accent),
+    );
+    painter.text(
+        candidate.center(),
+        egui::Align2::CENTER_CENTER,
+        "1 你好",
+        egui::FontId::proportional(11.0),
+        color32(palette.text),
+    );
+}
+
+fn color32(color: RenderColor) -> egui::Color32 {
+    egui::Color32::from_rgba_unmultiplied(color.r, color.g, color.b, color.a)
 }
 
 /// 每页候选数下拉：1–9。

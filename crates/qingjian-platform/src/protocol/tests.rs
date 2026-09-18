@@ -47,7 +47,7 @@ fn server_message_wire_format() {
     .expect("序列化");
     assert_eq!(
         json,
-        r#"{"KeyResult":{"session":7,"outcome":"Consumed","commit":null,"frame":{"preedit":[{"text":"ni'hao","kind":"Typed"}],"cursor":6,"candidates":{"items":[{"text":"你好","kind":"Chinese","syllables":["ni","hao"],"reading":null,"translation":null,"fuma":null}]},"highlight":0,"page":0,"page_count":1,"layout":"horizontal","theme":"system","notice":null,"inline_preedit":true}}}"#
+        r#"{"KeyResult":{"session":7,"outcome":"Consumed","commit":null,"frame":{"preedit":[{"text":"ni'hao","kind":"Typed"}],"cursor":6,"candidates":{"items":[{"text":"你好","kind":"Chinese","syllables":["ni","hao"],"reading":null,"translation":null,"fuma":null}]},"highlight":0,"page":0,"page_count":1,"layout":"horizontal","theme":"system","color_scheme":"zizai","notice":null,"inline_preedit":true}}}"#
     );
 }
 

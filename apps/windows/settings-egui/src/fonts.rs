@@ -14,7 +14,10 @@ const SCRIPT_FAMILIES: [&str; 2] = ["Microsoft YaHei", "Yu Gothic"];
 /// 图标字体：Win11 是 Segoe Fluent Icons，Win10 只有 Segoe MDL2 Assets（私用区码点大部分通用）。
 const ICON_FAMILIES: [&str; 2] = ["Segoe Fluent Icons", "Segoe MDL2 Assets"];
 
-/// 候选窗口所选字体排第一，系统缺省界面字体与中日文字体依次回退，图标字体排最后。
+/// 图标专用的 egui 字族；绝不与用户选择的正文字体共用回退链。
+const ICON_FAMILY: &str = "zizai-icons";
+
+/// 候选窗口所选字体排第一，系统缺省界面字体与中日文字体依次回退；图标另用独立字族。
 pub(crate) fn install(ctx: &egui::Context, configured: &str) {
     let mut fonts = egui::FontDefinitions::default();
     let mut selected = Vec::new();
@@ -35,14 +38,25 @@ pub(crate) fn install(ctx: &egui::Context, configured: &str) {
             family,
         );
     }
-    register_first(&mut fonts, &mut selected, "icons", &ICON_FAMILIES);
     for family in [egui::FontFamily::Proportional, egui::FontFamily::Monospace] {
         let list = fonts.families.entry(family).or_default();
         for name in selected.iter().rev() {
             list.insert(0, name.clone());
         }
     }
+    let mut icons = Vec::new();
+    register_first(&mut fonts, &mut icons, "icons", &ICON_FAMILIES);
+    fonts.families.insert(icon_family(), icons);
     ctx.set_fonts(fonts);
+}
+
+/// 图标绘制统一走这个字族，候选字体变化不会改变私用区码点的形状。
+pub(crate) fn icon_font(size: f32) -> egui::FontId {
+    egui::FontId::new(size, icon_family())
+}
+
+fn icon_family() -> egui::FontFamily {
+    egui::FontFamily::Name(ICON_FAMILY.into())
 }
 
 fn register_first(

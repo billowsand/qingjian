@@ -1,8 +1,4 @@
-//! 设置界面 egui spike 的入口：起窗口、装中文字体、跑 eframe。
-//! 目的与要量的四件事见同目录 `README.md`；非 Windows 编成空壳，让工作区能整体编译。
-//!
-//! 与正式设置程序（`apps/windows/settings`，Windows Reactor / WinUI）并存，互不影响：
-//! 两边读写同一个 `config.toml`，可以开着比。
+//! 字在默认设置界面的入口：起无边框窗口、装中文字体、跑 eframe。
 //!
 //! 缺省是 GUI 子系统（装进安装包双击不弹黑窗）；量首帧耗时与 wgpu 适配器时用 `--features console` 编，
 //! 那两行 `println!` 才有地方出。
@@ -23,6 +19,8 @@ mod pages;
 #[cfg(windows)]
 mod theme;
 #[cfg(windows)]
+mod title_bar;
+#[cfg(windows)]
 mod widgets;
 
 /// 窗口初始大小：导航 168 + 正文一列，够放「标签 + 184 宽的控件」，不铺满半个屏幕。
@@ -38,14 +36,15 @@ fn main() -> eframe::Result<()> {
     let started = std::time::Instant::now();
     let options = eframe::NativeOptions {
         viewport: eframe::egui::ViewportBuilder::default()
-            .with_title("字在设置（egui spike）")
+            .with_title("字在设置")
             .with_inner_size(WINDOW_SIZE)
-            .with_min_inner_size(MIN_WINDOW_SIZE),
+            .with_min_inner_size(MIN_WINDOW_SIZE)
+            .with_decorations(false),
         wgpu_options: gpu::configuration(),
         ..Default::default()
     };
     eframe::run_native(
-        "字在设置（egui spike）",
+        "字在设置",
         options,
         Box::new(move |cc| Ok(Box::new(app::Settings::new(cc, started)))),
     )

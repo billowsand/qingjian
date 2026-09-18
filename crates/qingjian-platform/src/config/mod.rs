@@ -1,3 +1,4 @@
+mod color_scheme;
 mod dictionaries;
 mod general;
 mod log_level;
@@ -15,6 +16,7 @@ use toml_edit::DocumentMut;
 
 use crate::error::ConfigError;
 
+pub use color_scheme::ColorScheme;
 pub use dictionaries::{DEFAULT_DOMAINS, DictionariesConfig};
 pub use general::{
     DEFAULT_PAGE_KEYS, GeneralConfig, LEARNING_LANGUAGE_OFF, MAX_PAGE_SIZE, PAGE_KEY_OPTIONS,
@@ -82,8 +84,8 @@ pub const TEMPLATE: &str = concat!(
 page_size = 9
 # 翻页键对：前一个上一页、后一个下一页。可选 "[]" 或 ",."；选 ",." 的话组句中敲逗号句号是翻页而不是上屏加标点
 page_keys = "[]"
-# 候选窗口外观：system 跟随系统 / light 浅色 / dark 深色
-theme = "system"
+# 界面色系：cream 奶油 / zizai 字在蓝 / latte 紫藤拿铁 / forest 森林；明暗始终跟随 Windows
+theme = "zizai"
 # 候选窗口字体（字族名，如 "LXGW WenKai"）；空为系统字体，没装这个字体时自动回到系统字体
 font = ""
 # 组句中的拼音显示在哪：both 行内和候选窗口 / inline 只在行内 / window 只在候选窗口（应用里不放 marked text）
@@ -382,12 +384,12 @@ mod tests {
     #[test]
     fn general_and_shortcut_sections_parse() {
         let config: Config = toml::from_str(
-            "[general]\npage_size = 5\npage_keys = \"[]\"\ntheme = \"dark\"\npreedit = \"window\"\n[shortcut]\ndelete_candidate = \"ctrl\"\n",
+            "[general]\npage_size = 5\npage_keys = \"[]\"\ntheme = \"forest\"\npreedit = \"window\"\n[shortcut]\ndelete_candidate = \"ctrl\"\n",
         )
         .unwrap();
         assert_eq!(config.general.page_size(), 5);
         assert_eq!(config.general.page_keys(), ('[', ']'));
-        assert_eq!(config.general.theme, ThemeMode::Dark);
+        assert_eq!(config.general.theme, ColorScheme::Forest);
         assert_eq!(config.general.preedit, PreeditMode::Window);
         assert_eq!(config.general.learning_language, "en");
         assert_eq!(config.general.shuangpin(), None);
@@ -400,10 +402,10 @@ mod tests {
         let path = std::env::temp_dir().join("qingjian-config-set-value-test.toml");
         let _ = std::fs::remove_file(&path);
         Config::set_value(&path, "general", "page_size", 5i64).unwrap();
-        Config::set_value(&path, "general", "theme", "dark").unwrap();
+        Config::set_value(&path, "general", "theme", "latte").unwrap();
         let config = Config::load(&path).unwrap();
         assert_eq!(config.general.page_size, 5);
-        assert_eq!(config.general.theme, ThemeMode::Dark);
+        assert_eq!(config.general.theme, ColorScheme::Latte);
         let _ = std::fs::remove_file(&path);
     }
 

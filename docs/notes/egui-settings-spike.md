@@ -1,6 +1,6 @@
-# 设置程序换 egui 的 spike（2026-09-18）
+# 设置程序换 egui（2026-09-18）
 
-分支 `egui-settings-spike`，代码在 `apps/windows/settings-egui`。
+代码在 `apps/windows/settings-egui`。最初在分支 `egui-settings-spike` 验证，现已定为 Windows 安装包的缺省设置程序；文中的 spike 指决定前的历史阶段。
 
 **2026-09-18 定了：打包缺省就用 egui 这份**（`build.ps1` 不加开关即是，WinUI 那份退到 `-WinUiSettings`）。
 下面是做决定前量的数字，留着当依据；界面上没做完的（图标码点没逐个核对之类）按普通待办接着做。
@@ -114,3 +114,11 @@ Server 的齿轮、开始菜单、安装前 taskkill 都照常。从带 WinUI �
 以及要改掉 `design/rendering.md` 里「设置程序不自绘」那条决定。
 
 还没比的备选：Slint（有 software renderer，不依赖 GPU，GPL 授权与本项目兼容）、纯 Win32 + windows-rs（exe 1–2 MB，原生无障碍，但暗色与布局要手写）。
+
+## 第四轮：同步色系、自绘标题栏与字体隔离（2026-09-18）
+
+- `[general] theme` 从明暗选择改成奶油 / 字在蓝 / 紫藤拿铁 / 森林四套色系，浅 / 深始终读 `AppsUseLightTheme`；旧配置里的 `system` / `light` / `dark` 都迁移成字在蓝。
+- 候选窗口、悬浮状态条与设置程序共用同一个色系配置。协议继续写旧 `theme = system` 给驻留的旧 DLL，同时新增有默认值的 `color_scheme`，避免升级后整帧解析失败。
+- 「候选窗口」页的 2×2 主题卡不是图片：每张卡由 egui painter 画两条浅 / 深候选预览，示例文字显式走当前 `FontId::proportional`，换字体立即同步。
+- 设置正文继续跟随候选字体；图标从比例字体回退链拆出，Segoe Fluent Icons / MDL2 只登记到命名字族 `zizai-icons`。导航、设置行、`ⓘ` 统一用 `fonts::icon_font`，用户字体不再能抢私用区码点。
+- `ViewportBuilder::with_decorations(false)` 关闭系统标题栏；`title_bar.rs` 自绘 Logo、标题、拖动 / 双击最大化区与三个窗口按钮，背景、文字、悬停态都取当前主题。

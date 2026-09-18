@@ -4,6 +4,7 @@
 use eframe::egui;
 
 use crate::app::{PAGES, Settings};
+use crate::fonts;
 use crate::theme;
 use crate::widgets::{BRAND_SIZE, LABEL_SIZE, LOGO_SIZE, NOTE_SIZE};
 
@@ -59,7 +60,7 @@ fn item(ui: &mut egui::Ui, icon: &str, label: &str, selected: bool) -> egui::Res
         egui::pos2(rect.left() + ICON_INSET, rect.center().y + 1.0),
         egui::Align2::CENTER_CENTER,
         icon,
-        egui::FontId::proportional(16.0),
+        fonts::icon_font(16.0),
         if selected {
             tone
         } else {

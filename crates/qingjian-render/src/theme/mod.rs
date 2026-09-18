@@ -53,6 +53,30 @@ impl Theme {
         Self::with_palette(Palette::dark(), 0.75)
     }
 
+    pub fn cream(dark: bool) -> Self {
+        Self::for_appearance(Palette::cream_light(), Palette::cream_dark(), dark)
+    }
+
+    pub fn zizai(dark: bool) -> Self {
+        Self::for_appearance(Palette::zizai_light(), Palette::zizai_dark(), dark)
+    }
+
+    pub fn latte(dark: bool) -> Self {
+        Self::for_appearance(Palette::latte_light(), Palette::latte_dark(), dark)
+    }
+
+    pub fn forest(dark: bool) -> Self {
+        Self::for_appearance(Palette::forest_light(), Palette::forest_dark(), dark)
+    }
+
+    fn for_appearance(light: Palette, dark_palette: Palette, dark: bool) -> Self {
+        if dark {
+            Self::with_palette(dark_palette, 0.75)
+        } else {
+            Self::with_palette(light, 0.85)
+        }
+    }
+
     fn with_palette(colors: Palette, text_gamma: f32) -> Self {
         Self {
             // 行高取 AppKit 系统字体在这几个字号下 NSAttributedString.size() 的高度

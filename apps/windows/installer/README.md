@@ -11,7 +11,7 @@ C:\Program Files\Qingjian\
     qingjian_tsf-<版本>-x86.dll   同上的 32 位版（企业微信 / WPS / 32 位 QQ 这类 32 位应用只能加载它）
     qingjian-server.exe       输入内核 Server（跑在应用进程外）
     qingjian-settings.exe     设置界面
-    Microsoft.UI.Xaml.dll …   设置程序自带的 Windows App Runtime（自包含部署，见下节；约 56 MB / 185 个文件）
+    Microsoft.UI.Xaml.dll …   仅 `-WinUiSettings` 对比包包含的 Windows App Runtime
     qingjian.ico              开始菜单 / 启动项快捷方式的图标（exe 里也嵌了一份）
     data\generated\           dict.qj / lm.qj / english.tsv / dicts\*.qj
     assets\                   emoji\ sample\
@@ -45,9 +45,9 @@ Server 与设置程序按 **exe 相对**定位随包资源（`qingjian_platform:
 - 已开着的应用继续用进程里的旧 DLL 直到重启，Server 两个版本都服务（`OpenSession` 带协议版本，对不上只记警告）；
 - 装完删旧 DLL，删不掉的登记成重启后删。
 
-## 设置程序自带 Windows App Runtime
+## WinUI 对比包的 Windows App Runtime
 
-设置界面用 Windows Reactor（WinUI 3）写，而它的框架依赖引导只有 Windows 11 走得通：要 Windows 11 才有的
+缺省设置界面使用 egui，不需要 Windows App Runtime。只有 `-WinUiSettings` 对比包使用 Windows Reactor（WinUI 3），而它的框架依赖引导只有 Windows 11 走得通：要 Windows 11 才有的
 AppModel API 把框架包加进进程包图，Windows 10 上没有那两个函数（定位见 `docs\notes\windows-win10.md`）。
 所以设置程序用**自包含部署**——`apps\windows\settings\build.rs` 让 `windows-reactor-setup` 把 Windows App Runtime
 铺到 `target\release\`，打包时按 `settings-runtime.txt` 挑进 `target\installer\settings-runtime`，本目录的

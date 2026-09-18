@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 
 use qingjian_core::CandidateList;
 
-use crate::ThemeMode;
+use crate::{ColorScheme, ThemeMode};
 
 /// 没有 `inline_preedit` 字段的帧按「放行内」算（那时的行为）。
 fn inline_preedit_default() -> bool {
@@ -50,8 +50,11 @@ pub struct Frame {
     #[serde(rename = "layout", skip_deserializing)]
     pub legacy_layout: &'static str,
 
-    /// 候选窗口外观（跟随系统 / 浅色 / 深色）。`System` 由 DLL 侧按当前系统主题解析。
+    /// 旧 DLL 仍要求的明暗字段；新版本恒写 `System`，明暗始终跟随 Windows。
     pub theme: ThemeMode,
+
+    /// 候选窗口、状态条与设置程序共用的色系。
+    pub color_scheme: ColorScheme,
 
     /// 屏幕提示（删候选后的「已删除…」一句）：画在 preedit 行下方，显示到下一次按键。无则 `None`。
     /// 不参与 [`is_empty`](Self::is_empty)：单有提示不算在组句，否则空组句也会撑开候选窗口。
@@ -73,6 +76,7 @@ impl Default for Frame {
             page_count: 0,
             legacy_layout: "horizontal",
             theme: ThemeMode::default(),
+            color_scheme: ColorScheme::default(),
             notice: None,
             inline_preedit: inline_preedit_default(),
         }

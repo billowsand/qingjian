@@ -1,5 +1,4 @@
-//! spike 的窗口状态：当前配置、`config.toml` 路径、当前分节、系统字族表，以及启动计时。
-//! 落盘逻辑与正式设置程序一样——改一项就原地写回（保留注释）再重读，界面始终反映文件内容。
+//! 设置窗口状态：当前配置、`config.toml` 路径、当前分节、系统字族表，以及启动计时。
 //! 每帧怎么画在 [`update`]。
 
 mod update;
@@ -7,7 +6,7 @@ mod update;
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 
-use qingjian_platform::Config;
+use qingjian_platform::{ColorScheme, Config};
 
 use crate::{fonts, theme};
 
@@ -36,6 +35,9 @@ pub(crate) struct Settings {
     /// 上次解析出的系统明暗，变了换一套 Visuals。
     pub(crate) dark: bool,
 
+    /// 已装进 egui Visuals 的色系，配置热切换时据此判断是否重建。
+    pub(crate) applied_scheme: ColorScheme,
+
     /// 进程启动的时刻，首帧画完时报一次耗时。
     started: Instant,
 
@@ -47,14 +49,16 @@ impl Settings {
     pub(crate) fn new(cc: &eframe::CreationContext<'_>, started: Instant) -> Self {
         let path = Self::config_path();
         let config = Config::load(&path).unwrap_or_default();
+        let applied_scheme = config.general.theme;
         fonts::install(&cc.egui_ctx, &config.general.font);
-        theme::install(&cc.egui_ctx);
+        theme::install(&cc.egui_ctx, applied_scheme);
         Self {
             config,
             path,
             page: "general".to_owned(),
             families: qingjian_render::system_fonts::families(),
             dark: theme::system_prefers_dark(),
+            applied_scheme,
             started,
             reported: false,
         }
@@ -75,7 +79,7 @@ impl Settings {
         self.path.parent().unwrap_or_else(|| Path::new("."))
     }
 
-    /// 落盘一个配置值再重读。spike 里失败只打印。
+    /// 落盘一个配置值再重读；失败写进设置程序日志输出。
     pub(crate) fn save(&mut self, section: &str, key: &str, value: impl Into<toml_edit::Value>) {
         if let Err(error) = Config::set_value(&self.path, section, key, value) {
             eprintln!("保存 [{section}] {key} 失败: {error}");

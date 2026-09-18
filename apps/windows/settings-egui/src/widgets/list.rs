@@ -10,6 +10,7 @@
 use eframe::egui;
 
 use super::{CONTROL_WIDTH, ICON_COLUMN, INFO_MARK, LABEL_SIZE, NOTE_SIZE, hint};
+use crate::fonts;
 use crate::theme;
 
 /// 一行的高度：放得下一个下拉框，又不至于像 WinUI 版那样一项占两行。
@@ -73,7 +74,7 @@ impl<'a> List<'a> {
                     if !tip.is_empty() {
                         let mark = ui.label(
                             egui::RichText::new(INFO_MARK)
-                                .size(NOTE_SIZE)
+                                .font(fonts::icon_font(NOTE_SIZE))
                                 .color(theme::note_color(ui.ctx()).gamma_multiply(0.7)),
                         );
                         hint(mark, tip);
@@ -136,7 +137,7 @@ fn paint_icon(ui: &mut egui::Ui, icon: &str, column: f32) {
         rect.center() + egui::vec2(0.0, ICON_NUDGE),
         egui::Align2::CENTER_CENTER,
         icon,
-        egui::FontId::proportional(ICON_SIZE),
+        fonts::icon_font(ICON_SIZE),
         theme::icon_color(ui.ctx()),
     );
 }

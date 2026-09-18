@@ -110,7 +110,7 @@ Engine 侧在 `engine/rescoring/`：接了打分器就取 Viterbi 前 `RESCORE_P
 自己解析 `trak` 字距表、按主题 gamma 加深笔画；cosmic-text 打了 `opsz` 光学字号补丁（qingjian-team/cosmic-text 分支 `qingjian-opsz`，workspace `[patch.crates-io]` 钉 rev）。
 `examples/preview.rs` 出 PNG 与真机截图并排比、`--measure` 量宽度。Windows 壳 `server/src/ui/painter/` 贴位图；
 `[general] font` 是候选窗字族名（空为系统字体，壳按字族名找出字体文件交给渲染器只加载那几个，没装就回系统字体）。
-主题颜色按角色拆开：品牌强调 / 输入光标 / 云服务 / 生词 / 纠错各有独立字段；值见 `docs/design/brand.md`。
+主题颜色按角色拆开：品牌强调 / 输入光标 / 云服务 / 生词 / 纠错各有独立字段；`Palette` 提供奶油、字在蓝、紫藤拿铁、森林四套浅 / 深色，值见 `docs/design/brand.md`。
 设计与验收见 `docs/design/rendering.md`。
 
 ## apps/cli
@@ -135,9 +135,9 @@ Engine 侧在 `engine/rescoring/`：接了打分器就取 Viterbi 前 `RESCORE_P
 
 用户可见品牌是「字在」，内部 crate、可执行文件、`Qingjian` 数据与安装目录、`.qj` 格式名暂不迁移。图标矢量源在 `assets/icon/logo.svg`，
 `assets/icon/generate.py` 生成主 PNG 与 TSF / 设置 / Server / 安装器共用的多尺寸 `qingjian.ico`。
-设置程序把 `assets/icon/logo.png` 用 `include_bytes!` 编进 exe（`panel/brand.rs`），品牌条与「关于」页共用，不依赖随包文件；
-「候选窗口」页用渲染器 `Palette` 同时预览候选窗和悬浮状态条。状态条的 `StatusCell::Mode` 画钴蓝模式方章，双拼方案收成 `鹤 / 自 / 微 / 搜`。
-它的分节页、卡片与排版取值见 `docs/design/candidate-ui.md`「设置程序」。
+设置程序把 `assets/icon/logo.png` 用 `include_bytes!` 编进 exe（`nav.rs`），导航品牌条、无边框标题栏与「关于」页共用，不依赖随包文件；
+「候选窗口」页用 egui painter 和渲染器 `Palette` 实时画四套浅 / 深主题卡，示例文字走当前候选字体，不嵌静态预览图。状态条的 `StatusCell::Mode` 使用当前主题强调色，双拼方案收成 `鹤 / 自 / 微 / 搜`。
+正文与候选窗共用 `[general] font`；Segoe Fluent Icons 单独登记为 `zizai-icons` 字族，导航、设置行、提示记号都显式走它，不能进用户字体回退链。分节页、卡片与排版取值见 `docs/design/candidate-ui.md`「设置程序」。
 
 TSF 原有数字 / OEM 标点 / 空格键码按当前布局用 `ToUnicodeEx` 解析（bit 2 避免改变键盘状态），
 仅接受单个非代理项 UTF-16 单元。字母、小键盘和 AltGr 处理不变，不保证组合音符输入。

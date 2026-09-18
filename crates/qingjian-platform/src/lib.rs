@@ -11,7 +11,7 @@ pub mod protocol;
 pub mod resources;
 
 pub use config::{
-    Config, DEFAULT_DOMAINS, DEFAULT_PAGE_KEYS, DictionariesConfig, GeneralConfig,
+    ColorScheme, Config, DEFAULT_DOMAINS, DEFAULT_PAGE_KEYS, DictionariesConfig, GeneralConfig,
     LEARNING_LANGUAGE_OFF, LocalModelConfig, LogLevel, MAX_PAGE_SIZE, Modifiers, PAGE_KEY_OPTIONS,
     PreeditMode, ShortcutConfig, ThemeMode,
 };

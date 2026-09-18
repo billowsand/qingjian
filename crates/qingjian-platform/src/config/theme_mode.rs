@@ -1,6 +1,9 @@
 use serde::{Deserialize, Serialize};
 
-/// 候选窗口外观。
+/// 旧协议里的候选窗口明暗。
+///
+/// 新设置不再使用这个类型，明暗始终跟随系统；字段继续留在 [`crate::protocol::Frame`] 里，
+/// 让升级后仍驻留在应用进程里的旧 DLL 能解析新 Server 发来的帧。
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum ThemeMode {
@@ -16,7 +19,7 @@ pub enum ThemeMode {
 }
 
 impl ThemeMode {
-    /// 全部取值，设置界面按这个顺序列出。
+    /// 旧版设置界面的排列顺序。
     pub const ALL: [Self; 3] = [Self::System, Self::Light, Self::Dark];
 
     /// 配置文件里的写法。

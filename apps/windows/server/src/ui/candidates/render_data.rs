@@ -1,6 +1,6 @@
 //! 候选窗口一次绘制要用的全部内容，由帧换算而来；渲染器要的帧由 [`RenderData::render_frame`] 再换一次。
 
-use qingjian_platform::ThemeMode;
+use qingjian_platform::ColorScheme;
 use qingjian_platform::protocol::{Frame, PreeditKind};
 use qingjian_render::{Preedit, PreeditSegment, PreeditStyle, Row};
 
@@ -30,8 +30,8 @@ pub(crate) struct RenderData {
     /// 屏幕提示（删候选后的「已删除…」），画在拼音行下方。
     pub(super) notice: Option<String>,
 
-    /// 外观模式；`System` 由窗口按系统主题解析。
-    pub(super) theme_mode: ThemeMode,
+    /// 候选窗口、状态条与设置程序共用的色系。
+    pub(super) color_scheme: ColorScheme,
 }
 
 impl RenderData {
@@ -44,12 +44,12 @@ impl RenderData {
             footer: None,
             fuma_hint: None,
             notice: None,
-            theme_mode: ThemeMode::default(),
+            color_scheme: ColorScheme::default(),
         }
     }
 
     pub(super) fn set(&mut self, frame: &Frame) {
-        self.theme_mode = frame.theme;
+        self.color_scheme = frame.color_scheme;
         self.preedit = frame
             .preedit
             .iter()

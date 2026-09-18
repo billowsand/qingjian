@@ -30,7 +30,9 @@ mod tests;
 ///
 /// 0.1.6 之前 [`Frame`] 的字段是必填的，删掉 `layout` 那次让所有没重启的应用每键都失败
 /// （只能重启系统），上面第一条就是为这个加的。
-pub const PROTOCOL_VERSION: u32 = 7;
+///
+/// 7 → 8 只有一处：`Frame` 加了有默认值的 `color_scheme`（旧 DLL 忽略它；给旧 DLL 的 `theme` 照旧写 `system`）。
+pub const PROTOCOL_VERSION: u32 = 8;
 
 /// 从这版起 preedit 里可能出现 [`PreeditKind::Fuma`]；更早的 DLL 要降级成它认识的种类。
 pub const FUMA_PREEDIT_PROTOCOL: u32 = 5;

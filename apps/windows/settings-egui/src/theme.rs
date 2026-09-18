@@ -5,6 +5,7 @@
 //! winit 没把主题变化报过来，窗口一直停在浅色。读的是 Server 判断候选窗深浅的同一个键，两边不会打架。
 
 use eframe::egui;
+use qingjian_platform::ColorScheme;
 use qingjian_render::{Color, Palette};
 
 use crate::widgets::{CARD_PADDING_X, CARD_PADDING_Y, CARD_RADIUS, NOTE_OPACITY};
@@ -16,15 +17,14 @@ const INTERACT_HEIGHT: f32 = 20.0;
 const CONTROL_RADIUS: u8 = 5;
 
 /// 装两套 Visuals（浅色 / 深色）与更紧的间距，再按当前系统明暗选一套。
-pub(crate) fn install(ctx: &egui::Context) {
+pub(crate) fn install(ctx: &egui::Context, scheme: ColorScheme) {
     ctx.all_styles_mut(|style| {
         style.spacing.item_spacing = egui::vec2(6.0, 3.0);
         style.spacing.button_padding = egui::vec2(10.0, 3.0);
         style.spacing.interact_size.y = INTERACT_HEIGHT;
         style.spacing.combo_height = 320.0;
     });
-    ctx.set_visuals_of(egui::Theme::Light, visuals(egui::Visuals::light(), false));
-    ctx.set_visuals_of(egui::Theme::Dark, visuals(egui::Visuals::dark(), true));
+    apply_visuals(ctx, scheme);
     ctx.set_theme(preference(system_prefers_dark()));
 }
 
@@ -40,19 +40,41 @@ pub(crate) fn system_prefers_dark() -> bool {
 /// 系统明暗变了就换一套 Visuals（在 Windows 的设置里切主题，窗口开着也跟）。
 ///
 /// egui 只在有输入时重绘，所以这里顺手预约下一次醒来——不然鼠标不动就看不到主题切过来。
-pub(crate) fn follow_system(ctx: &egui::Context, dark: &mut bool) {
+pub(crate) fn follow_system(
+    ctx: &egui::Context,
+    dark: &mut bool,
+    applied_scheme: &mut ColorScheme,
+    scheme: ColorScheme,
+) {
     ctx.request_repaint_after(std::time::Duration::from_millis(800));
     let now = system_prefers_dark();
-    if now != *dark {
+    let scheme_changed = scheme != *applied_scheme;
+    if scheme_changed {
+        apply_visuals(ctx, scheme);
+        *applied_scheme = scheme;
+    }
+    if now != *dark || scheme_changed {
         *dark = now;
         ctx.set_theme(preference(now));
-        // 标题栏是系统画的，跟着一起换（不换就出现深色标题栏 + 浅色正文）。
+        // 自绘标题栏也从当前 egui Theme 取色，和正文在同一帧切换。
         ctx.send_viewport_cmd(egui::ViewportCommand::SetTheme(if now {
             egui::SystemTheme::Dark
         } else {
             egui::SystemTheme::Light
         }));
     }
+}
+
+fn apply_visuals(ctx: &egui::Context, scheme: ColorScheme) {
+    ctx.data_mut(|data| data.insert_temp(egui::Id::new("color-scheme"), scheme));
+    ctx.set_visuals_of(
+        egui::Theme::Light,
+        visuals(egui::Visuals::light(), false, scheme),
+    );
+    ctx.set_visuals_of(
+        egui::Theme::Dark,
+        visuals(egui::Visuals::dark(), true, scheme),
+    );
 }
 
 fn preference(dark: bool) -> egui::ThemePreference {
@@ -63,20 +85,36 @@ fn preference(dark: bool) -> egui::ThemePreference {
     }
 }
 
-fn palette(dark: bool) -> Palette {
-    if dark {
-        Palette::dark()
-    } else {
-        Palette::light()
+pub(crate) fn palette_for(scheme: ColorScheme, dark: bool) -> Palette {
+    match (scheme, dark) {
+        (ColorScheme::Cream, false) => Palette::cream_light(),
+        (ColorScheme::Cream, true) => Palette::cream_dark(),
+        (ColorScheme::Zizai, false) => Palette::zizai_light(),
+        (ColorScheme::Zizai, true) => Palette::zizai_dark(),
+        (ColorScheme::Latte, false) => Palette::latte_light(),
+        (ColorScheme::Latte, true) => Palette::latte_dark(),
+        (ColorScheme::Forest, false) => Palette::forest_light(),
+        (ColorScheme::Forest, true) => Palette::forest_dark(),
     }
+}
+
+fn current_scheme(ctx: &egui::Context) -> ColorScheme {
+    ctx.data(|data| {
+        data.get_temp::<ColorScheme>(egui::Id::new("color-scheme"))
+            .unwrap_or_default()
+    })
+}
+
+pub(crate) fn current_palette(ctx: &egui::Context) -> Palette {
+    palette_for(current_scheme(ctx), dark_mode(ctx))
 }
 
 fn color32(color: Color) -> egui::Color32 {
     egui::Color32::from_rgba_unmultiplied(color.r, color.g, color.b, color.a)
 }
 
-fn visuals(base: egui::Visuals, dark: bool) -> egui::Visuals {
-    let colors = palette(dark);
+fn visuals(base: egui::Visuals, dark: bool, scheme: ColorScheme) -> egui::Visuals {
+    let colors = palette_for(scheme, dark);
     let mut visuals = base;
     visuals.panel_fill = color32(colors.background);
     visuals.window_fill = color32(colors.background);
@@ -87,19 +125,9 @@ fn visuals(base: egui::Visuals, dark: bool) -> egui::Visuals {
     visuals.hyperlink_color = color32(colors.accent);
     visuals.widgets.noninteractive.corner_radius = egui::CornerRadius::same(CARD_RADIUS as u8);
     // 下拉框与按钮：白卡上再放一层更浅的底 + 1 px 描边，像 Fluent 的控件，而不是 egui 缺省的灰块。
-    let (control, border, border_strong) = if dark {
-        (
-            egui::Color32::from_rgb(48, 52, 60),
-            egui::Color32::from_rgb(70, 75, 84),
-            egui::Color32::from_rgb(92, 98, 108),
-        )
-    } else {
-        (
-            egui::Color32::from_rgb(250, 249, 246),
-            egui::Color32::from_rgb(222, 220, 214),
-            egui::Color32::from_rgb(196, 193, 186),
-        )
-    };
+    let control = color32(colors.background).gamma_multiply(if dark { 1.22 } else { 1.035 });
+    let border = color32(colors.pos).gamma_multiply(if dark { 0.72 } else { 0.58 });
+    let border_strong = color32(colors.accent).gamma_multiply(if dark { 0.9 } else { 0.78 });
     for (widget, fill, stroke) in [
         (&mut visuals.widgets.inactive, control, border),
         (
@@ -130,13 +158,13 @@ fn dark_mode(ctx: &egui::Context) -> bool {
 
 /// 说明小字的颜色（WinUI 版用的是正文色 + 0.65 不透明度）。
 pub(crate) fn note_color(ctx: &egui::Context) -> egui::Color32 {
-    let colors = palette(dark_mode(ctx));
+    let colors = current_palette(ctx);
     color32(colors.gloss).gamma_multiply(NOTE_OPACITY)
 }
 
 /// 导航选中项的底色。
 pub(crate) fn selected_fill(ctx: &egui::Context) -> egui::Color32 {
-    let colors = palette(dark_mode(ctx));
+    let colors = current_palette(ctx);
     color32(colors.highlight)
 }
 
@@ -147,30 +175,26 @@ pub(crate) fn hover_fill(ctx: &egui::Context) -> egui::Color32 {
 
 /// 图标列的颜色：比正文淡一档，让标签自己突出来。
 pub(crate) fn icon_color(ctx: &egui::Context) -> egui::Color32 {
-    color32(palette(dark_mode(ctx)).gloss)
+    color32(current_palette(ctx).gloss)
 }
 
 /// 行与行之间那条淡线。
 pub(crate) fn separator_color(ctx: &egui::Context) -> egui::Color32 {
-    if dark_mode(ctx) {
-        egui::Color32::from_rgb(58, 62, 70)
-    } else {
-        egui::Color32::from_rgb(234, 232, 226)
-    }
+    color32(current_palette(ctx).pos).gamma_multiply(if dark_mode(ctx) { 0.52 } else { 0.34 })
 }
 
 /// 强调色（品牌蓝），开关打开时用。
 pub(crate) fn accent(ctx: &egui::Context) -> egui::Color32 {
-    color32(palette(dark_mode(ctx)).accent)
+    color32(current_palette(ctx).accent)
 }
 
 /// 左侧导航栏的底：比正文区略深一档，和 WinUI 的 NavigationView 分区一致。
 pub(crate) fn nav_frame(ctx: &egui::Context) -> egui::Frame {
     let dark = dark_mode(ctx);
     let fill = if dark {
-        color32(palette(true).background).gamma_multiply(0.82)
+        color32(current_palette(ctx).background).gamma_multiply(0.82)
     } else {
-        color32(palette(false).background).gamma_multiply(0.97)
+        color32(current_palette(ctx).background).gamma_multiply(0.97)
     };
     egui::Frame::NONE
         .fill(fill)
@@ -180,24 +204,16 @@ pub(crate) fn nav_frame(ctx: &egui::Context) -> egui::Frame {
 /// 正文区的底。
 pub(crate) fn page_frame(ctx: &egui::Context) -> egui::Frame {
     egui::Frame::NONE
-        .fill(color32(palette(dark_mode(ctx)).background))
+        .fill(color32(current_palette(ctx).background))
         .inner_margin(egui::Margin::symmetric(20, 16))
 }
 
 /// 一张设置卡片的外框：底色 + 1 px 描边 + 圆角，取值与 WinUI 版 `controls/mod.rs` 相同。
 pub(crate) fn card_frame(ctx: &egui::Context) -> egui::Frame {
     let dark = dark_mode(ctx);
-    let (fill, stroke) = if dark {
-        (
-            egui::Color32::from_rgb(38, 41, 48),
-            egui::Color32::from_rgb(58, 62, 70),
-        )
-    } else {
-        (
-            egui::Color32::from_rgb(255, 255, 255),
-            egui::Color32::from_rgb(228, 226, 219),
-        )
-    };
+    let colors = current_palette(ctx);
+    let fill = color32(colors.background).gamma_multiply(if dark { 1.18 } else { 1.04 });
+    let stroke = color32(colors.pos).gamma_multiply(if dark { 0.58 } else { 0.42 });
     egui::Frame::NONE
         .fill(fill)
         .stroke(egui::Stroke::new(1.0, stroke))
@@ -206,4 +222,11 @@ pub(crate) fn card_frame(ctx: &egui::Context) -> egui::Frame {
             CARD_PADDING_X as i8,
             CARD_PADDING_Y as i8,
         ))
+}
+
+/// 自绘标题栏与导航栏用同一层底色。
+pub(crate) fn title_bar_frame(ctx: &egui::Context) -> egui::Frame {
+    egui::Frame::NONE
+        .fill(nav_frame(ctx).fill)
+        .inner_margin(egui::Margin::symmetric(10, 0))
 }

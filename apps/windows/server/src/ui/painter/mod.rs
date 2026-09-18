@@ -3,6 +3,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
+use qingjian_platform::ColorScheme;
 use qingjian_render::{
     FontLibrary, Frame, Rendered, RenderedStatus, Renderer, Shadow, StatusCell, Theme, UiFont,
     system_fonts,
@@ -64,11 +65,17 @@ impl Painter {
     }
 
     /// 画一帧候选窗口；`dpi` 96 为 100%。
-    pub(super) fn render_frame(&mut self, frame: &Frame, dark: bool, dpi: u32) -> Option<Rendered> {
+    pub(super) fn render_frame(
+        &mut self,
+        frame: &Frame,
+        color_scheme: ColorScheme,
+        dark: bool,
+        dpi: u32,
+    ) -> Option<Rendered> {
         let started = std::time::Instant::now();
         let rendered = self
             .renderer
-            .render(frame, &theme(dark), scale(dpi), Some(&SHADOW))
+            .render(frame, &theme(color_scheme, dark), scale(dpi), Some(&SHADOW))
             .inspect_err(|error| tracing::warn!(%error, "候选窗渲染失败"))
             .ok()?;
         tracing::debug!(
@@ -84,11 +91,12 @@ impl Painter {
     pub(super) fn render_status(
         &mut self,
         cells: &[StatusCell],
+        color_scheme: ColorScheme,
         dark: bool,
         dpi: u32,
     ) -> Option<RenderedStatus> {
         self.renderer
-            .render_status(cells, &theme(dark), scale(dpi), Some(&SHADOW))
+            .render_status(cells, &theme(color_scheme, dark), scale(dpi), Some(&SHADOW))
             .inspect_err(|error| tracing::warn!(%error, "状态条渲染失败"))
             .ok()
     }
@@ -97,8 +105,13 @@ impl Painter {
 /// 两个窗口都用渲染器画阴影（分层窗口没有系统阴影），参数与 macOS 面板一致。
 const SHADOW: Shadow = Shadow::mac_panel();
 
-fn theme(dark: bool) -> Theme {
-    if dark { Theme::dark() } else { Theme::light() }
+fn theme(color_scheme: ColorScheme, dark: bool) -> Theme {
+    match color_scheme {
+        ColorScheme::Cream => Theme::cream(dark),
+        ColorScheme::Zizai => Theme::zizai(dark),
+        ColorScheme::Latte => Theme::latte(dark),
+        ColorScheme::Forest => Theme::forest(dark),
+    }
 }
 
 /// 点 → 像素的倍数。

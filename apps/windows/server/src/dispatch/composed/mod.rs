@@ -126,7 +126,7 @@ impl Router {
                 highlight: usize::MAX,
                 page: 0,
                 page_count: 1,
-                theme: self.config.theme,
+                color_scheme: self.config.color_scheme,
                 notice: self.notice.clone(),
                 inline_preedit: self.config.preedit.inline(),
                 ..Frame::default()
@@ -153,7 +153,7 @@ impl Router {
                     highlight: highlight - page * page_size,
                     page,
                     page_count: layout.pages().max(1),
-                    theme: self.config.theme,
+                    color_scheme: self.config.color_scheme,
                     notice: self.notice.clone(),
                     inline_preedit: self.config.preedit.inline(),
                     ..Frame::default()

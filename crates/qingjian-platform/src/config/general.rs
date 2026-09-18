@@ -1,7 +1,7 @@
 use qingjian_core::{FumaScheme, ShuangpinScheme};
 use serde::{Deserialize, Serialize};
 
-use super::{LogLevel, PreeditMode, ThemeMode};
+use super::{ColorScheme, LogLevel, PreeditMode};
 
 /// 每页最多几个候选：数字键只有 1–9。
 pub const MAX_PAGE_SIZE: usize = 9;
@@ -30,8 +30,8 @@ pub struct GeneralConfig {
     /// 翻页键对，两个字符：前一个上一页、后一个下一页。
     pub page_keys: String,
 
-    /// 候选窗口外观。
-    pub theme: ThemeMode,
+    /// 候选窗口、状态条与设置程序共用的色系；明暗始终跟随系统。
+    pub theme: ColorScheme,
 
     /// 候选窗口字体的字族名；空为系统字体，没装这个字体时回到系统字体。
     pub font: String,
@@ -74,7 +74,7 @@ impl Default for GeneralConfig {
             learning_language: "en".to_owned(),
             page_size: MAX_PAGE_SIZE,
             page_keys: PAGE_KEY_OPTIONS[0].to_owned(),
-            theme: ThemeMode::default(),
+            theme: ColorScheme::default(),
             font: String::new(),
             preedit: PreeditMode::default(),
             chinese_first: false,

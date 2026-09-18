@@ -92,7 +92,7 @@ impl Router {
                     english,
                     scheme: self.config.shuangpin.map(|scheme| scheme.key().to_owned()),
                     full_width: self.full_width_for(english),
-                    theme: self.config.theme,
+                    color_scheme: self.config.color_scheme,
                     anchor: self.config.status_pos,
                 });
             }

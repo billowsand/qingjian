@@ -39,7 +39,49 @@ pub struct Palette {
 }
 
 impl Palette {
+    /// 字在蓝浅色（保留旧名字给已有调用）。
     pub const fn light() -> Self {
+        Self::zizai_light()
+    }
+
+    /// 字在蓝深色（保留旧名字给已有调用）。
+    pub const fn dark() -> Self {
+        Self::zizai_dark()
+    }
+
+    pub const fn cream_light() -> Self {
+        Self {
+            accent: Color::rgb(197, 99, 66),
+            text: Color::rgb(45, 41, 37),
+            gloss: Color::rgb(117, 106, 97),
+            pos: Color::rgb(160, 145, 133),
+            fresh: Color::rgb(201, 123, 53),
+            index: Color::rgb(160, 145, 133),
+            cloud: Color::rgb(65, 151, 183),
+            caret: Color::rgb(79, 184, 166),
+            correction: Color::rgb(199, 91, 83),
+            background: Color::rgb(247, 241, 232),
+            highlight: Color::rgb(242, 222, 209),
+        }
+    }
+
+    pub const fn cream_dark() -> Self {
+        Self {
+            accent: Color::rgb(229, 138, 102),
+            text: Color::rgb(247, 238, 227),
+            gloss: Color::rgb(200, 185, 170),
+            pos: Color::rgb(145, 131, 118),
+            fresh: Color::rgb(231, 169, 83),
+            index: Color::rgb(145, 131, 118),
+            cloud: Color::rgb(93, 190, 220),
+            caret: Color::rgb(103, 205, 187),
+            correction: Color::rgb(235, 128, 119),
+            background: Color::rgb(38, 31, 27),
+            highlight: Color::rgb(75, 50, 40),
+        }
+    }
+
+    pub const fn zizai_light() -> Self {
         Self {
             accent: Color::rgb(49, 87, 216),
             text: Color::rgb(23, 32, 51),
@@ -55,7 +97,7 @@ impl Palette {
         }
     }
 
-    pub const fn dark() -> Self {
+    pub const fn zizai_dark() -> Self {
         Self {
             accent: Color::rgb(107, 139, 255),
             text: Color::rgb(247, 246, 242),
@@ -68,6 +110,70 @@ impl Palette {
             correction: Color::rgb(243, 139, 139),
             background: Color::rgb(23, 32, 51),
             highlight: Color::rgb(37, 55, 95),
+        }
+    }
+
+    pub const fn latte_light() -> Self {
+        Self {
+            accent: Color::rgb(123, 90, 166),
+            text: Color::rgb(48, 39, 56),
+            gloss: Color::rgb(120, 107, 129),
+            pos: Color::rgb(164, 151, 173),
+            fresh: Color::rgb(201, 123, 53),
+            index: Color::rgb(164, 151, 173),
+            cloud: Color::rgb(94, 158, 199),
+            caret: Color::rgb(196, 154, 108),
+            correction: Color::rgb(202, 101, 113),
+            background: Color::rgb(247, 243, 249),
+            highlight: Color::rgb(233, 223, 240),
+        }
+    }
+
+    pub const fn latte_dark() -> Self {
+        Self {
+            accent: Color::rgb(181, 150, 211),
+            text: Color::rgb(244, 236, 246),
+            gloss: Color::rgb(198, 183, 204),
+            pos: Color::rgb(143, 129, 151),
+            fresh: Color::rgb(230, 166, 86),
+            index: Color::rgb(143, 129, 151),
+            cloud: Color::rgb(104, 184, 220),
+            caret: Color::rgb(210, 174, 131),
+            correction: Color::rgb(235, 133, 145),
+            background: Color::rgb(33, 26, 38),
+            highlight: Color::rgb(59, 45, 71),
+        }
+    }
+
+    pub const fn forest_light() -> Self {
+        Self {
+            accent: Color::rgb(62, 124, 85),
+            text: Color::rgb(36, 49, 40),
+            gloss: Color::rgb(100, 114, 104),
+            pos: Color::rgb(146, 158, 149),
+            fresh: Color::rgb(193, 131, 50),
+            index: Color::rgb(146, 158, 149),
+            cloud: Color::rgb(57, 143, 157),
+            caret: Color::rgb(149, 168, 79),
+            correction: Color::rgb(199, 94, 91),
+            background: Color::rgb(240, 244, 237),
+            highlight: Color::rgb(221, 234, 223),
+        }
+    }
+
+    pub const fn forest_dark() -> Self {
+        Self {
+            accent: Color::rgb(114, 179, 135),
+            text: Color::rgb(237, 244, 234),
+            gloss: Color::rgb(182, 195, 184),
+            pos: Color::rgb(124, 140, 128),
+            fresh: Color::rgb(224, 171, 79),
+            index: Color::rgb(124, 140, 128),
+            cloud: Color::rgb(88, 183, 196),
+            caret: Color::rgb(176, 196, 94),
+            correction: Color::rgb(234, 132, 128),
+            background: Color::rgb(23, 35, 27),
+            highlight: Color::rgb(41, 66, 51),
         }
     }
 }

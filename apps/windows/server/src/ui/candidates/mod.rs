@@ -17,7 +17,6 @@ use windows::Win32::UI::WindowsAndMessaging::{
 };
 use windows::core::{PCWSTR, Result, w};
 
-use qingjian_platform::ThemeMode;
 use qingjian_platform::protocol::Frame;
 
 use self::placement::{LastPlacement, place};
@@ -29,17 +28,8 @@ use super::window_class::WindowClass;
 const CLASS_NAME: PCWSTR = w!("QingjianCandidateWindow");
 static CLASS: WindowClass = WindowClass::new();
 
-/// 按外观模式解析深浅；`System` 读系统主题。
-pub(super) fn resolve_dark(mode: ThemeMode) -> bool {
-    match mode {
-        ThemeMode::Light => false,
-        ThemeMode::Dark => true,
-        ThemeMode::System => system_prefers_dark(),
-    }
-}
-
 /// `HKCU\...\Themes\Personalize\AppsUseLightTheme` 为 0 是深色；读不到当浅色。
-fn system_prefers_dark() -> bool {
+pub(super) fn system_prefers_dark() -> bool {
     windows_registry::CURRENT_USER
         .open(r"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize")
         .and_then(|key| key.get_u32("AppsUseLightTheme"))
@@ -77,7 +67,7 @@ impl CandidateWindow {
             ..Default::default()
         })?;
         let dpi = unsafe { GetDpiForSystem() }.max(96);
-        let dark = resolve_dark(ThemeMode::default());
+        let dark = system_prefers_dark();
         let data = RefCell::new(RenderData::empty());
         // NOACTIVATE：显示时不抢应用焦点。
         let hwnd = unsafe {
@@ -118,6 +108,7 @@ impl CandidateWindow {
             let data = self.data.borrow();
             self.painter.borrow_mut().render_frame(
                 &data.render_frame(),
+                data.color_scheme,
                 self.dark.get(),
                 self.dpi.get(),
             )
@@ -161,7 +152,7 @@ impl CandidateWindow {
             0 => self.dpi.get(),
             dpi => dpi,
         };
-        let dark = resolve_dark(self.data.borrow().theme_mode);
+        let dark = system_prefers_dark();
         self.dpi.set(dpi);
         self.dark.set(dark);
     }
