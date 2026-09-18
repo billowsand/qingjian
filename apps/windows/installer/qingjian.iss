@@ -44,6 +44,11 @@ AppVersion={#AppVersion}
 AppPublisher={#Publisher}
 AppSupportURL={#WebsiteUrl}
 VersionInfoVersion={#AppVersionNumeric}
+; SignPath 元数据校验要求安装包与三个 PE 的 ProductName 一致（ProductName 用 ASCII "Qingjian"：
+; winresource 生成的 .rc 对非 ASCII 不可靠，见 docs/design/code-signing.md）。
+; ProductVersion 不在这里写：Inno 缺省取 AppVersion（完整版本串，含预发布后缀），与 PE 嵌的
+; QINGJIAN_PRODUCT_VERSION 一致；显式写 VersionInfoProductVersion 会被 Inno 按数字版本校验拒掉。
+VersionInfoProductName=Qingjian
 DefaultDirName={autopf}\Qingjian
 DefaultGroupName={#AppName}
 DisableProgramGroupPage=yes

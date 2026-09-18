@@ -31,11 +31,22 @@ fn main() {
 
 /// 图标资源要 `rc.exe`（MSVC）编，只在 Windows 宿主上做；失败只警告，别让编译挂掉。
 /// winresource 缺省不带 manifest，与上面链接器嵌的那份不冲突。
+/// 同时嵌 VERSIONINFO 元数据：SignPath 签名按 product-name/product-version 校验
+/// （docs/design/code-signing.md），版本统一用 QINGJIAN_PRODUCT_VERSION（CI 传安装包版本）。
 #[cfg(windows)]
 fn embed_icon() {
     const ICON: &str = "../tsf/resources/qingjian.ico";
     println!("cargo:rerun-if-changed={ICON}");
-    if let Err(error) = winresource::WindowsResource::new().set_icon(ICON).compile() {
+    println!("cargo:rerun-if-env-changed=QINGJIAN_PRODUCT_VERSION");
+    let version = std::env::var("QINGJIAN_PRODUCT_VERSION")
+        .unwrap_or_else(|_| env!("CARGO_PKG_VERSION").to_owned());
+    let mut res = winresource::WindowsResource::new();
+    res.set_icon(ICON)
+        .set("ProductName", "Qingjian")
+        .set("ProductVersion", &version)
+        .set("FileVersion", &version)
+        .set("FileDescription", "Qingjian input server");
+    if let Err(error) = res.compile() {
         println!("cargo:warning=嵌入 Server 图标失败: {error}");
     }
 }

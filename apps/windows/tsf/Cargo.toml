@@ -44,3 +44,7 @@ windows = { version = "0.62.2", features = [
     "Win32_UI_TextServices",
     "Win32_UI_WindowsAndMessaging",
 ] }
+
+[build-dependencies]
+# build.rs 嵌 VERSIONINFO（产品名/版本），SignPath 签名元数据校验要（见 build.rs 头注释）
+winresource = "0.1.31"
