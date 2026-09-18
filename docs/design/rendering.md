@@ -118,7 +118,7 @@
 - **壳**：`apps/windows/server/src/ui/painter/`，候选窗口与悬浮状态条共用一份渲染器（字体库与字形缓存一份）；`layered::present` 把渲染器出的预乘 RGBA 位图换成 BGRA 后 `UpdateLayeredWindow` 贴上，阴影由渲染器画（`Shadow::mac_panel()`，参数与 macOS 面板一致；分层窗口没有系统阴影）。倍数取 DPI / 96。渲染器或字体库初始化失败时不显示候选窗口与状态条并记错误日志。
 - **状态条**：渲染器的 `render_status` 接收 `StatusCell::{Grip, Mode, Text, Gear}`，返回位图与各格右边界供点击命中；`Mode` 把「中 / A」画成钴蓝方章，中文态有薄荷点，双拼在右侧只留「鹤 / 自 / 微 / 搜」。齿轮用矢量画，避免 Segoe UI Emoji 把 U+2699 画成彩色。
 - **配置**：`[general] font` 经 `CandidateSink::set_font` 送到 UI 线程，装上时与热加载变了时各送一次；字族名按 DirectWrite 的系统字体集合找文件（`qingjian_render::system_fonts`），设置程序的「字体」框也从它列字族。
-- **候选行类型**：Windows 壳直接用渲染器的 `Row` / `Tone`，不再有自己的一份；macOS 壳还留着 `convert.rs`，spike 定型后一起去掉。
+- **候选行类型**：Windows 壳直接用渲染器的 `Row` / `Tone`，不再有自己的一份。
 - **删候选的提示**：渲染器画在拼音行右侧。
 - **同步主题（2026-09-18）**：奶油 / 字在蓝 / 紫藤拿铁 / 森林各有浅色与深色；明暗始终跟随系统。品牌强调、输入光标、云服务、生词、纠错仍是独立颜色字段，
   当前候选保留强调色前导线。设置程序、候选窗口与悬浮状态条读取同一个 `[general] theme`，热加载同步更新。具体值与使用边界见 `docs/design/brand.md`。

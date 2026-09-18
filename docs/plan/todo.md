@@ -73,10 +73,10 @@
 - [ ] 可选复习（Phase 4）：输入统计、生词识别、词汇统计（含 CEFR / JLPT 等级分布）已做（2026-09-06）；复习容易变成打扰，先不急
 - [ ] 个人模型（Phase 7）：小 Transformer 实验（有评测门槛），见 roadmap
 
-- [ ] ★ **主题与自绘渲染器 spike**（2026-09-13 定向，分支 `renderer-spike`，见 [design/rendering.md](../design/rendering.md)）：
-  tiny-skia + cosmic-text 画一行「青简 hello 🙂 日本語」+ 圆角阴影，Windows / macOS 与原生并排截图，验四条：彩色 emoji（sbix / COLRv0）、
-  中日字形回退按 locale、字体按需加载（不扫全系统）、灰度抗锯齿观感；首帧耗时与内存不劣于 GDI / AppKit。过了 Windows + macOS 一起换渲染器、主题文件 TOML；
-  不过退回各平台各自渲染（Windows 走 D2D）。设置程序不自绘。
+- [~] ★ **主题与自绘渲染器**（2026-09-13 定向，见 [design/rendering.md](../design/rendering.md)）：**Windows 已接入**——候选窗与悬浮状态条由渲染器出位图，
+  GDI 退路与竖排已删（2026-09-18）。当时要验的四条：彩色 emoji（sbix / COLRv0）、中日字形回退按 locale、字体按需加载（不扫全系统）、灰度抗锯齿观感，
+  结果见 design/rendering.md「真机结果」。余下：主题文件 TOML（色系暂时写在 `qingjian_render::Palette`，见 [design/brand.md](../design/brand.md)）、其他平台壳。
+  设置程序不自绘，用现成 toolkit（egui，见 [notes/egui-settings-spike.md](../notes/egui-settings-spike.md)）。
 
 ## 三、其他平台
 
