@@ -10,9 +10,8 @@ use std::os::unix::net::UnixStream;
 use std::path::PathBuf;
 use std::thread;
 
-use qingjian_core::Language;
-use qingjian_platform::protocol::{KeyEvent, KeyModifiers, KeyOutcome, SessionId};
-use qingjian_tsf::client::{EngineClient, KeyReply, KeyResponse};
+use qingjian_platform::protocol::{KeyEvent, KeyOutcome, SessionId};
+use qingjian_tsf::client::EngineClient;
 use qingjian_windows_server::{AssemblySpec, Router, RouterConfig, assembly, ipc};
 
 const SESSION: SessionId = SessionId(1);
@@ -22,25 +21,13 @@ fn letter(c: char) -> KeyEvent {
     KeyEvent::new(c.to_ascii_uppercase() as u32, Some(c), Default::default())
 }
 
-/// 取常规按键结果；收到「读选区」请求（不该在这些用例里出现）就 panic。
-fn result(reply: KeyReply) -> KeyResponse {
-    match reply {
-        KeyReply::Result(response) => response,
-        KeyReply::NeedSelection { .. } => panic!("没料到 Server 要读选区"),
-    }
-}
-
 /// 起一个后台 Server：用样例词库装 Router，在 `server_end` 上 serve 到对端关闭。
 fn spawn_server(server_end: UnixStream) -> thread::JoinHandle<()> {
     thread::spawn(move || {
         let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../..");
         let dict = root.join("assets/sample/dict.tsv");
-        let glossary = root.join("assets/sample/glossary-en.tsv");
-        let engine = assembly::assemble(&AssemblySpec {
-            glossary: Some((Language::English, glossary)),
-            ..AssemblySpec::new(dict)
-        })
-        .expect("assemble engine from sample data");
+        let engine =
+            assembly::assemble(&AssemblySpec::new(dict)).expect("assemble engine from sample data");
         let mut router = Router::new(engine, RouterConfig::default());
         let mut stream = server_end;
         let _ = ipc::serve(&mut stream, &mut router);
@@ -55,7 +42,7 @@ fn client_types_pinyin_and_gets_candidates() {
     let mut client = EngineClient::open(client_end, SESSION, None).expect("open session");
     let mut last = None;
     for c in "nihao".chars() {
-        last = Some(result(client.key(letter(c)).expect("key round-trips")));
+        last = Some(client.key(letter(c)).expect("key round-trips"));
     }
     let response = last.unwrap();
 
@@ -93,11 +80,9 @@ fn space_commits_first_candidate() {
     for c in "ni".chars() {
         client.key(letter(c)).expect("key round-trips");
     }
-    let space = result(
-        client
-            .key(KeyEvent::new(0x20, Some(' '), Default::default()))
-            .expect("space round-trips"),
-    );
+    let space = client
+        .key(KeyEvent::new(0x20, Some(' '), Default::default()))
+        .expect("space round-trips");
 
     assert_eq!(space.outcome, KeyOutcome::Consumed);
     assert_eq!(space.commit.as_deref(), Some("你"), "「ni」首选应是「你」");
