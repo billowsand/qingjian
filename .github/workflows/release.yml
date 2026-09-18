@@ -1,5 +1,8 @@
 # 推 windows-v<版本> 标签触发（Windows 壳版本号在 apps/windows/server/Cargo.toml），流程见 docs/notes/release.md。
-# Windows 现在没有代码签名，uiAccess 也就缺省不嵌（否则没签名的 Server 起不来），证书办下来再加 signtool。
+# 代码签名走 SignPath Foundation 免费开源证书（docs/design/code-signing.md）：二进制构建后先送 SignPath 签回
+# （Inno 原样打包已签文件），安装包编出后再签外层。签名请求要在 SignPath 面板由审批人手动批准
+# （基金会条款：每次发布都批），action 挂起等待，批完自动继续。
+# SignPath 没配齐（secrets.SIGNPATH_API_TOKEN + vars.SIGNPATH_PROJECT_SLUG）时退回旧行为：不签名、uiAccess=0。
 # 发版后让官网重新构建（也可选）：
 #   QINGJIAN_WEB_TOKEN           fine-grained PAT，对 qingjian-team/qingjian-web 有 Contents: read and write
 #                                （官网由 Cloudflare 按仓库提交自动构建，tools/release/bump-website.sh 往那边推一个小提交）
@@ -22,18 +25,17 @@ jobs:
     runs-on: windows-latest
     permissions:
       contents: write
+      # SignPath action 要用 GITHUB_TOKEN 读构建产物（artifact）与 job 元数据
+      actions: read
     defaults:
       run:
         shell: bash
     env:
-      # 没有代码签名证书：Server 不带 uiAccess（没签名的 exe 带 uiAccess=true 起不来）。缺省就是关，写明防误设；
-      # 证书办下来后在 build.ps1 加 signtool 并把这里改成 '1'。
-      QINGJIAN_UIACCESS: '0'
       PYTHON: python
       # Windows 上 Python 的标准输出缺省 cp1252，中文更新日志会编码失败。
       PYTHONUTF8: '1'
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410b181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           persist-credentials: false
@@ -48,7 +50,14 @@ jobs:
 
       - name: Detect optional secrets
         id: secrets
-        run: echo "website=${{ secrets.QINGJIAN_WEB_TOKEN != '' }}" >> "$GITHUB_OUTPUT"
+        run: |
+          echo "website=${{ secrets.QINGJIAN_WEB_TOKEN != '' }}" >> "$GITHUB_OUTPUT"
+          # SignPath 签名链：API token 与项目 slug 都配好才走签名，缺一退回无签名发版（同申请证书前的旧行为）。
+          if [[ -n "${{ secrets.SIGNPATH_API_TOKEN }}" && -n "${{ vars.SIGNPATH_PROJECT_SLUG }}" ]]; then
+            echo "signpath=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "signpath=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Check version matches tag and tag is on main
         run: |
@@ -69,6 +78,20 @@ jobs:
           fi
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
 
+      - name: Configure build mode
+        run: |
+          # 签名链就绪（SignPath）时 Server 嵌 uiAccess：exe 会被签名且装进 Program Files，能升进 UIAccess
+          # 高带，候选窗不再被商店 / 任务栏搜索盖住。没签名时必须保持 0（带 uiAccess 的未签名 exe 起不来，
+          # os error 740）。这里不写死 job env，是因为有无签名要运行时按 secrets 判定。
+          if [[ "${{ steps.secrets.outputs.signpath }}" == 'true' ]]; then
+            echo "QINGJIAN_UIACCESS=1" >> "$GITHUB_ENV"
+          else
+            echo "QINGJIAN_UIACCESS=0" >> "$GITHUB_ENV"
+          fi
+          # SignPath 元数据校验要求同一次构建里所有产物的 ProductVersion 一致：三个 PE 都嵌这个版本
+          # （各 crate 的 build.rs 读它，缺省回落 crate 版本）。
+          echo "QINGJIAN_PRODUCT_VERSION=$VERSION" >> "$GITHUB_ENV"
+
       - name: Fetch product data
         env:
           GH_TOKEN: ${{ github.token }}
@@ -82,6 +105,66 @@ jobs:
           # 本地整句模型单文件：qingjian.iss 见到 data\model\model.qjm 就装进 {app}\data\model
           mv data/model.qjm data/model/
           ls -la data/generated data/generated/dicts data/model
+
+      - name: Build binaries
+        shell: pwsh
+        # -NoPackage：只构建。签回后再 -PackageOnly -PreSigned 打包，已签文件被 Inno 原样拷进安装包。
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File apps\windows\installer\build.ps1 -NoPackage
+
+      # —— SignPath 签名第一段：四个 PE（TSF DLL 64/32 位、Server、设置程序）——
+      # 关键的就是 TSF DLL：没签名的 DLL 在 UWP / 系统应用（任务栏搜索、「设置」）里被禁，签过才加载得进去。
+      - name: Stage unsigned binaries
+        if: steps.secrets.outputs.signpath == 'true'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path signpath-input -Force | Out-Null
+          # 两份 DLL 同名，32 位那个换名放进同一目录（artifact configuration 按这里的名录文件）。
+          Copy-Item target\release\qingjian_tsf.dll signpath-input\qingjian_tsf.dll
+          Copy-Item target\i686-pc-windows-msvc\release\qingjian_tsf.dll signpath-input\qingjian_tsf-x86.dll
+          Copy-Item target\release\qingjian-server.exe signpath-input\qingjian-server.exe
+          Copy-Item target\release\qingjian-settings-egui.exe signpath-input\qingjian-settings-egui.exe
+
+      - name: Upload unsigned binaries
+        if: steps.secrets.outputs.signpath == 'true'
+        id: upload-binaries
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: unsigned-binaries
+          path: signpath-input
+
+      - name: Sign binaries (SignPath)
+        if: steps.secrets.outputs.signpath == 'true'
+        uses: signpath/github-action-submit-signing-request@f6d04783b4569d051e0c80105fe66e82819d0092 # v3.0
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG }}
+          signing-policy-slug: ${{ vars.SIGNPATH_SIGNING_POLICY_SLUG }}
+          artifact-configuration-slug: ${{ vars.SIGNPATH_ARTIFACT_CONFIG_BINARIES }}
+          github-artifact-id: ${{ steps.upload-binaries.outputs.artifact-id }}
+          wait-for-completion: true
+          # release 签名策略要审批人在 SignPath 面板点批准；默认等 10 分钟不够，放宽到 2 小时。
+          wait-for-completion-timeout-in-seconds: 7200
+          output-artifact-directory: signpath-signed-binaries
+          parameters: |
+            version: "${{ env.VERSION }}"
+        timeout-minutes: 130
+
+      - name: Replace binaries with signed ones
+        if: steps.secrets.outputs.signpath == 'true'
+        shell: pwsh
+        run: |
+          # SignPath 签回的 artifact 是 zip（artifact configuration 根元素是 zip-file），解压后覆盖回 cargo 产物路径。
+          $src = 'signpath-signed-binaries'
+          $zip = Get-ChildItem $src -Recurse -Filter *.zip | Select-Object -First 1
+          if ($zip) {
+              Expand-Archive $zip.FullName "$src\extracted" -Force
+              $src = "$src\extracted"
+          }
+          Copy-Item (Join-Path $src 'qingjian_tsf.dll') target\release\qingjian_tsf.dll
+          Copy-Item (Join-Path $src 'qingjian_tsf-x86.dll') target\i686-pc-windows-msvc\release\qingjian_tsf.dll
+          Copy-Item (Join-Path $src 'qingjian-server.exe') target\release\qingjian-server.exe
+          Copy-Item (Join-Path $src 'qingjian-settings-egui.exe') target\release\qingjian-settings-egui.exe
 
       # 与开发机同版本（7.1.0，自带简体中文翻译；Chocolatey 只有 6.x，6 的安装包不带简中）。钉死 GitHub Release 上的文件。
       - name: Install Inno Setup 7.1.0
@@ -97,9 +180,54 @@ jobs:
           Start-Process -FilePath $exe -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/SP-' -Wait
           & "${env:ProgramFiles}\Inno Setup 7\ISCC.exe" --version
 
-      - name: Build installer
+      - name: Package installer
         shell: pwsh
-        run: powershell -NoProfile -ExecutionPolicy Bypass -File apps\windows\installer\build.ps1
+        run: |
+          # 签回产物打包带 -PreSigned（build.ps1 逐个校验签名有效才往下走）；无签名链时退回旧的剥签名行为。
+          $isccArgs = @('-PackageOnly')
+          if ('${{ steps.secrets.outputs.signpath }}' -eq 'true') { $isccArgs += '-PreSigned' }
+          powershell -NoProfile -ExecutionPolicy Bypass -File apps\windows\installer\build.ps1 @isccArgs
+
+      # —— SignPath 签名第二段：安装包外层 ——
+      - name: Upload unsigned installer
+        if: steps.secrets.outputs.signpath == 'true'
+        id: upload-installer
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: unsigned-installer
+          path: target/installer/Zizai-*-Setup.exe
+
+      - name: Sign installer (SignPath)
+        if: steps.secrets.outputs.signpath == 'true'
+        uses: signpath/github-action-submit-signing-request@f6d04783b4569d051e0c80105fe66e82819d0092 # v3.0
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG }}
+          signing-policy-slug: ${{ vars.SIGNPATH_SIGNING_POLICY_SLUG }}
+          artifact-configuration-slug: ${{ vars.SIGNPATH_ARTIFACT_CONFIG_INSTALLER }}
+          github-artifact-id: ${{ steps.upload-installer.outputs.artifact-id }}
+          wait-for-completion: true
+          wait-for-completion-timeout-in-seconds: 7200
+          output-artifact-directory: signpath-signed-installer
+          parameters: |
+            version: "${{ env.VERSION }}"
+        timeout-minutes: 130
+
+      - name: Replace installer with signed one
+        if: steps.secrets.outputs.signpath == 'true'
+        shell: pwsh
+        run: |
+          $src = 'signpath-signed-installer'
+          $zip = Get-ChildItem $src -Recurse -Filter *.zip | Select-Object -First 1
+          if ($zip) {
+              Expand-Archive $zip.FullName "$src\extracted" -Force
+              $src = "$src\extracted"
+          }
+          $signed = Get-ChildItem $src -Recurse -Filter 'Zizai-*-Setup.exe' | Select-Object -First 1
+          if (-not $signed) { throw '签回的安装包没找到' }
+          Remove-Item target\installer\Zizai-*-Setup.exe
+          Copy-Item $signed.FullName target\installer\
 
       - name: Checksums and build info
         run: |
@@ -117,7 +245,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           python tools/release/releases_json.py --notes-for "$VERSION" > "$RUNNER_TEMP/notes.md"
-          printf '\n> 内测版没有代码签名：安装时 SmartScreen 拦截请点「更多信息 → 仍要运行」；任务栏搜索、「设置」等系统应用里候选窗口可能被遮挡。\n' >> "$RUNNER_TEMP/notes.md"
+          if [[ "${{ steps.secrets.outputs.signpath }}" == 'true' ]]; then
+            printf '\n> 本版已由 SignPath Foundation 的证书签名（发布者显示 SignPath Foundation）：TSF DLL 签名后可在任务栏搜索、「设置」等系统应用里正常输入；Server 带 uiAccess，候选窗不再被这些界面遮挡。SmartScreen 信誉随版本积累，首次安装若仍提示请点「更多信息 → 仍要运行」。\n' >> "$RUNNER_TEMP/notes.md"
+          else
+            printf '\n> 内测版没有代码签名：安装时 SmartScreen 拦截请点「更多信息 → 仍要运行」；任务栏搜索、「设置」等系统应用里候选窗口可能被遮挡。\n' >> "$RUNNER_TEMP/notes.md"
+          fi
           gh release create "$GITHUB_REF_NAME" --title "字在 Windows $VERSION" --notes-file "$RUNNER_TEMP/notes.md" \
             target/installer/*.exe target/installer/SHA256SUMS target/installer/build-info.json
 
