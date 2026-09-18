@@ -136,7 +136,7 @@ Engine 侧在 `engine/rescoring/`：接了打分器就取 Viterbi 前 `RESCORE_P
 用户可见品牌是「字在」，内部 crate、可执行文件、`Qingjian` 数据与安装目录、`.qj` 格式名暂不迁移。图标矢量源在 `assets/icon/logo.svg`，
 `assets/icon/generate.py` 生成主 PNG 与 TSF / 设置 / Server / 安装器共用的多尺寸 `qingjian.ico`。
 设置程序把 `assets/icon/logo.png` 用 `include_bytes!` 编进 exe（`nav.rs`）作为几何遮罩，导航品牌条、无边框标题栏与「关于」页按当前色系和系统明暗实时换色，不依赖随包文件；
-「候选窗口」页用 egui painter 和渲染器 `Palette` 实时画四套浅 / 深主题卡，示例文字走当前候选字体，不嵌静态预览图。状态条的 `StatusCell::Mode` 使用当前主题强调色，双拼方案收成 `鹤 / 自 / 微 / 搜`；最后一格使用当前主题的矢量「字在」标记打开设置。
+「候选窗口」页用 egui painter 和渲染器 `Palette` 实时画四套浅 / 深主题卡，示例文字走当前候选字体，不嵌静态预览图。状态条的 `StatusCell::Logo` 按 `assets/readme/brand-system.png` 画主题色品牌 Logo 并承担拖拽；`StatusCell::Mode` 不再有独立色块，「中 / A」与双拼单字继续跟随候选字体，双拼方案收成 `鹤 / 自 / 微 / 搜`。最后一格使用当前主题次级文字色的矢量齿轮打开设置。
 正文与候选窗共用 `[general] font`；Segoe Fluent Icons 单独登记为 `zizai-icons` 字族，导航、设置行、提示记号都显式走它，不能进用户字体回退链。分节页、卡片与排版取值见 `docs/design/candidate-ui.md`「设置程序」。
 
 TSF 原有数字 / OEM 标点 / 空格键码按当前布局用 `ToUnicodeEx` 解析（bit 2 避免改变键盘状态），

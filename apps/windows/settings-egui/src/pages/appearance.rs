@@ -65,7 +65,7 @@ pub(crate) fn view(settings: &mut Settings, ui: &mut egui::Ui) {
             list.row(
                 "\u{E890}",
                 "悬浮状态条",
-                "桌面上常驻、可拖动的小条：点模式方章切换中 / 英，点「，。」切全角 / 半角标点，点「字在」图标打开设置。只在当前输入法是字在时显示。",
+                "桌面上常驻的小条：按住左侧 Logo 拖动，点「中 / A」切换模式，点「，。」切换全角 / 半角标点，点齿轮打开设置。只在当前输入法是字在时显示。",
                 |ui| {
                     let response = toggle(ui, &mut enabled, "悬浮状态条");
                     if response.changed() {

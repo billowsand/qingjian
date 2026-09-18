@@ -116,7 +116,7 @@
 ## Windows 半边（2026-09-15，真机已验）
 
 - **壳**：`apps/windows/server/src/ui/painter/`，候选窗口与悬浮状态条共用一份渲染器（字体库与字形缓存一份）；`layered::present` 把渲染器出的预乘 RGBA 位图换成 BGRA 后 `UpdateLayeredWindow` 贴上，阴影由渲染器画（`Shadow::mac_panel()`，参数与 macOS 面板一致；分层窗口没有系统阴影）。倍数取 DPI / 96。渲染器或字体库初始化失败时不显示候选窗口与状态条并记错误日志。
-- **状态条**：渲染器的 `render_status` 接收 `StatusCell::{Grip, Mode, Text, Brand}`，返回位图与各格右边界供点击命中；`Mode` 把「中 / A」画成当前色系方章，中文态有输入色圆点，双拼在右侧只留「鹤 / 自 / 微 / 搜」。设置入口用当前色系的矢量「字在」标记。
+- **状态条**：渲染器的 `render_status` 接收 `StatusCell::{Logo, Mode, Text, Gear}`，返回位图与各格右边界供点击命中；左格参考 `assets/readme/brand-system.png`，用当前色系的强调色与输入色画品牌 Logo，并作为唯一拖拽区域。`Mode` 与其余格共用整条背景，中心「中 / A」继续跟随候选字体，双拼在右侧只留「鹤 / 自 / 微 / 搜」。设置入口使用随主题次级文字色变化的矢量齿轮。
 - **配置**：`[general] font` 经 `CandidateSink::set_font` 送到 UI 线程，装上时与热加载变了时各送一次；字族名按 DirectWrite 的系统字体集合找文件（`qingjian_render::system_fonts`），设置程序的「字体」框也从它列字族。
 - **候选行类型**：Windows 壳直接用渲染器的 `Row` / `Tone`，不再有自己的一份。
 - **删候选的提示**：渲染器画在拼音行右侧。

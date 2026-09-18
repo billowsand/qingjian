@@ -13,6 +13,7 @@ mod color;
 mod error;
 mod fonts;
 mod frame;
+mod gear;
 mod renderer;
 mod shadow;
 mod text;

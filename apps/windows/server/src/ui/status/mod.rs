@@ -1,4 +1,4 @@
-//! 悬浮状态条：桌面上常驻、可拖动的四格浮窗 `[握柄][中 / A][，。/ ,.][字在]`，由字在渲染器绘制。
+//! 悬浮状态条：桌面上常驻、可拖动的四格浮窗 `[Logo][中 / A][，。/ ,.][⚙]`，由字在渲染器绘制。
 //!
 //! 按下鼠标先 `DragDetect`：挪出拖动阈值就交给系统的移动循环（`WM_NCLBUTTONDOWN` + `HTCAPTION`），
 //! 结束时 `WM_EXITSIZEMOVE` 报新位置；没挪就是点击，按 x 落进哪格。`WM_MOUSEACTIVATE` 回 `MA_NOACTIVATE` 不抢焦点。
@@ -137,7 +137,7 @@ impl StatusBar {
         self.dark.set(dark);
     }
 
-    /// 渲染器要的四格：握柄、模式（品牌色）、标点（生效时品牌色，否则灰）、设置入口品牌图标。
+    /// 渲染器要的四格：拖拽 Logo、普通模式文字、标点（生效时品牌色，否则灰）、设置齿轮。
     fn status_cells(view: &StatusView) -> Vec<StatusCell> {
         let scheme = if view.english {
             None
@@ -145,10 +145,10 @@ impl StatusBar {
             view.scheme.as_deref().and_then(shuangpin_mark)
         };
         vec![
-            StatusCell::Grip,
-            StatusCell::mode(if view.english { "A" } else { "中" }, scheme, !view.english),
+            StatusCell::Logo,
+            StatusCell::mode(if view.english { "A" } else { "中" }, scheme),
             StatusCell::text(if view.full_width { "，。" } else { ",." }, view.full_width),
-            StatusCell::Brand,
+            StatusCell::Gear,
         ]
     }
 
@@ -258,7 +258,7 @@ unsafe extern "system" fn wndproc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: 
         WM_MOUSEACTIVATE => LRESULT(MA_NOACTIVATE as isize),
         WM_LBUTTONDOWN => {
             if let Some(placement) = placement_of(hwnd) {
-                // lparam 低 16 位是客户区 x（有符号）。只有点阵握柄能拖，其他格直接执行点击。
+                // lparam 低 16 位是客户区 x（有符号）。只有左侧 Logo 能拖，其他格直接执行点击。
                 let client_x = (lparam.0 & 0xFFFF) as i16 as i32;
                 if placement.action_at(client_x) == Some(StatusAction::Drag) {
                     let mut point = POINT::default();
@@ -312,13 +312,13 @@ mod tests {
         let xiaohe = view(false, Some("xiaohe"));
         assert_eq!(
             StatusBar::status_cells(&xiaohe)[1],
-            StatusCell::mode("中", Some("鹤"), true)
+            StatusCell::mode("中", Some("鹤"))
         );
 
         let english = view(true, Some("xiaohe"));
         assert_eq!(
             StatusBar::status_cells(&english)[1],
-            StatusCell::mode("A", None::<&str>, false)
+            StatusCell::mode("A", None::<&str>)
         );
     }
 }

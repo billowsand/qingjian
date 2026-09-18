@@ -66,7 +66,7 @@ impl Placement {
         }
     }
 
-    /// `client_x` 落在哪一格；窗口过程用它把拖动限定到点阵握柄。
+    /// `client_x` 落在哪一格；窗口过程用它把拖动限定到左侧品牌 Logo。
     pub(super) fn action_at(&self, client_x: i32) -> Option<StatusAction> {
         let x = client_x - self.margin.get();
         self.cells

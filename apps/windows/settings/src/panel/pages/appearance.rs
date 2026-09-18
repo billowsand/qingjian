@@ -293,7 +293,7 @@ fn status_group(settings: &Settings, context: &mut ViewContext<Settings>) -> Vie
             field(
                 Symbol::Switch,
                 "显示悬浮状态条",
-                "桌面上常驻、可拖动的小条：从左侧点阵处拖动，点模式方章切换中 / 英，点「，。」切全角 / 半角标点，点齿轮打开设置。只在当前输入法是字在时显示，拖到哪下次还在哪。",
+                "桌面上常驻的小条：按住左侧 Logo 拖动，点「中 / A」切换模式，点「，。」切全角 / 半角标点，点齿轮打开设置。只在当前输入法是字在时显示，拖到哪下次还在哪。",
                 ToggleSwitch::new()
                     .is_on(settings.config.status_bar.enabled)
                     .on_toggled(context.callback(Message::StatusBar)),

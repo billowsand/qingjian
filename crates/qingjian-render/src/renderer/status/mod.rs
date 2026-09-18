@@ -1,4 +1,4 @@
-//! 悬浮状态条（Windows）：几格并排的小条 `[中 / 英][，。/ ,.][字在]`，每格内容居中、格间一条细线，圆角背景加阴影。
+//! 悬浮状态条（Windows）：几格并排的小条 `[Logo][中 / A][，。/ ,.][⚙]`，每格内容居中、格间一条细线，圆角背景加阴影。
 
 mod cell;
 mod rendered;
@@ -10,23 +10,28 @@ use super::{Metrics, Rendered, Renderer};
 use crate::brand_mark::draw_brand_mark;
 use crate::canvas::Canvas;
 use crate::error::RenderError;
+use crate::gear::draw_gear;
 use crate::shadow::Shadow;
-use crate::theme::Theme;
+use crate::theme::{FontSpec, Theme};
 
-/// 设置入口的「字在」图标边长（点）。
-const BRAND_SIZE: f32 = 18.0;
+/// 设置入口齿轮的边长（点）。
+const GEAR_SIZE: f32 = 15.0;
 
-/// 点阵拖拽握柄占的宽度（点）。
-const GRIP_WIDTH: f32 = 9.0;
+/// 左侧拖拽 Logo 的边长（点）：设计稿中约占 34 pt 条高的三分之二。
+const BRAND_MARK_SIZE: f32 = 23.0;
 
-/// 中 / A 方章的边长（点）。
-const MODE_BADGE_SIZE: f32 = 28.0;
+/// 状态条固定内容高度（点）。
+const STATUS_HEIGHT: f32 = 34.0;
 
-/// 方章与双拼单字标记的间距（点）。
-const MODE_SCHEME_GAP: f32 = 8.0;
+/// 中 / A 与双拼单字标记的间距（点）。
+const MODE_SCHEME_GAP: f32 = 6.0;
 
-/// 中文态右上角的本地生效圆点直径（点）。
-const MODE_LOCAL_DOT: f32 = 6.0;
+/// 英文态仍保留与设计稿一致的模式格宽度，不让 A 两侧显得拥挤。
+const MODE_MIN_CONTENT_WIDTH: f32 = 26.0;
+
+/// 标点在设计稿里比模式文字小一档；最小宽度让半角 `,.` 两侧仍有稳定留白。
+const PUNCTUATION_FONT: FontSpec = FontSpec::new(14.0, 17.0);
+const PUNCTUATION_MIN_CONTENT_WIDTH: f32 = 25.0;
 
 /// 格间细线的宽度（点）。
 const SEPARATOR_WIDTH: f32 = 1.0;
@@ -53,7 +58,9 @@ impl Renderer {
         if let Some(last) = widths.last_mut() {
             *last += content_width - total;
         }
-        let content_height = (line_height + padding).ceil();
+        let content_height = (line_height + padding)
+            .max(metrics.px(STATUS_HEIGHT))
+            .ceil();
         let margin = shadow.map_or(0.0, |s| metrics.px(s.margin()));
         let width = (content_width + margin * 2.0).ceil();
         let height = (content_height + margin * 2.0).ceil();
@@ -107,15 +114,22 @@ impl Renderer {
     /// 一格内容的宽度（像素，不含内边距）。
     fn status_cell_width(&mut self, cell: &StatusCell, m: &Metrics) -> f32 {
         match cell {
-            StatusCell::Grip => m.px(GRIP_WIDTH),
-            StatusCell::Mode { scheme, .. } => {
+            StatusCell::Logo => m.px(BRAND_MARK_SIZE),
+            StatusCell::Mode { text, scheme } => {
+                let style = m.text_style();
+                let text_width = self.measure(text, &style).width;
                 let scheme_width = scheme.as_ref().map_or(0.0, |scheme| {
-                    m.px(MODE_SCHEME_GAP) + self.measure(scheme, &m.text_style()).width
+                    m.px(MODE_SCHEME_GAP) + self.measure(scheme, &style).width
                 });
-                m.px(MODE_BADGE_SIZE) + scheme_width
+                (text_width + scheme_width).max(m.px(MODE_MIN_CONTENT_WIDTH))
             }
-            StatusCell::Text { text, .. } => self.measure(text, &m.text_style()).width,
-            StatusCell::Brand => m.px(BRAND_SIZE),
+            StatusCell::Text { text, .. } => {
+                let style = m.style(PUNCTUATION_FONT, m.theme.colors.text);
+                self.measure(text, &style)
+                    .width
+                    .max(m.px(PUNCTUATION_MIN_CONTENT_WIDTH))
+            }
+            StatusCell::Gear => m.px(GEAR_SIZE),
         }
     }
 
@@ -129,72 +143,36 @@ impl Renderer {
     ) {
         let (x, y, width, height) = slot;
         match cell {
-            StatusCell::Grip => {
-                let dot = m.px(1.8);
-                let gap = m.px(1.6);
-                let group_width = dot * 2.0 + gap;
-                let group_height = dot * 3.0 + gap * 2.0;
-                let left = x + (width - group_width) / 2.0;
-                let top = y + (height - group_height) / 2.0;
-                for row in 0..3 {
-                    for column in 0..2 {
-                        canvas.fill_round_rect(
-                            left + column as f32 * (dot + gap),
-                            top + row as f32 * (dot + gap),
-                            dot,
-                            dot,
-                            dot / 2.0,
-                            m.theme.colors.pos,
-                        );
-                    }
-                }
+            StatusCell::Logo => {
+                let size = m.px(BRAND_MARK_SIZE);
+                draw_brand_mark(
+                    canvas,
+                    x + (width - size) / 2.0,
+                    y + (height - size) / 2.0,
+                    size,
+                    m.theme,
+                );
             }
-            StatusCell::Mode {
-                text,
-                scheme,
-                local,
-            } => {
-                let badge = m.px(MODE_BADGE_SIZE);
+            StatusCell::Mode { text, scheme } => {
+                let style = m.text_style();
                 let gap = m.px(MODE_SCHEME_GAP);
+                let text_size = self.measure(text, &style);
                 let scheme_width = scheme
                     .as_ref()
-                    .map_or(0.0, |scheme| self.measure(scheme, &m.text_style()).width);
-                let content_width = badge + scheme.as_ref().map_or(0.0, |_| gap + scheme_width);
+                    .map_or(0.0, |scheme| self.measure(scheme, &style).width);
+                let content_width =
+                    text_size.width + scheme.as_ref().map_or(0.0, |_| gap + scheme_width);
                 let left = x + (width - content_width) / 2.0;
-                let top = y + (height - badge) / 2.0;
-                canvas.fill_round_rect(left, top, badge, badge, m.px(7.0), m.theme.colors.accent);
-
-                let badge_style =
-                    m.style(m.theme.text_font, crate::color::Color::rgb(255, 255, 255));
-                let badge_text = self.measure(text, &badge_style);
-                self.draw_text(
-                    canvas,
-                    text,
-                    &badge_style,
-                    left + (badge - badge_text.width) / 2.0,
-                    top + (badge - badge_text.height) / 2.0,
-                );
-
-                if *local {
-                    let dot = m.px(MODE_LOCAL_DOT);
-                    canvas.fill_round_rect(
-                        left + badge - dot - m.px(2.0),
-                        top + m.px(2.0),
-                        dot,
-                        dot,
-                        dot / 2.0,
-                        m.theme.colors.caret,
-                    );
-                }
+                let top = y + (height - text_size.height) / 2.0;
+                self.draw_text(canvas, text, &style, left, top);
 
                 if let Some(scheme) = scheme {
-                    let style = m.text_style();
                     let size = self.measure(scheme, &style);
                     self.draw_text(
                         canvas,
                         scheme,
                         &style,
-                        left + badge + gap,
+                        left + text_size.width + gap,
                         y + (height - size.height) / 2.0,
                     );
                 }
@@ -205,20 +183,20 @@ impl Renderer {
                 } else {
                     m.theme.colors.gloss
                 };
-                let style = m.style(m.theme.text_font, color);
+                let style = m.style(PUNCTUATION_FONT, color);
                 let size = self.measure(text, &style);
                 let left = x + (width - size.width) / 2.0;
                 let top = y + (height - size.height) / 2.0;
                 self.draw_text(canvas, text, &style, left, top);
             }
-            StatusCell::Brand => {
-                let size = m.px(BRAND_SIZE);
-                draw_brand_mark(
+            StatusCell::Gear => {
+                let size = m.px(GEAR_SIZE);
+                draw_gear(
                     canvas,
                     x + (width - size) / 2.0,
                     y + (height - size) / 2.0,
                     size,
-                    m.theme,
+                    m.theme.colors.gloss,
                 );
             }
         }
@@ -241,10 +219,10 @@ mod tests {
         };
         let mut renderer = Renderer::new(library);
         let cells = [
-            StatusCell::Grip,
-            StatusCell::mode("中", Some("鹤"), true),
+            StatusCell::Logo,
+            StatusCell::mode("中", Some("鹤")),
             StatusCell::text(",.", false),
-            StatusCell::Brand,
+            StatusCell::Gear,
         ];
         let out = renderer
             .render_status(&cells, &Theme::light(), 2.0, Some(&Shadow::mac_panel()))
@@ -260,7 +238,7 @@ mod tests {
     }
 
     #[test]
-    fn brand_mark_renders_in_every_theme_and_appearance() {
+    fn logo_mode_and_gear_render_in_every_theme_and_appearance() {
         let Ok(library) = FontLibrary::system("zh-CN") else {
             return;
         };
@@ -276,11 +254,48 @@ mod tests {
             Theme::forest(true),
         ] {
             let out = renderer
-                .render_status(&[StatusCell::Brand], &theme, 2.0, None)
+                .render_status(
+                    &[
+                        StatusCell::Logo,
+                        StatusCell::mode("中", None::<&str>),
+                        StatusCell::Gear,
+                    ],
+                    &theme,
+                    2.0,
+                    None,
+                )
                 .unwrap();
-            assert_eq!(out.cell_edges.len(), 1);
+            assert_eq!(out.cell_edges.len(), 3);
             assert!(out.rendered.content_width > 0);
             assert!(out.rendered.content_height > 0);
         }
+    }
+
+    #[test]
+    fn approved_english_layout_keeps_the_designed_spacing() {
+        let Ok(library) = FontLibrary::system("zh-CN") else {
+            return;
+        };
+        let mut renderer = Renderer::new(library);
+        let out = renderer
+            .render_status(
+                &[
+                    StatusCell::Logo,
+                    StatusCell::mode("A", None::<&str>),
+                    StatusCell::text(",.", false),
+                    StatusCell::Gear,
+                ],
+                &Theme::zizai(false),
+                1.0,
+                None,
+            )
+            .unwrap();
+        let edges: Vec<u32> = out
+            .cell_edges
+            .iter()
+            .map(|edge| edge.round() as u32)
+            .collect();
+        assert_eq!(edges, [39, 81, 122, 153]);
+        assert_eq!(out.rendered.content_height, 34);
     }
 }

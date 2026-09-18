@@ -3,7 +3,7 @@
 /// 状态条上一格点下去做什么。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum StatusAction {
-    /// 点阵握柄：只用于拖动，单击没有动作。
+    /// 左侧品牌 Logo：只用于拖动，单击没有动作。
     Drag,
 
     /// 「中 / 英」：切模式。
@@ -12,6 +12,6 @@ pub(crate) enum StatusAction {
     /// 「，。/ ,.」：切全角标点。
     TogglePunctuation,
 
-    /// 「字在」图标：打开设置程序（UI 线程直接起进程，不经 Router）。
+    /// 齿轮：打开设置程序（UI 线程直接起进程，不经 Router）。
     OpenSettings,
 }

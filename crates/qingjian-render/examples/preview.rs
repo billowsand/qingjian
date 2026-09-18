@@ -104,26 +104,38 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    // Windows 的悬浮状态条：握柄 + 模式方章 / 双拼简称 + 标点 + 设置
-    let cells = [
-        StatusCell::Grip,
-        StatusCell::mode("中", Some("鹤"), true),
-        StatusCell::text("，。", true),
-        StatusCell::Brand,
-    ];
-    for (theme_name, theme) in [("light", Theme::light()), ("dark", Theme::dark())] {
-        let status = renderer.render_status(&cells, &theme, args.scale, shadow.as_ref())?;
-        let path = args.out.join(format!("status-{theme_name}.png"));
-        status.rendered.pixmap.save_png(&path)?;
-        let (w, h) = status.rendered.content_size_points();
-        println!(
-            "{:<28} {:>4.0}×{:<4.0}pt  格边界 {:?}  {}",
-            format!("status-{theme_name}"),
-            w,
-            h,
-            status.cell_edges,
-            path.display()
-        );
+    // Windows 的悬浮状态条：四套色系各画浅 / 深、中 / 英，核对拖拽 Logo、普通模式格与设置齿轮。
+    for (theme_name, theme) in [
+        ("cream-light", Theme::cream(false)),
+        ("cream-dark", Theme::cream(true)),
+        ("zizai-light", Theme::zizai(false)),
+        ("zizai-dark", Theme::zizai(true)),
+        ("latte-light", Theme::latte(false)),
+        ("latte-dark", Theme::latte(true)),
+        ("forest-light", Theme::forest(false)),
+        ("forest-dark", Theme::forest(true)),
+    ] {
+        for (mode_name, mode, scheme, punctuation, emphasized) in [
+            ("zh", "中", Some("鹤"), "，。", true),
+            ("en", "A", None, ",.", false),
+        ] {
+            let cells = [
+                StatusCell::Logo,
+                StatusCell::mode(mode, scheme),
+                StatusCell::text(punctuation, emphasized),
+                StatusCell::Gear,
+            ];
+            let status = renderer.render_status(&cells, &theme, args.scale, shadow.as_ref())?;
+            let name = format!("status-{theme_name}-{mode_name}");
+            let path = args.out.join(format!("{name}.png"));
+            status.rendered.pixmap.save_png(&path)?;
+            let (w, h) = status.rendered.content_size_points();
+            println!(
+                "{name:<28} {w:>4.0}×{h:<4.0}pt  格边界 {:?}  {}",
+                status.cell_edges,
+                path.display()
+            );
+        }
     }
 
     for probe in [
