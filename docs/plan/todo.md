@@ -101,6 +101,15 @@
   - [~] **⑤ 任务栏点中/英反同步**（★☆☆ / 低 / 0.5 天）：**代码完成，待真机测**（2026-09-11）。
     激活时对转换模式 compartment 挂 `ITfCompartmentEventSink`（`com/conversion.rs`），`OnChange` 读回 `NATIVE` 位、与当前模式不同才翻转
     （防回环），顺带刷指示器 + 上报 Server 让悬浮状态条也同步。纯 DLL 改动、无新协议。
+  - [~] **⑥ 升级要重启系统 / 开机一分钟才能用**（★★★ / 中 / 1 天）：**代码完成，待真机测**（2026-09-18）。
+    两桩都是自用日志里坐实的：0.1.6 删 `Frame::layout` 没升 `PROTOCOL_VERSION`，没重启的应用里旧 DLL 每键报
+    `missing field layout`、断开重连再失败，只能重启系统；开机 08:33:03 登录、Server 08:34:08 才被「启动」文件夹拉起来（65 秒），
+    而它自己从进程起到管道就绪只要 100 ms。三处改：协议全面向后兼容（结构体 `#[serde(default)]`、未知枚举名与未知消息变体各有退路，
+    `protocol/tests.rs` 的样例 JSON 盯着线上格式），并给已经发出去的那批 DLL 留了 `Frame::legacy_layout` 坟墓字段
+    （恒发 `"layout":"horizontal"`，这样装这一版时也不用重启系统；再发一两个版本就删）；DLL 连不上就自己拉 Server（`client/launch.rs`，debug 构建不拉）、
+    连不上的键一律放行（从前吃掉，用户看到的是「打不出字」）、协议对不上合闸整键放行（`client/mismatch.rs`）；安装器静默安装也起 Server。
+    真机验三条：① 开机后多久能打中文 ② 覆盖安装后不重启系统，新开的程序能不能打中文、已开着的是不是退成英文且重启该程序即恢复
+    ③ 手动结束 Server 进程后敲一键会不会自己回来。
   - [ ] 发版：换 **Certum 开源代码签名证书**重签（开发全程自签 + 本机受信任根，见 `installer/sign-local.ps1`）、
     `windows-v<版本>` 标签与 CI；打标签前先重传产品数据：`data` Release 上的 `qingjian-data.tar.gz` 还缺 `glossary-es.qj`（0.1.3 新增西语），
     先在生成机 `cargo run -p qingjian-dict-convert -- pack glossary --language es` 再跑 `tools/release/data-bundle.sh`，否则 `iscc` 报 `Source file ... does not exist`。

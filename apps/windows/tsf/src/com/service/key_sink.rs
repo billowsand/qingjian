@@ -10,6 +10,7 @@ use qingjian_platform::protocol::{KeyEvent, KeyOutcome};
 
 use super::TextService_Impl;
 use super::next::Next;
+use crate::client::mismatch;
 use crate::com::composition::preedit_string;
 use crate::com::key::event::{digit_key, is_edit, is_letter, is_nav, to_key_event};
 use crate::com::log::log;
@@ -99,7 +100,13 @@ impl TextService_Impl {
     /// 带 Ctrl/Alt/Win 只有组句中的「修饰键 + 数字」送 Server（删候选），其余归应用；
     /// 字母只有「中文模式、没在组句、按住 Shift 的大写」归应用；组句中功能键 / 方向键 / 可打印字符都吃；
     /// 没在组句时数字 / 标点也先「测吃」送去转全角（中英各有一份开关），Server 不转的回 Passthrough 再放行；`?` 是问字前缀。
+    ///
+    /// 协议对不上时一个键都不吃：本进程的旧 DLL 换不掉，吃了也变不出中文，还不如整键还给应用当英文打
+    /// （见 [`mismatch`](crate::client::mismatch)）。
     fn would_eat(&self, event: &KeyEvent) -> bool {
+        if mismatch::detected() {
+            return false;
+        }
         let modifiers = event.modifiers;
         if modifiers.has_command_key() {
             return self.shared.composing() && digit_key(event.virtual_key);
@@ -129,9 +136,11 @@ impl TextService_Impl {
 
     /// 把按键送给 Server 并按结果更新文档；返回吃不吃。
     fn forward_key(&self, pic: Ref<ITfContext>, event: KeyEvent) -> bool {
-        // 没连上 Server：快捷键组合归应用（别吞了 Ctrl+C），其余吃掉别让拼音漏进应用。
+        // 没连上 Server（开机时它还没起来、刚升级完、被结束了进程）：整键放行。
+        // 吃掉的话这段时间里用户什么都打不出来，还不如让字母直接进应用当英文打——反正没有 Server
+        // 也变不出中文。`OnTestKeyDown` 那边说了吃、这里放行，是 TSF 允许的（应用照收不误）。
         if !self.ensure_connected() {
-            return !event.modifiers.has_command_key();
+            return false;
         }
         // OnTestKeyDown 已声明吃的可打印字符，Server 放行时由输入法自己插入：退回应用的话，企业微信 /
         // 微信 / notepad++ 这类自绘输入框会把它丢掉。功能键（无字符）仍交给应用。
@@ -143,7 +152,7 @@ impl TextService_Impl {
         let next = {
             let mut guard = self.engine.borrow_mut();
             let Some(client) = guard.as_mut() else {
-                return true;
+                return false;
             };
             // 组句被应用终止过：先让 Server 清掉残留的拼音（文本已在文档里，交出的丢弃）。
             let response = if self.shared.take_server_stale() {
@@ -175,7 +184,13 @@ impl TextService_Impl {
                     }
                 }
                 Err(error) => {
-                    log(&format!("转发按键失败，放行并断开，下一键重连: {error}"));
+                    // 读不懂 Server 的话 = 本进程加载的是升级前的旧 DLL：合上闸，之后整键放行，
+                    // 别再每键「失败 → 重连 → 再失败」地抖下去（那样这个应用里既打不出字又吞键）。
+                    if error.is_protocol_mismatch() {
+                        mismatch::mark(&error.to_string());
+                    } else {
+                        log(&format!("转发按键失败，放行并断开，下一键重连: {error}"));
+                    }
                     *guard = None;
                     self.last_connect_failure.set(None);
                     self.shared.end_composing();

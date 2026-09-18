@@ -129,6 +129,7 @@ impl Router {
                 theme: self.config.theme,
                 notice: self.notice.clone(),
                 inline_preedit: self.config.preedit.inline(),
+                ..Frame::default()
             },
             Some(Composed::Candidates {
                 preedit,
@@ -155,6 +156,7 @@ impl Router {
                     theme: self.config.theme,
                     notice: self.notice.clone(),
                     inline_preedit: self.config.preedit.inline(),
+                    ..Frame::default()
                 }
             }
         }

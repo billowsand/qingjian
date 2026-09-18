@@ -3,7 +3,11 @@ use serde::{Deserialize, Serialize};
 use super::modifiers::KeyModifiers;
 
 /// DLL 从 TSF `OnKeyDown` / `OnTestKeyDown` 抓到的一次按键，发给 Server 判定。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+///
+/// 与 [`Frame`](crate::protocol::Frame) 同理整个结构 `#[serde(default)]`：缺字段退到虚拟键 0
+/// （Server 当它没按键、放行），不让整条消息解析失败。
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
 pub struct KeyEvent {
     /// Windows 虚拟键码（`VK_*`）。翻页、方向键、退格、回车等靠它区分。
     pub virtual_key: u32,

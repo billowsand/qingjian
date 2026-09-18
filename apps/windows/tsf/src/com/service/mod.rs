@@ -33,6 +33,20 @@ pub(crate) type SharedClient = Rc<RefCell<Option<EngineClient<PipeStream>>>>;
 /// 连不上 Server 后隔多久再试（每次尝试都在应用的 UI 线程上，不能每键都试）。
 const RECONNECT_INTERVAL: Duration = Duration::from_secs(2);
 
+/// 拉起 Server 后隔多久才允许再拉一次：进程从起到管道就绪约一百毫秒，但开机时磁盘忙得多，
+/// 留足余量，免得在它起来的路上又拉一个（那个会发现管道被占、自己退出）。
+const LAUNCH_INTERVAL: Duration = Duration::from_secs(10);
+
+/// 刚拉起 Server 后就地等管道出现的上限。实测 ShellExecute 返回到管道就绪约 120 ms，
+/// 等这么一下用户按的那一键就能接上；再久就不值了——这一等在应用的 UI 线程上。
+const LAUNCH_WAIT: Duration = Duration::from_millis(400);
+
+/// 上面那段等待里每次重试的间隔。
+const LAUNCH_POLL: Duration = Duration::from_millis(40);
+
+/// 刚拉起过 Server 时的重连退避：它还在起来的路上，用常规的两秒会让用户白敲好几键。
+const RECONNECT_AFTER_LAUNCH: Duration = Duration::from_millis(300);
+
 /// 一个 TSF 文本服务实例（每线程一个）。
 #[implement(ITfTextInputProcessor, ITfKeyEventSink, ITfDisplayAttributeProvider)]
 pub struct TextService {
@@ -53,6 +67,9 @@ pub struct TextService {
 
     /// 上次连 Server 失败的时间，按 [`RECONNECT_INTERVAL`] 退避。
     last_connect_failure: Cell<Option<Instant>>,
+
+    /// 上次拉起 Server 的时间，按 [`LAUNCH_INTERVAL`] 节流。
+    last_launch: Cell<Option<Instant>>,
 
     /// 中 / 英模式（单击 Shift 翻转），与语言栏按钮共用。
     mode_state: Rc<ModeState>,
@@ -113,6 +130,7 @@ impl TextService {
             engine,
             poll_timer: RefCell::new(None),
             last_connect_failure: Cell::new(None),
+            last_launch: Cell::new(None),
             mode_state: ModeState::new(),
             mode_button: RefCell::new(None),
             conversion_sink: RefCell::new(None),

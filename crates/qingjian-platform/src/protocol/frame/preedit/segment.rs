@@ -6,7 +6,10 @@ use super::kind::PreeditKind;
 
 /// preedit（组句拼音行）的一段。整段 preedit 是若干段按顺序拼起来，光标位置按拼接后的字符数算。
 /// 是 Core 的 [`MarkedSegment`] 的可序列化镜像。
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+///
+/// 与 [`Frame`](crate::protocol::Frame) 同理整个结构 `#[serde(default)]`，缺字段不炸旧 DLL。
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
 pub struct PreeditSegment {
     /// 文本。
     pub text: String,

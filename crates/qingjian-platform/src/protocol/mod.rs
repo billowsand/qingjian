@@ -14,13 +14,23 @@ mod screen_rect;
 mod server;
 mod session;
 
-/// 协议版本，DLL 开会话时带上。加消息 / 改字段语义时 +1；Server 只对不上时记警告（老 DLL 在没重启的
-/// 应用里还会活很久，serde 的缺省字段 / 忽略未知字段让两边仍能对话）。
+#[cfg(test)]
+mod tests;
+
+/// 协议版本，DLL 开会话时带上。**改了这个目录里的任何类型就 +1**（`tests` 里的样例 JSON 会盯着，
+/// 忘了改测试就红）；Server 对不上只记警告——升级安装后老 DLL 还留在没重启的应用里，得继续服务。
 ///
-/// 但**枚举新加的变体不在「忽略未知」的保护范围里**：老 DLL 收到不认识的变体名，
-/// 整条消息反序列化就失败。所以新变体要么等老 DLL 淘汰，要么由 Server 按会话版本降级发送
-/// （见 `dispatch::composed` 里对 [`PreeditKind::Fuma`] 的处理）。
-pub const PROTOCOL_VERSION: u32 = 6;
+/// 两端不同版本还能对话，靠的是：
+/// - **结构体缺字段退默认值**：[`Frame`] / [`PreeditSegment`] / [`KeyEvent`] / [`ScreenRect`] /
+///   [`KeyModifiers`] 都是整个结构 `#[serde(default)]`，所以加字段、删字段、改名都不炸对面。
+/// - **未知枚举名退到安全的一档**：[`PreeditKind`] 退 `Typed`、[`KeyOutcome`] 退 `Passthrough`。
+/// - **未知消息变体整条跳过**：收的一方用 [`read_incoming`] 读，得到 [`Incoming::Unknown`] 就跳过
+///   （老 DLL 是一问一答，等不到应答仍会失败，所以新消息还是要么等老 DLL 淘汰、要么由 Server
+///   按会话版本降级发送，见 `dispatch::composed` 里对 [`PreeditKind::Fuma`] 的处理）。
+///
+/// 0.1.6 之前 [`Frame`] 的字段是必填的，删掉 `layout` 那次让所有没重启的应用每键都失败
+/// （只能重启系统），上面第一条就是为这个加的。
+pub const PROTOCOL_VERSION: u32 = 7;
 
 /// 从这版起 preedit 里可能出现 [`PreeditKind::Fuma`]；更早的 DLL 要降级成它认识的种类。
 pub const FUMA_PREEDIT_PROTOCOL: u32 = 5;
@@ -29,7 +39,9 @@ pub mod frame;
 pub mod key;
 
 pub use client::ClientMessage;
-pub use codec::{CodecError, DEFAULT_PIPE_NAME, read_message, write_message};
+pub use codec::{
+    CodecError, DEFAULT_PIPE_NAME, Incoming, read_incoming, read_message, write_message,
+};
 pub use frame::{Frame, PreeditKind, PreeditSegment};
 pub use key::{KeyEvent, KeyModifiers, KeyOutcome};
 pub use screen_rect::ScreenRect;

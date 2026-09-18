@@ -8,6 +8,7 @@ use crate::config::Modifiers;
 /// 普通字符键通常都是 `false`，能干净序列化——不像配置层的 `Modifiers`（走字符串、空值不合法，
 /// 那个是给快捷键配置用的）。协议要能表达「没有修饰键」，所以自带这个而不复用它。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(default)]
 pub struct KeyModifiers {
     /// Ctrl
     pub ctrl: bool,
@@ -22,11 +23,9 @@ pub struct KeyModifiers {
     pub win: bool,
 
     /// Caps Lock 亮着（锁定状态，不是按着）。管字母大小写；亮着时无论中英文模式都直接出大写英文（微软拼音式）。
-    #[serde(default)]
     pub caps: bool,
 
     /// 持久的英文模式（Windows 单击 Shift 切换，DLL 记状态）。中文模式为 `false`。
-    #[serde(default)]
     pub english_mode: bool,
 }
 

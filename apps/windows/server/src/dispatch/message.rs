@@ -23,7 +23,8 @@ impl Router {
                         app,
                         dll = protocol,
                         server = PROTOCOL_VERSION,
-                        "DLL 与 Server 的协议版本不同（应用还没重启、用着旧 DLL？），照常服务"
+                        "DLL 与 Server 的协议版本不同，照常服务：\
+                         升级安装后这个应用还没重启、用着旧 DLL，重启它就换成新的"
                     );
                 }
                 // 同一会话重开（DLL 断线重连）：从干净状态起。

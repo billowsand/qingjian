@@ -5,7 +5,10 @@ use serde::{Deserialize, Serialize};
 ///
 /// 对应 Win32 的 `RECT`，但不依赖 `windows` crate、可 serde，两端共用（候选窗口自绘搬到了 Server 进程，
 /// 才能盖过微软商店 / 任务栏搜索这些高 z-band 宿主）。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+///
+/// 与 [`Frame`](super::Frame) 同理整个结构 `#[serde(default)]`，缺字段退到零矩形而不是整条消息失败。
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
 pub struct ScreenRect {
     /// 左边界。
     pub left: i32,

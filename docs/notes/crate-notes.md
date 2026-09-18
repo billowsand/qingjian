@@ -94,6 +94,16 @@ Engine 侧在 `engine/rescoring/`：接了打分器就取 Viterbi 前 `RESCORE_P
 （Windows Server 与设置程序共用，同名 `.qj` 优先于 `.tsv`）；`protocol` 模块是 Windows Server ↔ TSF DLL 的 IPC 协议类型
 （`ClientMessage` / `ServerMessage` / `Frame` / `PreeditSegment`，全 serde，两端共用，见 `docs/design/architecture.md`「Windows：TSF」）。
 
+协议的跨版本兼容是硬要求：升级安装时 DLL 换不掉已经开着的应用（按版本并排装），那些进程里的旧 DLL 要继续跟新 Server 说得上话。
+**改了 `protocol/` 里任何类型就把 `PROTOCOL_VERSION` +1**，`protocol/tests.rs` 里的样例 JSON 会盯着这件事。兼容靠三层：
+结构体整个 `#[serde(default)]`（`Frame` / `PreeditSegment` / `KeyEvent` / `ScreenRect` / `KeyModifiers`，还有协议直接传的 Core 类型 `Candidate` / `CandidateList`），
+所以加字段、删字段、改名都不炸对面；枚举认不出的名字退到安全的一档（`PreeditKind` 退 `Typed`、`KeyOutcome` 退 `Passthrough`、`CandidateKind` 退 `Chinese`）；
+消息变体是最弱的一环——只管收的那端用 `read_incoming` 得到 `Incoming::Unknown` 可以跳过，但一问一答的那端等不到应答仍会失败，
+所以新消息要么等旧 DLL 淘汰、要么由 Server 按会话版本降级发（`dispatch::composed` 对 `PreeditKind::Fuma` 就是这么做的）。
+0.1.6 删 `Frame::layout` 时字段还是必填的，所有没重启的应用每键都失败、只能重启系统，前两层就是为这个加的。
+那批 DLL 已经发出去了，只能反过来迁就：`Frame::legacy_layout` 是个只写不读的坟墓字段，恒发 `"layout":"horizontal"`，
+让 0.1.6 之前的 DLL 还能解析新 Server 的帧；等它们淘汰干净（再发一两个版本）就删掉，删时 `PROTOCOL_VERSION` 照例 +1。
+
 ## crates/qingjian-render
 
 自绘渲染器：候选窗一帧 + 主题 → 预乘 RGBA 位图，tiny-skia 栅格 + cosmic-text 文字（fontdb 按平台清单只加载几个字体文件、不扫系统），
@@ -131,6 +141,17 @@ Engine 侧在 `engine/rescoring/`：接了打分器就取 Viterbi 前 `RESCORE_P
 
 TSF 原有数字 / OEM 标点 / 空格键码按当前布局用 `ToUnicodeEx` 解析（bit 2 避免改变键盘状态），
 仅接受单个非代理项 UTF-16 单元。字母、小键盘和 AltGr 处理不变，不保证组合音符输入。
+
+Server 没起来时 DLL 自己拉（`client/launch.rs`）：管道不在就 `ShellExecuteW` 起同目录的 `qingjian-server.exe`
+（uiAccess 的 exe 只能经外壳拉起，`CreateProcess` 报 740），`Local\Qingjian.ServerLaunch` 互斥体跨进程去重，
+每进程 10 秒最多拉一次。拉起后由 `service/connection.rs` 每 40 ms 重试连接、最多 400 ms
+（这段在应用的 UI 线程上，久了 TSF 看门狗会切走输入法），没等到也不慌：刚拉起过的 10 秒内重连退避缩到 300 ms。
+**别用 `WaitNamedPipeW` 等**——它只等「管道在、实例都忙」，管道还没建出来时立刻就失败，
+2026-09-18 真机踩过：拉起了却要三秒才连上（Server 从 `ShellExecute` 返回到管道就绪只要 120 ms）。
+开机时「启动」文件夹要等 Explorer 放行（实测登录到 Server 就绪隔了一分钟），升级安装、用户结束进程后也各有空窗，
+靠这个把「切过去打不出字」的窗口从分钟级压到一次按键。**连不上 Server 的键一律放行**（从前是吃掉），没有 Server 也变不出中文，
+不如让字母直接进应用当英文打。协议对不上（本进程还加载着升级前的旧 DLL）时合上 `client/mismatch.rs` 的进程级闸：
+之后整键放行、不再连 Server、日志只记一次，重启这个应用即恢复。
 
 ## assets
 

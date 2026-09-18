@@ -24,7 +24,12 @@ pub use sense::Sense;
 pub use translation::Translation;
 
 /// 一个可上屏的候选。
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+///
+/// Windows 的 IPC 协议直接传这个类型（`qingjian_platform::protocol::Frame` 里的候选列表），
+/// 所以整个结构 `#[serde(default)]`：升级安装后老 DLL 还留在没重启的应用里，加字段、删字段、
+/// 改名都不能让它整帧解析失败。改字段前先读 `protocol::PROTOCOL_VERSION` 的说明。
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
 pub struct Candidate {
     /// 上屏文本。
     pub text: String,
@@ -42,7 +47,6 @@ pub struct Candidate {
     pub translation: Option<Translation>,
 
     /// 这个候选的辅码（`栏` → `ms`），只在敲了辅码时填：候选窗标出来，用户才知道下次该敲什么。
-    /// 表里查不到首末字时为 `None`。老 DLL 不认识这个字段，serde 会忽略掉（未知字段不像枚举变体那样报错）。
-    #[serde(default)]
+    /// 表里查不到首末字时为 `None`。
     pub fuma: Option<String>,
 }

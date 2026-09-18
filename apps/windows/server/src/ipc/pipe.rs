@@ -23,7 +23,9 @@ use windows::Win32::System::Pipes::{
 };
 use windows::core::{HRESULT, HSTRING};
 
-use qingjian_platform::protocol::{ClientMessage, ServerMessage, read_message, write_message};
+use qingjian_platform::protocol::{
+    ClientMessage, Incoming, ServerMessage, read_incoming, write_message,
+};
 
 use super::Work;
 use crate::dispatch::Router;
@@ -166,12 +168,17 @@ fn wait_client(stream: File) -> io::Result<File> {
 }
 
 /// 服务一条连接：读消息 → 转给工人线程 → 写回，直到对端在帧边界关闭或出错。
+/// 读不懂的消息（比自己新的 DLL 发来的新变体）跳过接着读，别把连接断掉——断了对面每键都要重连。
 fn serve_connection(mut stream: File, sender: Sender<Work>) {
     let (reply_sender, reply_receiver) = mpsc::channel::<Option<ServerMessage>>();
     loop {
-        let message = match read_message::<_, ClientMessage>(&mut stream) {
-            Ok(Some(message)) => message,
-            Ok(None) => break,
+        let message = match read_incoming::<_, ClientMessage>(&mut stream) {
+            Ok(Incoming::Message(message)) => message,
+            Ok(Incoming::Unknown(reason)) => {
+                tracing::warn!(reason, "跳过一条读不懂的客户端消息（DLL 比 Server 新？）");
+                continue;
+            }
+            Ok(Incoming::Eof) => break,
             Err(error) => {
                 tracing::warn!(%error, "客户端会话读出错");
                 break;

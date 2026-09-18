@@ -4,7 +4,8 @@
 ; 然后：① 给安装目录加 ALL APPLICATION PACKAGES 读+执行权限（UWP/AppContainer 应用——任务栏搜索、
 ; 设置——才能加载 DLL）；② regsvr32 注册文本服务，64 位与 32 位各注册一次（图标落到 %ProgramData%\Qingjian）；
 ; ③ 在「启动」文件夹放 Server 快捷方式（登录时由 Explorer 走 ShellExecute 拉起，uiAccess 才生效——
-;    计划任务直接拉起拿不到 uiAccess）；④ 装完点 Finish 立即以原用户 ShellExecute 起一次 Server，免得先注销。
+;    计划任务直接拉起拿不到 uiAccess）；④ 装完立即以原用户 ShellExecute 起一次 Server，免得先注销
+;    （静默安装没有完成页，在 ssPostInstall 起；有向导时在点 Finish 之后起）。
 ; 卸载反向：删旧任务（若有）、杀 Server、反注册 DLL，再删文件（用户数据 %APPDATA%\Qingjian 保留；启动快捷方式 Inno 自动删）。
 ;
 ; 升级：DLL 被加载进每个应用进程，文件锁着覆盖不了，所以 DLL 按版本起名（qingjian_tsf-<版本>.dll）并排装，
@@ -233,25 +234,34 @@ begin
   end;
 end;
 
+{ 起一次 Server。uiAccess=true 的 exe 不能用 CreateProcess / runasoriginaluser 拉起（报 740），
+  必须以原（非提升）用户身份 ShellExecute（等同双击），AppInfo 才会授予 uiAccess 高 z-band 权限。 }
+procedure StartServer;
+var
+  ErrorCode: Integer;
+begin
+  ShellExecAsOriginalUser(
+    '', ExpandConstant('{app}\qingjian-server.exe'), '', ExpandConstant('{app}'),
+    SW_SHOWNORMAL, ewNoWait, ErrorCode);
+end;
+
 procedure CurStepChanged(CurStep: TSetupStep);
 begin
   if CurStep = ssPostInstall then
   begin
     DeleteLegacyLogonTask;
     DeleteStaleDlls;
+    { 静默安装（升级脚本、企业推送）没有完成页，在这里起；不然 PrepareToInstall 杀掉的 Server
+      要等到下次登录才回来，这中间输入法在每个应用里都连不上。 }
+    if WizardSilent then
+      StartServer;
   end;
 end;
 
-{ 装完在完成页点 Finish 后立即起一次 Server。
-  uiAccess=true 的 exe 不能用 CreateProcess / runasoriginaluser 拉起（报 740），
-  必须以原（非提升）用户身份 ShellExecute（等同双击），AppInfo 才会授予 uiAccess 高 z-band 权限。 }
+{ 有向导时在完成页点 Finish 之后起，免得装到一半就冒出状态条。 }
 function NextButtonClick(CurPageID: Integer): Boolean;
-var
-  ErrorCode: Integer;
 begin
   Result := True;
   if (CurPageID = wpFinished) and (not WizardSilent) then
-    ShellExecAsOriginalUser(
-      '', ExpandConstant('{app}\qingjian-server.exe'), '', '',
-      SW_SHOWNORMAL, ewNoWait, ErrorCode);
+    StartServer;
 end;

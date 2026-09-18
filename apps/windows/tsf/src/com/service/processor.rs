@@ -20,8 +20,9 @@ impl ITfTextInputProcessor_Impl for TextService_Impl {
         let sink: ITfKeyEventSink = self.to_interface();
         unsafe { keystroke.AdviseKeyEventSink(tid, &sink, true)? };
         self.client_id.set(tid);
-        // 连不上 Server、没定时器都不致命。
-        self.connect();
+        // 连不上 Server、没定时器都不致命。走 ensure_connected 而不是直接 connect：
+        // 协议对不上时一次都不该连（见 connection.rs）。用户刚切到本输入法，这里也是拉起 Server 最好的时机。
+        self.ensure_connected();
         match PollTimer::new(self.engine.clone(), self.shared.clone()) {
             Ok(timer) => *self.poll_timer.borrow_mut() = Some(timer),
             Err(error) => log(&format!("挂云联想轮询定时器失败: {error}")),

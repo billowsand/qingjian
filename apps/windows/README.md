@@ -61,7 +61,9 @@ cargo build -p qingjian-windows-tsf -p qingjian-windows-server
 :: 2) 注册文本服务（改 HKEY_CLASSES_ROOT，图标写到 %ProgramData%\Qingjian\qingjian.ico，要管理员）
 regsvr32 target\debug\qingjian_tsf.dll
 
-:: 3) 起 Server（引擎在这里；没起时 DLL 吃掉字母键但没有候选，起来后下一键 / 下次聚焦自动重连）
+:: 3) 起 Server（引擎在这里；没起时 DLL 整键放行——所敲字母直接进应用，起来后下一键 / 下次聚焦自动重连）
+::    release 的 DLL 会自己拉起同目录的 qingjian-server.exe；debug 的不拉（会占住 target\debug 里的 exe，
+::    下一次 cargo build 链接不上），所以开发时这一步得自己跑
 cargo run -p qingjian-windows-server
 
 :: 4) 在系统「语言 / 输入法」里应能看到「字在」，切到它，在任意输入框敲字

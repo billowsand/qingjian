@@ -22,6 +22,7 @@ use super::composition::Shared;
 use super::log::log;
 use super::service::SharedClient;
 use super::window_class::WindowClass;
+use crate::client::mismatch;
 
 const CLASS_NAME: PCWSTR = w!("QingjianPollWindow");
 static CLASS: WindowClass = WindowClass::new();
@@ -127,10 +128,20 @@ fn poll_once(context: &PollContext) {
     match client.poll() {
         Ok(_) => {}
         Err(error) => {
-            log(&format!("云联想轮询失败，断开，下一键重连: {error}"));
+            note_error("轮询失败", &error);
             *guard = None;
             context.shared.end_composing();
         }
+    }
+}
+
+/// 断开前记一笔。读不懂 Server 的话就合上协议闸（见 [`mismatch`]）：这一拍每 80 毫秒来一次，
+/// 不合闸会把日志刷爆，用户那边也一直是「吃了键又打不出字」。
+fn note_error(what: &str, error: &crate::ClientError) {
+    if error.is_protocol_mismatch() {
+        mismatch::mark(&error.to_string());
+    } else {
+        log(&format!("{what}，断开，下一键重连: {error}"));
     }
 }
 
@@ -145,7 +156,7 @@ fn sync_mode(context: &PollContext) {
     let english = match client.sync_mode() {
         Ok(english) => english,
         Err(error) => {
-            log(&format!("同步中英模式失败，断开，下一键重连: {error}"));
+            note_error("同步中英模式失败", &error);
             *guard = None;
             return;
         }
